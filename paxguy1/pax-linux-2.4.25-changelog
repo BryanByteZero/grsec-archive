@@ -1,0 +1,147 @@
+2004-04-11 17:11  paxguy1
+
+	* fs/proc/array.c: Report PaX flags in /proc/pid/status.
+
+2004-04-11 17:09  paxguy1
+
+	* arch/i386/mm/ioremap.c, include/asm-i386/pgalloc.h, mm/memory.c,
+	mm/vmalloc.c, include/linux/mm.h: All kernel PDEs should be
+	supervisor mode.
+
+2004-04-11 17:00  paxguy1
+
+	* fs/: binfmt_misc.c, exec.c: Prevent recursive binftm_misc calls.
+
+2004-04-11 16:57  paxguy1
+
+	* include/linux/binfmts.h: Prevent recursive binftm_misc calls.
+
+2004-04-11 16:46  paxguy1
+
+	* arch/i386/: config.in, kernel/setup.c, mm/init.c: Handle
+	KERNEXEC/PGE better.
+
+2004-04-11 16:40  paxguy1
+
+	* arch/i386/: vmlinux.lds.S, kernel/head.S, kernel/traps.c: Better
+	section attributes for KERNEXEC use.
+
+2004-03-02 08:47  paxguy1
+
+	* arch/i386/config.in: Safer KERNEXEC config dependencies.
+
+2004-02-24 18:27  paxguy1
+
+	* fs/binfmt_elf.c: Typo.
+
+2004-02-24 17:29  paxguy1
+
+	* arch/i386/config.in, arch/i386/kernel/head.S,
+	arch/i386/kernel/setup.c, arch/i386/kernel/traps.c,
+	arch/i386/mm/init.c, include/asm-i386/desc.h,
+	include/asm-i386/pgtable.h: Better KERNEXEC for SMP.
+
+2004-02-24 08:45  paxguy1
+
+	* arch/alpha/config.in, fs/binfmt_elf.c, fs/exec.c,
+	arch/i386/config.in, arch/ia64/config.in,
+	arch/mips/config-shared.in, arch/parisc/config.in,
+	arch/ppc/config.in, arch/sparc/config.in, arch/sparc64/config.in,
+	arch/x86_64/config.in, mm/mmap.c: RANDEXEC needs MPROTECT, also
+	mirror brk() regions when needed.
+
+2004-02-24 08:44  paxguy1
+
+	* mm/memory.c: Report BUG instead of ignoring it.
+
+2004-02-24 08:43  paxguy1
+
+	* include/linux/mm.h: Removed unnecessary define.
+
+2004-02-24 08:42  paxguy1
+
+	* Documentation/Configure.help: Added paxctl references.
+
+2004-02-21 07:55  paxguy1
+
+	* mm/mmap.c: Make MNT_NOEXEC actually meaningful.
+
+2004-02-19 15:00  paxguy1
+
+	* fs/binfmt_elf.c: Fixed typos, thanks Peter S. Mazinger
+
+2004-02-19 10:38  paxguy1
+
+	* mm/mprotect.c: Fixed vma mirroring when MPROTECT was off.
+
+2004-02-18 16:41  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Initial import of PaX.
+
+2004-02-18 16:26  paxguy1
+
+	* Documentation/Configure.help, arch/alpha/config.in,
+	arch/alpha/kernel/osf_sys.c, arch/alpha/mm/fault.c,
+	arch/i386/Makefile, arch/i386/config.in, arch/i386/vmlinux.lds,
+	arch/i386/boot/bootsect.S, arch/i386/boot/setup.S,
+	arch/i386/kernel/apm.c, arch/i386/kernel/entry.S,
+	arch/i386/kernel/head.S, arch/i386/kernel/i386_ksyms.c,
+	arch/i386/kernel/ldt.c, arch/i386/kernel/pci-pc.c,
+	arch/i386/kernel/process.c, arch/i386/kernel/setup.c,
+	arch/i386/kernel/sys_i386.c, arch/i386/kernel/trampoline.S,
+	arch/i386/kernel/traps.c, arch/i386/mm/fault.c,
+	arch/i386/mm/init.c, arch/ia64/config.in,
+	arch/ia64/ia32/binfmt_elf32.c, arch/ia64/ia32/sys_ia32.c,
+	arch/ia64/kernel/sys_ia64.c, arch/ia64/mm/fault.c,
+	arch/mips/config-shared.in, arch/mips/kernel/syscall.c,
+	arch/mips/mm/fault.c, arch/mips64/kernel/binfmt_elfn32.c,
+	arch/mips64/kernel/binfmt_elfo32.c, arch/mips64/kernel/syscall.c,
+	arch/mips64/mm/fault.c, arch/parisc/config.in,
+	arch/parisc/kernel/sys_parisc.c, arch/parisc/kernel/sys_parisc32.c,
+	arch/parisc/kernel/traps.c, arch/parisc/mm/fault.c,
+	arch/ppc/config.in, arch/ppc/kernel/head_4xx.S,
+	arch/ppc/kernel/syscalls.c, arch/ppc/mm/fault.c,
+	arch/sparc/config.in, arch/sparc/kernel/sys_sparc.c,
+	arch/sparc/kernel/sys_sunos.c, arch/sparc/mm/fault.c,
+	arch/sparc/mm/init.c, arch/sparc/mm/srmmu.c,
+	arch/sparc64/config.in, arch/sparc64/kernel/itlb_base.S,
+	arch/sparc64/kernel/sys_sparc.c, arch/sparc64/kernel/sys_sparc32.c,
+	arch/sparc64/kernel/sys_sunos32.c, arch/sparc64/mm/fault.c,
+	arch/sparc64/solaris/misc.c, arch/x86_64/config.in,
+	arch/x86_64/ia32/ia32_binfmt.c, arch/x86_64/ia32/sys_ia32.c,
+	arch/x86_64/kernel/setup64.c, arch/x86_64/kernel/sys_x86_64.c,
+	arch/x86_64/mm/fault.c, drivers/char/mem.c, drivers/char/random.c,
+	fs/Makefile, fs/binfmt_aout.c, fs/binfmt_elf.c, fs/exec.c,
+	fs/proc/array.c, include/asm-alpha/a.out.h,
+	include/asm-alpha/elf.h, include/asm-alpha/mman.h,
+	include/asm-alpha/page.h, include/asm-alpha/pgtable.h,
+	include/asm-i386/a.out.h, include/asm-i386/desc.h,
+	include/asm-i386/elf.h, include/asm-i386/hw_irq.h,
+	include/asm-i386/mman.h, include/asm-i386/page.h,
+	include/asm-i386/pgtable.h, include/asm-i386/processor.h,
+	include/asm-i386/system.h, include/asm-ia64/elf.h,
+	include/asm-ia64/ia32.h, include/asm-ia64/mman.h,
+	include/asm-ia64/page.h, include/asm-ia64/pgtable.h,
+	include/asm-ia64/ustack.h, include/asm-mips/a.out.h,
+	include/asm-mips/elf.h, include/asm-mips/page.h,
+	include/asm-mips64/a.out.h, include/asm-mips64/elf.h,
+	include/asm-mips64/page.h, include/asm-parisc/a.out.h,
+	include/asm-parisc/elf.h, include/asm-parisc/mman.h,
+	include/asm-parisc/page.h, include/asm-parisc/pgtable.h,
+	include/asm-ppc/a.out.h, include/asm-ppc/elf.h,
+	include/asm-ppc/mman.h, include/asm-ppc/page.h,
+	include/asm-ppc/pgtable.h, include/asm-sparc/a.out.h,
+	include/asm-sparc/elf.h, include/asm-sparc/mman.h,
+	include/asm-sparc/page.h, include/asm-sparc/pgtable.h,
+	include/asm-sparc/pgtsrmmu.h, include/asm-sparc/uaccess.h,
+	include/asm-sparc64/a.out.h, include/asm-sparc64/elf.h,
+	include/asm-sparc64/mman.h, include/asm-sparc64/page.h,
+	include/asm-sparc64/pgtable.h, include/asm-x86_64/a.out.h,
+	include/asm-x86_64/elf.h, include/asm-x86_64/mman.h,
+	include/asm-x86_64/page.h, include/asm-x86_64/pgtable.h,
+	include/linux/a.out.h, include/linux/binfmts.h,
+	include/linux/elf.h, include/linux/mm.h, include/linux/random.h,
+	include/linux/sched.h, include/linux/sysctl.h, kernel/sysctl.c,
+	mm/filemap.c, mm/memory.c, mm/mlock.c, mm/mmap.c, mm/mprotect.c,
+	mm/mremap.c: Initial import of PaX.
+

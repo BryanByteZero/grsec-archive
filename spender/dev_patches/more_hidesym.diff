@@ -1,0 +1,256 @@
+diff -u linux-2.6.32.21-new/grsecurity/Kconfig linux-2.6.32.21-new/grsecurity/Kconfig
+--- linux-2.6.32.21-new/grsecurity/Kconfig	2010-09-04 15:54:52.000000000 -0400
++++ linux-2.6.32.21-new/grsecurity/Kconfig	2010-09-14 21:34:38.000000000 -0400
+@@ -310,8 +310,13 @@
+ 	  displaying all kernel symbols through a syscall will be restricted
+ 	  to users with CAP_SYS_MODULE.  For software compatibility reasons,
+ 	  /proc/kallsyms will be restricted to the root user.  The RBAC
+-	  system can hide that entry even from root.  Note that this option
+-	  is only effective provided the following conditions are met:
++	  system can hide that entry even from root.
++
++	  This option also prevents leaking of kernel addresses through
++	  several /proc entries.
++
++	  Note that this option is only effective provided the following
++	  conditions are met:
+ 	  1) The kernel using grsecurity is not precompiled by some distribution
+ 	  2) You are using the RBAC system and hiding other files such as your
+ 	     kernel image and System.map.  Alternatively, enabling this option
+diff -u linux-2.6.32.21-new/net/atm/proc.c linux-2.6.32.21-new/net/atm/proc.c
+--- linux-2.6.32.21-new/net/atm/proc.c	2010-09-04 15:54:52.000000000 -0400
++++ linux-2.6.32.21-new/net/atm/proc.c	2010-09-14 21:47:17.000000000 -0400
+@@ -188,7 +188,12 @@
+ {
+ 	struct sock *sk = sk_atm(vcc);
+ 
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++	seq_printf(seq, "%p ", NULL);
++#else
+ 	seq_printf(seq, "%p ", vcc);
++#endif
++
+ 	if (!vcc->dev)
+ 		seq_printf(seq, "Unassigned    ");
+ 	else
+diff -u linux-2.6.32.21-new/net/ipv4/tcp_ipv4.c linux-2.6.32.21-new/net/ipv4/tcp_ipv4.c
+--- linux-2.6.32.21-new/net/ipv4/tcp_ipv4.c	2010-09-04 15:54:52.000000000 -0400
++++ linux-2.6.32.21-new/net/ipv4/tcp_ipv4.c	2010-09-14 21:42:19.000000000 -0400
+@@ -2255,7 +2255,11 @@
+ 		0,  /* non standard timer */
+ 		0, /* open_requests have no inode */
+ 		atomic_read(&sk->sk_refcnt),
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++		NULL,
++#else
+ 		req,
++#endif
+ 		len);
+ }
+ 
+@@ -2297,7 +2301,12 @@
+ 		sock_i_uid(sk),
+ 		icsk->icsk_probes_out,
+ 		sock_i_ino(sk),
+-		atomic_read(&sk->sk_refcnt), sk,
++		atomic_read(&sk->sk_refcnt),
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++		NULL,
++#else
++		sk,
++#endif
+ 		jiffies_to_clock_t(icsk->icsk_rto),
+ 		jiffies_to_clock_t(icsk->icsk_ack.ato),
+ 		(icsk->icsk_ack.quick << 1) | icsk->icsk_ack.pingpong,
+@@ -2325,7 +2334,13 @@
+ 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %p%n",
+ 		i, src, srcp, dest, destp, tw->tw_substate, 0, 0,
+ 		3, jiffies_to_clock_t(ttd), 0, 0, 0, 0,
+-		atomic_read(&tw->tw_refcnt), tw, len);
++		atomic_read(&tw->tw_refcnt),
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++		NULL,
++#else
++		tw,
++#endif
++		len);
+ }
+ 
+ #define TMPSZ 150
+diff -u linux-2.6.32.21-new/net/ipv4/udp.c linux-2.6.32.21-new/net/ipv4/udp.c
+--- linux-2.6.32.21-new/net/ipv4/udp.c	2010-09-04 15:54:52.000000000 -0400
++++ linux-2.6.32.21-new/net/ipv4/udp.c	2010-09-14 21:43:22.000000000 -0400
+@@ -1779,7 +1779,12 @@
+ 		sk_wmem_alloc_get(sp),
+ 		sk_rmem_alloc_get(sp),
+ 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
+-		atomic_read(&sp->sk_refcnt), sp,
++		atomic_read(&sp->sk_refcnt),
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++		NULL,
++#else
++		sp,
++#endif
+ 		atomic_read(&sp->sk_drops), len);
+ }
+ 
+diff -u linux-2.6.32.21-new/net/unix/af_unix.c linux-2.6.32.21-new/net/unix/af_unix.c
+--- linux-2.6.32.21-new/net/unix/af_unix.c	2010-09-04 15:54:52.000000000 -0400
++++ linux-2.6.32.21-new/net/unix/af_unix.c	2010-09-14 21:38:28.000000000 -0400
+@@ -2185,7 +2185,11 @@
+ 		unix_state_lock(s);
+ 
+ 		seq_printf(seq, "%p: %08X %08X %08X %04X %02X %5lu",
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++			NULL,
++#else
+ 			s,
++#endif
+ 			atomic_read(&s->sk_refcnt),
+ 			0,
+ 			s->sk_state == TCP_LISTEN ? __SO_ACCEPTCON : 0,
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/drivers/message/fusion/mptbase.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/drivers/message/fusion/mptbase.c	2010-09-14 21:32:19.000000000 -0400
+@@ -6709,8 +6709,14 @@ procmpt_iocinfo_read(char *buf, char **s
+ 	len += sprintf(buf+len, "  MaxChainDepth = 0x%02x frames\n", ioc->facts.MaxChainDepth);
+ 	len += sprintf(buf+len, "  MinBlockSize = 0x%02x bytes\n", 4*ioc->facts.BlockSize);
+ 
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++	len += sprintf(buf+len, "  RequestFrames @ 0x%p (Dma @ 0x%p)\n",
++					NULL, NULL);
++#else
+ 	len += sprintf(buf+len, "  RequestFrames @ 0x%p (Dma @ 0x%p)\n",
+ 					(void *)ioc->req_frames, (void *)(ulong)ioc->req_frames_dma);
++#endif
++
+ 	/*
+ 	 *  Rounding UP to nearest 4-kB boundary here...
+ 	 */
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/kernel/time/timer_list.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/kernel/time/timer_list.c	2010-09-14 22:29:01.000000000 -0400
+@@ -38,12 +38,16 @@ DECLARE_PER_CPU(struct hrtimer_cpu_base,
+ 
+ static void print_name_offset(struct seq_file *m, void *sym)
+ {
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++	SEQ_printf(m, "<%p>", NULL);
++#else
+ 	char symname[KSYM_NAME_LEN];
+ 
+ 	if (lookup_symbol_name((unsigned long)sym, symname) < 0)
+ 		SEQ_printf(m, "<%p>", sym);
+ 	else
+ 		SEQ_printf(m, "%s", symname);
++#endif
+ }
+ 
+ static void
+@@ -112,7 +116,11 @@ next_one:
+ static void
+ print_base(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
+ {
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++	SEQ_printf(m, "  .base:       %p\n", NULL);
++#else
+ 	SEQ_printf(m, "  .base:       %p\n", base);
++#endif
+ 	SEQ_printf(m, "  .index:      %d\n",
+ 			base->index);
+ 	SEQ_printf(m, "  .resolution: %Lu nsecs\n",
+@@ -289,7 +297,11 @@ static int __init init_timer_list_procfs
+ {
+ 	struct proc_dir_entry *pe;
+ 
++#ifdef CONFIG_GRKERNSEC_PROC_ADD
++	pe = proc_create("timer_list", 0400, NULL, &timer_list_fops);
++#else
+ 	pe = proc_create("timer_list", 0444, NULL, &timer_list_fops);
++#endif
+ 	if (!pe)
+ 		return -ENOMEM;
+ 	return 0;
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/kernel/time/timer_stats.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/kernel/time/timer_stats.c	2010-09-14 22:28:35.000000000 -0400
+@@ -269,12 +269,16 @@ void timer_stats_update_stats(void *time
+ 
+ static void print_name_offset(struct seq_file *m, unsigned long addr)
+ {
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++	seq_printf(m, "<%p>", NULL);
++#else
+ 	char symname[KSYM_NAME_LEN];
+ 
+ 	if (lookup_symbol_name(addr, symname) < 0)
+ 		seq_printf(m, "<%p>", (void *)addr);
+ 	else
+ 		seq_printf(m, "%s", symname);
++#endif
+ }
+ 
+ static int tstats_show(struct seq_file *m, void *v)
+@@ -415,7 +419,11 @@ static int __init init_tstats_procfs(voi
+ {
+ 	struct proc_dir_entry *pe;
+ 
++#ifdef CONFIG_GRKERNSEC_PROC_ADD
++	pe = proc_create("timer_stats", 0600, NULL, &tstats_fops);
++#else
+ 	pe = proc_create("timer_stats", 0644, NULL, &tstats_fops);
++#endif
+ 	if (!pe)
+ 		return -ENOMEM;
+ 	return 0;
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/net/key/af_key.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/net/key/af_key.c	2010-09-14 21:25:29.000000000 -0400
+@@ -3660,7 +3660,11 @@ static int pfkey_seq_show(struct seq_fil
+ 		seq_printf(f ,"sk       RefCnt Rmem   Wmem   User   Inode\n");
+ 	else
+ 		seq_printf(f ,"%p %-6d %-6u %-6u %-6u %-6lu\n",
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++			       NULL,
++#else
+ 			       s,
++#endif
+ 			       atomic_read(&s->sk_refcnt),
+ 			       sk_rmem_alloc_get(s),
+ 			       sk_wmem_alloc_get(s),
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/net/netlink/af_netlink.c	2010-08-29 21:08:20.000000000 -0400
++++ linux-2.6.32.21-new/net/netlink/af_netlink.c	2010-09-14 21:26:03.000000000 -0400
+@@ -1964,7 +1964,11 @@ static int netlink_seq_show(struct seq_f
+ 		struct netlink_sock *nlk = nlk_sk(s);
+ 
+ 		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %-8d %-8d\n",
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++			   NULL,
++#else
+ 			   s,
++#endif
+ 			   s->sk_protocol,
+ 			   nlk->pid,
+ 			   nlk->groups ? (u32)nlk->groups[0] : 0,
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/net/packet/af_packet.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/net/packet/af_packet.c	2010-09-14 21:26:39.000000000 -0400
+@@ -2426,7 +2426,11 @@ static int packet_seq_show(struct seq_fi
+ 
+ 		seq_printf(seq,
+ 			   "%p %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6lu\n",
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++			   NULL,
++#else
+ 			   s,
++#endif
+ 			   atomic_read(&s->sk_refcnt),
+ 			   s->sk_type,
+ 			   ntohs(po->num),

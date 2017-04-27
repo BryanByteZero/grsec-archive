@@ -1,0 +1,18 @@
+commit 5500ab0023b3bfb0e20f039bb4c8996d5177e91c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jun 22 21:18:22 2016 -0400
+
+    Add one lingering /dev/initctl fix
+
+diff --git a/policy b/policy
+index 202d6cf..ab1688a 100644
+--- a/policy
++++ b/policy
+@@ -330,6 +330,7 @@ subject /
+ 	/dev/dsp	rw
+ 	/dev/mixer	rw
+ 	/dev/initctl	rw
++	/run/systemd/initctl/fifo rw
+ 	/dev/fd0	r
+ 	/dev/cdrom	r
+ 	/dev/sr0	r

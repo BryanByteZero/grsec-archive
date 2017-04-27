@@ -1,0 +1,12 @@
+--- net/ipv4/tcp_ipv4.c	2010-03-07 12:23:36.169632867 -0500
++++ net/ipv4/tcp_ipv4.c	2010-03-09 20:07:16.108561080 -0500
+@@ -1585,9 +1585,6 @@ int tcp_v4_do_rcv(struct sock *sk, struc
+ 	return 0;
+ 
+ reset:
+-#ifdef CONFIG_GRKERNSEC_BLACKHOLE
+-	if (!skb->dev || (skb->dev->flags & IFF_LOOPBACK))
+-#endif
+ 	tcp_v4_send_reset(rsk, skb);
+ discard:
+ 	kfree_skb(skb);

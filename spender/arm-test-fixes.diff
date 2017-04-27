@@ -1,0 +1,124 @@
+diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
+index c229913..cd9168e 100644
+--- a/arch/arm/include/asm/page.h
++++ b/arch/arm/include/asm/page.h
+@@ -23,6 +23,7 @@
+ 
+ #else
+ 
++#include <linux/compiler.h>
+ #include <asm/glue.h>
+ 
+ /*
+diff --git a/drivers/base/power/domain.c b/drivers/base/power/domain.c
+index 42c9b9a..4ebff34 100644
+--- a/drivers/base/power/domain.c
++++ b/drivers/base/power/domain.c
+@@ -1809,9 +1809,9 @@ int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td)
+ 
+ 	if (dev->power.subsys_data->domain_data) {
+ 		gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
+-		gpd_data->ops = (struct gpd_dev_ops){ NULL };
++		memset(&gpd_data->ops, 0, sizeof(gpd_data->ops));
+ 		if (clear_td)
+-			gpd_data->td = (struct gpd_timing_data){ 0 };
++			memset(&gpd_data->td, 0, sizeof(gpd_data->td));
+ 
+ 		if (--gpd_data->refcount == 0) {
+ 			dev->power.subsys_data->domain_data = NULL;
+diff --git a/drivers/gpio/gpio-em.c b/drivers/gpio/gpio-em.c
+index ec19036..8ffafc2 100644
+--- a/drivers/gpio/gpio-em.c
++++ b/drivers/gpio/gpio-em.c
+@@ -257,7 +257,7 @@ static int em_gio_probe(struct platform_device *pdev)
+ 	struct em_gio_priv *p;
+ 	struct resource *io[2], *irq[2];
+ 	struct gpio_chip *gpio_chip;
+-	struct irq_chip *irq_chip;
++	irq_chip_no_const *irq_chip;
+ 	const char *name = dev_name(&pdev->dev);
+ 	int ret;
+ 
+diff --git a/drivers/gpio/gpio-rcar.c b/drivers/gpio/gpio-rcar.c
+index 8b7e719..dc089dc 100644
+--- a/drivers/gpio/gpio-rcar.c
++++ b/drivers/gpio/gpio-rcar.c
+@@ -316,7 +316,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
+ 	struct gpio_rcar_priv *p;
+ 	struct resource *io, *irq;
+ 	struct gpio_chip *gpio_chip;
+-	struct irq_chip *irq_chip;
++	irq_chip_no_const *irq_chip;
+ 	const char *name = dev_name(&pdev->dev);
+ 	int ret;
+ 
+diff --git a/drivers/mfd/ab8500-debugfs.c b/drivers/mfd/ab8500-debugfs.c
+index e33e385..28dfd23 100644
+--- a/drivers/mfd/ab8500-debugfs.c
++++ b/drivers/mfd/ab8500-debugfs.c
+@@ -100,7 +100,7 @@ static int irq_last;
+ static u32 *irq_count;
+ static int num_irqs;
+ 
+-static struct device_attribute **dev_attr;
++static device_attribute_no_const **dev_attr;
+ static char **event_name;
+ 
+ static u8 avg_sample = SAMPLE_16;
+diff --git a/drivers/net/can/Kconfig b/drivers/net/can/Kconfig
+index 3c06947..fd0e5de 100644
+--- a/drivers/net/can/Kconfig
++++ b/drivers/net/can/Kconfig
+@@ -104,7 +104,7 @@ config CAN_JANZ_ICAN3
+ 
+ config CAN_FLEXCAN
+ 	tristate "Support for Freescale FLEXCAN based chips"
+-	depends on ARM || PPC
++	depends on (ARM && CPU_LITTLE_ENDIAN) || PPC
+ 	---help---
+ 	  Say Y here if you want to support for Freescale FlexCAN.
+ 
+diff --git a/drivers/staging/imx-drm/imx-drm-core.c b/drivers/staging/imx-drm/imx-drm-core.c
+index 96e4eee..6d7c37e 100644
+--- a/drivers/staging/imx-drm/imx-drm-core.c
++++ b/drivers/staging/imx-drm/imx-drm-core.c
+@@ -510,7 +510,7 @@ int imx_drm_add_crtc(struct drm_crtc *crtc,
+ 		goto err_busy;
+ 	}
+ 
+-	if (imxdrm->drm->open_count) {
++	if (local_read(&imxdrm->drm->open_count)) {
+ 		ret = -EBUSY;
+ 		goto err_busy;
+ 	}
+@@ -590,7 +590,7 @@ int imx_drm_add_encoder(struct drm_encoder *encoder,
+ 
+ 	mutex_lock(&imxdrm->mutex);
+ 
+-	if (imxdrm->drm->open_count) {
++	if (local_read(&imxdrm->drm->open_count)) {
+ 		ret = -EBUSY;
+ 		goto err_busy;
+ 	}
+@@ -729,7 +729,7 @@ int imx_drm_add_connector(struct drm_connector *connector,
+ 
+ 	mutex_lock(&imxdrm->mutex);
+ 
+-	if (imxdrm->drm->open_count) {
++	if (local_read(&imxdrm->drm->open_count)) {
+ 		ret = -EBUSY;
+ 		goto err_busy;
+ 	}
+diff --git a/include/linux/pm_domain.h b/include/linux/pm_domain.h
+index c5c773e..0e7061d 100644
+--- a/include/linux/pm_domain.h
++++ b/include/linux/pm_domain.h
+@@ -44,7 +44,7 @@ struct gpd_dev_ops {
+ 	int (*thaw_early)(struct device *dev);
+ 	int (*thaw)(struct device *dev);
+ 	bool (*active_wakeup)(struct device *dev);
+-};
++} __no_const;
+ 
+ struct gpd_cpu_data {
+ 	unsigned int saved_exit_latency;

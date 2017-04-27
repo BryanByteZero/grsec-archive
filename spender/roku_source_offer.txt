@@ -1,0 +1,23 @@
+Home -> System -> Third Party Licenses
+
+Parts of this software include libraries licensed under the GPL
+and LGPL.  Pursuant to our obligations under those licenses,
+they are reprinted below.  Furthermore, you may obtain the
+complete Corresponding Source code from us for a period of
+three years after our last shipment of this product by sending
+a money order or check for $10, payable to "Roku, Inc.", to:
+
+GPL Source Code Request
+Customer Advocacy Dept.
+Roku, Inc.
+12980 Saratoga Ave.
+Saratoga, CA 95070
+
+To ensure we deliver the correct code to you, please include
+the serial number of your device (available on the About
+screen) in the memo line of your payment.
+
+You may also find a copy of the latest source code at
+http://www.roku.com/opensource
+
+This offer is valid to anyone in receipt of this information.

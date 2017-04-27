@@ -1,0 +1,207 @@
+diff --git a/grsecurity/gracl_cap.c b/grsecurity/gracl_cap.c
+index 1a94c11..8747091 100644
+--- a/grsecurity/gracl_cap.c
++++ b/grsecurity/gracl_cap.c
+@@ -8,7 +8,7 @@
+ extern const char *captab_log[];
+ extern int captab_log_entries;
+ 
+-int gr_learn_cap(const struct task_struct *task, const struct cred *cred, const int cap)
++int gr_learn_cap(const struct task_struct *task, const struct cred *cred, const int cap, bool log)
+ {
+ 	struct acl_subject_label *curracl;
+ 
+@@ -18,7 +18,8 @@ int gr_learn_cap(const struct task_struct *task, const struct cred *cred, const
+ 	curracl = task->acl;
+ 
+ 	if (curracl->mode & (GR_LEARN | GR_INHERITLEARN)) {
+-		security_learn(GR_LEARN_AUDIT_MSG, task->role->rolename,
++		if (log)
++			security_learn(GR_LEARN_AUDIT_MSG, task->role->rolename,
+ 			       task->role->roletype, GR_GLOBAL_UID(cred->uid),
+ 			       GR_GLOBAL_GID(cred->gid), task->exec_file ?
+ 			       gr_to_filename(task->exec_file->f_path.dentry,
+@@ -31,7 +32,7 @@ int gr_learn_cap(const struct task_struct *task, const struct cred *cred, const
+ 	return 0;
+ }
+ 
+-int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cred, const int cap)
++int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cred, const int cap, bool log)
+ {
+ 	struct acl_subject_label *curracl;
+ 	kernel_cap_t cap_drop = __cap_empty_set, cap_mask = __cap_empty_set;
+@@ -62,7 +63,7 @@ int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cr
+ 	}
+ 
+ 	if (!cap_raised(cap_drop, cap)) {
+-		if (cap_raised(cap_audit, cap))
++		if (log && cap_raised(cap_audit, cap))
+ 			gr_log_cap(GR_DO_AUDIT, GR_CAP_ACL_MSG2, task, captab_log[cap]);
+ 		return 1;
+ 	}
+@@ -72,10 +73,10 @@ int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cr
+ 	   to this rule to ensure any role transition involves what the full-learned
+ 	   policy believes in a privileged process
+ 	*/
+-	if (cap_raised(cred->cap_effective, cap) && gr_learn_cap(task, cred, cap))
++	if (cap_raised(cred->cap_effective, cap) && gr_learn_cap(task, cred, cap, log))
+ 		return 1;
+ 
+-	if ((cap >= 0) && (cap < captab_log_entries) && cap_raised(cred->cap_effective, cap) && !cap_raised(cap_audit, cap))
++	if (log && (cap >= 0) && (cap < captab_log_entries) && cap_raised(cred->cap_effective, cap) && !cap_raised(cap_audit, cap))
+ 		gr_log_cap(GR_DONT_AUDIT, GR_CAP_ACL_MSG, task, captab_log[cap]);
+ 
+ 	return 0;
+@@ -84,44 +85,12 @@ int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cr
+ int
+ gr_acl_is_capable(const int cap)
+ {
+-	return gr_task_acl_is_capable(current, current_cred(), cap);
+-}
+-
+-int gr_task_acl_is_capable_nolog(const struct task_struct *task, const int cap)
+-{
+-	struct acl_subject_label *curracl;
+-	kernel_cap_t cap_drop = __cap_empty_set, cap_mask = __cap_empty_set;
+-
+-	if (!gr_acl_is_enabled())
+-		return 1;
+-
+-	curracl = task->acl;
+-
+-	cap_drop = curracl->cap_lower;
+-	cap_mask = curracl->cap_mask;
+-
+-	while ((curracl = curracl->parent_subject)) {
+-		/* if the cap isn't specified in the current computed mask but is specified in the
+-		   current level subject, and is lowered in the current level subject, then add
+-		   it to the set of dropped capabilities
+-		   otherwise, add the current level subject's mask to the current computed mask
+-		 */
+-		if (!cap_raised(cap_mask, cap) && cap_raised(curracl->cap_mask, cap)) {
+-			cap_raise(cap_mask, cap);
+-			if (cap_raised(curracl->cap_lower, cap))
+-				cap_raise(cap_drop, cap);
+-		}
+-	}
+-
+-	if (!cap_raised(cap_drop, cap))
+-		return 1;
+-
+-	return 0;
++	return gr_task_acl_is_capable(current, current_cred(), cap, true);
+ }
+ 
+ int
+ gr_acl_is_capable_nolog(const int cap)
+ {
+-	return gr_task_acl_is_capable_nolog(current, cap);
++	return gr_task_acl_is_capable(current, current_cred(), cap, false);
+ }
+ 
+diff --git a/grsecurity/grsec_disabled.c b/grsecurity/grsec_disabled.c
+index dece8e5..93d4602 100644
+--- a/grsecurity/grsec_disabled.c
++++ b/grsecurity/grsec_disabled.c
+@@ -40,7 +40,7 @@ gr_acl_is_enabled(void)
+ }
+ 
+ int
+-gr_learn_cap(const struct task_struct *task, const struct cred *cred, const int cap)
++gr_learn_cap(const struct task_struct *task, const struct cred *cred, const int cap, bool log)
+ {
+ 	return 0;
+ }
+diff --git a/grsecurity/grsec_exec.c b/grsecurity/grsec_exec.c
+index 14638ff..5c4b913 100644
+--- a/grsecurity/grsec_exec.c
++++ b/grsecurity/grsec_exec.c
+@@ -88,8 +88,7 @@ gr_handle_exec_args(struct linux_binprm *bprm, struct user_arg_ptr argv)
+ #ifdef CONFIG_GRKERNSEC
+ extern int gr_acl_is_capable(const int cap);
+ extern int gr_acl_is_capable_nolog(const int cap);
+-extern int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cred, const int cap);
+-extern int gr_task_acl_is_capable_nolog(const struct task_struct *task, const int cap);
++extern int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cred, const int cap, bool log);
+ extern int gr_chroot_is_capable(const int cap);
+ extern int gr_chroot_is_capable_nolog(const int cap);
+ extern int gr_task_chroot_is_capable(const struct task_struct *task, const struct cred *cred, const int cap);
+@@ -152,7 +151,7 @@ int gr_is_capable(const int cap)
+ int gr_task_is_capable(const struct task_struct *task, const struct cred *cred, const int cap)
+ {
+ #ifdef CONFIG_GRKERNSEC
+-	if (gr_task_acl_is_capable(task, cred, cap) && gr_task_chroot_is_capable(task, cred, cap))
++	if (gr_task_acl_is_capable(task, cred, cap, true) && gr_task_chroot_is_capable(task, cred, cap))
+ 		return 1;
+ 	return 0;
+ #else
+@@ -171,10 +170,10 @@ int gr_is_capable_nolog(const int cap)
+ #endif
+ }
+ 
+-int gr_task_is_capable_nolog(const struct task_struct *task, const int cap)
++int gr_task_is_capable_nolog(const struct task_struct *task, const struct cred *cred, const int cap)
+ {
+ #ifdef CONFIG_GRKERNSEC
+-	if (gr_task_acl_is_capable_nolog(task, cap) && gr_task_chroot_is_capable_nolog(task, cap))
++	if (gr_task_acl_is_capable(task, cred, cap, false) && gr_task_chroot_is_capable_nolog(task, cap))
+ 		return 1;
+ 	return 0;
+ #else
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index 77bb49a..acd5a94 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -44,7 +44,7 @@ int gr_acl_enable_at_secure(void);
+ int gr_check_user_change(kuid_t real, kuid_t effective, kuid_t fs);
+ int gr_check_group_change(kgid_t real, kgid_t effective, kgid_t fs);
+ 
+-int gr_learn_cap(const struct task_struct *task, const struct cred *cred, const int cap);
++int gr_learn_cap(const struct task_struct *task, const struct cred *cred, const int cap, bool log);
+ 
+ void gr_del_task_from_ip_table(struct task_struct *p);
+ 
+@@ -114,7 +114,7 @@ int gr_handle_hardlink(const struct dentry *dentry,
+ int gr_is_capable(const int cap);
+ int gr_is_capable_nolog(const int cap);
+ int gr_task_is_capable(const struct task_struct *task, const struct cred *cred, const int cap);
+-int gr_task_is_capable_nolog(const struct task_struct *task, const int cap);
++int gr_task_is_capable_nolog(const struct task_struct *task, const struct cred *cred, const int cap);
+ 
+ void gr_copy_label(struct task_struct *tsk);
+ void gr_handle_crash(struct task_struct *task, const int sig);
+diff --git a/kernel/capability.c b/kernel/capability.c
+index d5954a8..d08e50b 100644
+--- a/kernel/capability.c
++++ b/kernel/capability.c
+@@ -351,7 +351,7 @@ bool has_ns_capability_noaudit(struct task_struct *t,
+ 	int ret;
+ 
+ 	rcu_read_lock();
+-	ret = security_capable_noaudit(__task_cred(t), ns, cap) == 0 && gr_task_is_capable_nolog(t, cap);
++	ret = security_capable_noaudit(__task_cred(t), ns, cap) == 0 && gr_task_is_capable_nolog(t, __task_cred(t), cap);
+ 	rcu_read_unlock();
+ 
+ 	return ret;
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 3108703e..938ed87 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -368,7 +368,7 @@ SYSCALL_DEFINE2(setregid, gid_t, rgid, gid_t, egid)
+ 		   we may not log a CAP_SETGID check above, e.g.
+ 		   in the case where new rgid = old egid
+ 		*/
+-		gr_learn_cap(current, new, CAP_SETGID);
++		gr_learn_cap(current, new, CAP_SETGID, true);
+ 	}
+ 
+ 	if (rgid != (gid_t) -1 ||
+@@ -518,7 +518,7 @@ SYSCALL_DEFINE2(setreuid, uid_t, ruid, uid_t, euid)
+ 		   we may not log a CAP_SETUID check above, e.g.
+ 		   in the case where new ruid = old euid
+ 		*/
+-		gr_learn_cap(current, new, CAP_SETUID);
++		gr_learn_cap(current, new, CAP_SETUID, true);
+ 		retval = set_user(new);
+ 		if (retval < 0)
+ 			goto error;

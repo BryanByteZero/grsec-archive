@@ -1,0 +1,276 @@
+diff --git a/fs/dcache.c b/fs/dcache.c
+index f66c622..9746379 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -1452,6 +1452,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 	dentry->d_sb = sb;
+ 	dentry->d_op = NULL;
+ 	dentry->d_fsdata = NULL;
++	atomic_set(&dentry->chroot_refcnt, 0);
+ 	INIT_HLIST_BL_NODE(&dentry->d_hash);
+ 	INIT_LIST_HEAD(&dentry->d_lru);
+ 	INIT_LIST_HEAD(&dentry->d_subdirs);
+diff --git a/fs/fs_struct.c b/fs/fs_struct.c
+index 543d620..f5e007d 100644
+--- a/fs/fs_struct.c
++++ b/fs/fs_struct.c
+@@ -16,6 +16,7 @@ void set_fs_root(struct fs_struct *fs, const struct path *path)
+ 	struct path old_root;
+ 
+ 	path_get(path);
++	gr_inc_chroot_refcnts(path->dentry, path->mnt);
+ 	spin_lock(&fs->lock);
+ 	write_seqcount_begin(&fs->seq);
+ 	old_root = fs->root;
+@@ -23,8 +24,10 @@ void set_fs_root(struct fs_struct *fs, const struct path *path)
+ 	gr_set_chroot_entries(current, path);
+ 	write_seqcount_end(&fs->seq);
+ 	spin_unlock(&fs->lock);
+-	if (old_root.dentry)
++	if (old_root.dentry) {
++		gr_inc_chroot_refcnts(old_root.dentry, old_root.mnt);
+ 		path_put(&old_root);
++	}
+ }
+ 
+ /*
+@@ -91,6 +94,7 @@ void chroot_fs_refs(const struct path *old_root, const struct path *new_root)
+ 
+ void free_fs_struct(struct fs_struct *fs)
+ {
++	gr_dec_chroot_refcnts(fs->root.dentry, fs->root.mnt);
+ 	path_put(&fs->root);
+ 	path_put(&fs->pwd);
+ 	kmem_cache_free(fs_cachep, fs);
+diff --git a/fs/namei.c b/fs/namei.c
+index d3dcc14..ac769e4 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -4486,6 +4486,14 @@ retry_deleg:
+ 	if (new_dentry == trap)
+ 		goto exit5;
+ 
++	if (gr_bad_chroot_rename(old_dentry, oldnd.path.mnt, new_dentry, newnd.path.mnt)) {
++		/* use EXDEV error to cause 'mv' to switch to an alternative
++		 * method for usability
++		 */
++		error = -EXDEV;
++		goto exit5;
++	}
++
+ 	error = gr_acl_handle_rename(new_dentry, new_dir, newnd.path.mnt,
+ 				     old_dentry, old_dir->d_inode, oldnd.path.mnt,
+ 				     to, flags);
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index f27264e..ff3f710 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -638,6 +638,19 @@ config GRKERNSEC_CHROOT_SYSCTL
+ 	  sysctl option is enabled, a sysctl option with name
+ 	  "chroot_deny_sysctl" is created.
+ 
++config GRKERNSEC_CHROOT_RENAME
++	bool "Deny bad renames"
++	default y if GRKERNSEC_CONFIG_AUTO
++	depends on GRKERNSEC_CHROOT
++	help
++	  If you say Y here, an attacker in a chroot will not be able to
++	  abuse the ability to create double chroots to break out of the
++	  chroot by exploiting a race condition between a rename of a directory
++	  within a chroot against an open of a symlink with relative path
++	  components.  Enabling this feature is essential to prevent root users
++	  inside a chroot from breaking out. If the sysctl option is enabled,
++	  a sysctl option with name "chroot_deny_bad_rename" is created.
++
+ config GRKERNSEC_CHROOT_CAPS
+ 	bool "Capability restrictions"
+ 	default y if GRKERNSEC_CONFIG_AUTO
+diff --git a/grsecurity/grsec_chroot.c b/grsecurity/grsec_chroot.c
+index 6d99cec..50283e9 100644
+--- a/grsecurity/grsec_chroot.c
++++ b/grsecurity/grsec_chroot.c
+@@ -13,6 +13,88 @@
+ int gr_init_ran;
+ #endif
+ 
++void gr_inc_chroot_refcnts(struct dentry *dentry, struct vfsmount *mnt)
++{
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++	struct dentry *tmpd = dentry;
++
++	read_seqlock_excl(&mount_lock);
++	write_seqlock(&rename_lock);
++
++	while (tmpd != mnt->mnt_root) {
++		atomic_inc(&tmpd->chroot_refcnt);
++		tmpd = tmpd->d_parent;
++	}
++	atomic_inc(&tmpd->chroot_refcnt);
++
++	write_sequnlock(&rename_lock);
++	read_sequnlock_excl(&mount_lock);
++#endif
++}
++
++void gr_dec_chroot_refcnts(struct dentry *dentry, struct vfsmount *mnt)
++{
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++	struct dentry *tmpd = dentry;
++
++	read_seqlock_excl(&mount_lock);
++	write_seqlock(&rename_lock);
++
++	while (tmpd != mnt->mnt_root) {
++		atomic_dec(&tmpd->chroot_refcnt);
++		tmpd = tmpd->d_parent;
++	}
++	atomic_dec(&tmpd->chroot_refcnt);
++
++	write_sequnlock(&rename_lock);
++	read_sequnlock_excl(&mount_lock);
++#endif
++}
++
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++static struct dentry *get_closest_chroot(struct dentry *dentry)
++{
++	write_seqlock(&rename_lock);
++	do {
++		if (atomic_read(&dentry->chroot_refcnt)) {
++			write_sequnlock(&rename_lock);
++			return dentry;
++		}
++		dentry = dentry->d_parent;
++	} while (!IS_ROOT(dentry));
++	write_sequnlock(&rename_lock);
++	return NULL;
++}
++#endif
++
++int gr_bad_chroot_rename(struct dentry *olddentry, struct vfsmount *oldmnt,
++			 struct dentry *newdentry, struct vfsmount *newmnt)
++{
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++	struct dentry *chroot;
++
++	if (unlikely(!grsec_enable_chroot_rename))
++		return 0;
++
++	if (likely(!proc_is_chrooted(current)))
++		return 0;
++
++	chroot = get_closest_chroot(olddentry);
++
++	if (chroot == NULL)
++		return 0;
++
++	if (is_subdir(newdentry, chroot))
++		return 0;
++
++	gr_log_fs_generic(GR_DONT_AUDIT, GR_CHROOT_RENAME_MSG, olddentry, oldmnt);
++
++	return 1;
++#else
++	return 0;
++#endif
++}
++
+ void gr_set_chroot_entries(struct task_struct *task, const struct path *path)
+ {
+ #ifdef CONFIG_GRKERNSEC
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index b7cb191..4ed9e7d 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -40,6 +40,7 @@ int grsec_enable_chroot_mknod;
+ int grsec_enable_chroot_nice;
+ int grsec_enable_chroot_execlog;
+ int grsec_enable_chroot_caps;
++int grsec_enable_chroot_rename;
+ int grsec_enable_chroot_sysctl;
+ int grsec_enable_chroot_unix;
+ int grsec_enable_tpe;
+@@ -251,6 +252,9 @@ grsecurity_init(void)
+ #ifdef CONFIG_GRKERNSEC_CHROOT_CAPS
+ 	grsec_enable_chroot_caps = 1;
+ #endif
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++	grsec_enable_chroot_rename = 1;
++#endif
+ #ifdef CONFIG_GRKERNSEC_CHROOT_SYSCTL
+ 	grsec_enable_chroot_sysctl = 1;
+ #endif
+diff --git a/grsecurity/grsec_sysctl.c b/grsecurity/grsec_sysctl.c
+index 8159888..cce889e 100644
+--- a/grsecurity/grsec_sysctl.c
++++ b/grsecurity/grsec_sysctl.c
+@@ -267,6 +267,15 @@ struct ctl_table grsecurity_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++	{
++		.procname	= "chroot_deny_bad_rename",
++		.data		= &grsec_enable_chroot_rename,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= &proc_dointvec,
++	},
++#endif
+ #ifdef CONFIG_GRKERNSEC_CHROOT_SYSCTL
+ 	{
+ 		.procname	= "chroot_deny_sysctl",
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index c67151e..7b9f50c 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -123,6 +123,9 @@ struct dentry {
+ 	unsigned long d_time;		/* used by d_revalidate */
+ 	void *d_fsdata;			/* fs-specific data */
+ 
++#ifdef CONFIG_GRKERNSEC_CHROOT_RENAME
++	atomic_t chroot_refcnt;		/* tracks use of directory in chroot */
++#endif
+ 	struct list_head d_lru;		/* LRU list */
+ 	struct list_head d_child;	/* child of parent list */
+ 	struct list_head d_subdirs;	/* our children */
+diff --git a/include/linux/grinternal.h b/include/linux/grinternal.h
+index d25522e..fb1de5d 100644
+--- a/include/linux/grinternal.h
++++ b/include/linux/grinternal.h
+@@ -57,6 +57,7 @@ extern int grsec_enable_chroot_fchdir;
+ extern int grsec_enable_chroot_nice;
+ extern int grsec_enable_chroot_execlog;
+ extern int grsec_enable_chroot_caps;
++extern int grsec_enable_chroot_rename;
+ extern int grsec_enable_chroot_sysctl;
+ extern int grsec_enable_chroot_unix;
+ extern int grsec_enable_symlinkown;
+diff --git a/include/linux/grmsg.h b/include/linux/grmsg.h
+index b02ba9d..26ef560 100644
+--- a/include/linux/grmsg.h
++++ b/include/linux/grmsg.h
+@@ -41,6 +41,7 @@
+ #define GR_ATIME_ACL_MSG "%s access time change of %.950s by "
+ #define GR_ACCESS_ACL_MSG "%s access of %.950s for%s%s%s by "
+ #define GR_CHROOT_CHROOT_MSG "denied double chroot to %.950s by "
++#define GR_CHROOT_RENAME_MSG "denied bad rename of %.950s out of a chroot by "
+ #define GR_CHMOD_CHROOT_MSG "denied chmod +s of %.950s by "
+ #define GR_CHMOD_ACL_MSG "%s chmod of %.950s by "
+ #define GR_CHROOT_FCHDIR_MSG "denied fchdir outside of chroot to %.950s by "
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index c3b0738..6c76fcb 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -209,6 +209,11 @@ void gr_put_exec_file(struct task_struct *task);
+ 
+ int gr_ptrace_readexec(struct file *file, int unsafe_flags);
+ 
++void gr_inc_chroot_refcnts(struct dentry *dentry, struct vfsmount *mnt);
++void gr_dec_chroot_refcnts(struct dentry *dentry, struct vfsmount *mnt);
++int gr_bad_chroot_rename(struct dentry *olddentry, struct vfsmount *oldmnt,
++			 struct dentry *newdentry, struct vfsmount *newmnt);
++
+ #ifdef CONFIG_GRKERNSEC_RESLOG
+ extern void gr_log_resource(const struct task_struct *task, const int res,
+ 				   const unsigned long wanted, const int gt);

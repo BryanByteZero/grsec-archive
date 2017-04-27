@@ -1,0 +1,380 @@
+commit b4a3ab65850c171ca72716ad05a39d16158e45e4
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jun 21 23:17:23 2014 -0400
+
+    Fix GRKERNSEC_KSTACKOVERFLOW incompatibility with virtio_net and other more
+    rare drivers.  Unfortunately to resolve the problem we had to choose between
+    invasive changes to dozens of call-sites and continued future maintenance work,
+    or rearchitecting the feature to be able to handle the uses seamlessly.  With
+    some tips from pipacs, I chose the latter.
+    
+    Various drivers including virtio_net use scatterlists derived from stack-based
+    buffers (e.g. as an argument to sg_set_buf/sg_init_one).  The scatterlist API
+    requires that these buffers be in the kernel image or in kmalloc'd buffers,
+    which caused a problem when vmalloc'd stacks were used due to
+    GRKERNSEC_KSTACKOVERFLOW.  What we do now is keep the original lowmem kstack
+    allocation and then perform a THREAD_SIZE-aligned vmapped alias of the lowmem
+    kstack's physical pages.  We also restore kernel stack accounting by using
+    this method.  The downside is the existence of the lowmem kstack mapping, but
+    the security guarantees of the feature are preserved.
+    
+    In sg_set_buf() (called by sg_init_one and directly) we now check to see if
+    the buffer is on the current kernel stack.  If it is, then we redirect the API
+    to the lowmem alias of the kernel stack, preserving its assumptions.
+    
+    Since the unmapping of the virtual alias can sleep, we need to schedule it
+    when called in interrupt context similar to before with vfree.  Unlike before
+    however, the contents of the alias depend on the lowmem physical pages, so
+    we also need to defer the execution of free_thread_info().
+    
+    We also have added a temporary debugging measure for this feature by
+    adding a BUG_ON() to virt_to_page() to ensure we're not using a vmapped kernel
+    stack address for APIs needing lowmem buffers -- this way we can be notified
+    of any other APIs that need similar redirection.
+    
+    Thanks to kocka for assisting with some initial qemu/kernel debugging.
+
+diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+index 8ca8283..8dc71fa 100644
+--- a/arch/x86/include/asm/page.h
++++ b/arch/x86/include/asm/page.h
+@@ -55,11 +55,21 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
+  * virt_to_page(kaddr) returns a valid pointer if and only if
+  * virt_addr_valid(kaddr) returns true.
+  */
+-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+ #define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
+ extern bool __virt_addr_valid(unsigned long kaddr);
+ #define virt_addr_valid(kaddr)	__virt_addr_valid((unsigned long) (kaddr))
+ 
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++#define virt_to_page(kaddr)	\
++	({ \
++		const void *__kaddr = (const void *)(kaddr); \
++		BUG_ON(!virt_addr_valid(__kaddr)); \
++		pfn_to_page(__pa(__kaddr) >> PAGE_SHIFT); \
++	})
++#else
++#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
++#endif
++
+ #endif	/* __ASSEMBLY__ */
+ 
+ #include <asm-generic/memory_model.h>
+diff --git a/include/linux/scatterlist.h b/include/linux/scatterlist.h
+index 9aaf5bf..d5ee2a5 100644
+--- a/include/linux/scatterlist.h
++++ b/include/linux/scatterlist.h
+@@ -3,6 +3,7 @@
+ 
+ #include <asm/types.h>
+ #include <asm/scatterlist.h>
++#include <linux/sched.h>
+ #include <linux/mm.h>
+ #include <linux/string.h>
+ #include <asm/io.h>
+@@ -109,6 +110,12 @@ static inline struct page *sg_page(struct scatterlist *sg)
+ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
+ 			      unsigned int buflen)
+ {
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++	if (object_starts_on_stack(buf)) {
++		void *adjbuf = buf - current->stack + current->lowmem_stack;
++		sg_set_page(sg, virt_to_page(adjbuf), buflen, offset_in_page(adjbuf));
++	} else
++#endif
+ 	sg_set_page(sg, virt_to_page(buf), buflen, offset_in_page(buf));
+ }
+ 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 1d75f44..df196d4 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1264,6 +1264,9 @@ enum perf_event_task_context {
+ struct task_struct {
+ 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+ 	void *stack;
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++	void *lowmem_stack;
++#endif
+ 	atomic_t usage;
+ 	unsigned int flags;	/* per process flags, defined below */
+ 	unsigned int ptrace;
+@@ -2593,7 +2596,7 @@ static inline unsigned long *end_of_stack(struct task_struct *p)
+ 
+ #endif
+ 
+-static inline int object_starts_on_stack(void *obj)
++static inline int object_starts_on_stack(const void *obj)
+ {
+ 	const void *stack = task_stack_page(current);
+ 
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index d19c720..3ffbf77 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -64,7 +64,6 @@ extern void *vzalloc_node(unsigned long size, int node);
+ extern void *vmalloc_exec(unsigned long size);
+ extern void *vmalloc_32(unsigned long size);
+ extern void *vmalloc_32_user(unsigned long size);
+-extern void *vmalloc_stack(int node);
+ extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
+ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 			unsigned long start, unsigned long end, gfp_t gfp_mask,
+@@ -75,6 +74,8 @@ extern void *vmap(struct page **pages, unsigned int count,
+ 			unsigned long flags, pgprot_t prot);
+ extern void vunmap(const void *addr);
+ 
++extern void unmap_process_stacks(struct task_struct *task);
++
+ extern int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
+ 							unsigned long pgoff);
+ void vmalloc_sync_all(void);
+diff --git a/kernel/fork.c b/kernel/fork.c
+index b8e5b18..62b0c37 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -140,23 +140,42 @@ static inline void free_thread_info(struct thread_info *ti)
+ 
+ #ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
+ static inline struct thread_info *gr_alloc_thread_info_node(struct task_struct *tsk,
+-						  int node)
++						  int node, void **lowmem_stack)
+ {
+-	return vmalloc_stack(node);
++	struct page *pages[THREAD_SIZE / PAGE_SIZE];
++	void *ret = NULL;
++	unsigned int i;
++
++	*lowmem_stack = alloc_thread_info_node(tsk, node);
++	if (*lowmem_stack == NULL)
++		goto out;
++
++	for (i = 0; i < THREAD_SIZE / PAGE_SIZE; i++)
++		pages[i] = virt_to_page(*lowmem_stack + (i * PAGE_SIZE));
++	
++	/* use VM_IOREMAP to gain THREAD_SIZE alignment */
++	ret = vmap(pages, THREAD_SIZE / PAGE_SIZE, VM_IOREMAP, PAGE_KERNEL);
++	if (ret == NULL) {
++		free_thread_info(*lowmem_stack);
++		*lowmem_stack = NULL;
++	}
++
++out:
++	return ret;
+ }
+ 
+-static inline void gr_free_thread_info(struct thread_info *ti)
++static inline void gr_free_thread_info(struct task_struct *tsk, struct thread_info *ti)
+ {
+-	vfree(ti);
++	unmap_process_stacks(tsk);
+ }
+ #else
+ static inline struct thread_info *gr_alloc_thread_info_node(struct task_struct *tsk,
+-						  int node)
++						  int node, void **lowmem_stack)
+ {
+ 	return alloc_thread_info_node(tsk, node);
+ }
+ 
+-static inline void gr_free_thread_info(struct thread_info *ti)
++static inline void gr_free_thread_info(struct task_struct *tsk, struct thread_info *ti)
+ {
+ 	free_thread_info(ti);
+ }
+@@ -180,19 +199,21 @@ struct kmem_cache *vm_area_cachep;
+ /* SLAB cache for mm_struct structures (tsk->mm) */
+ static struct kmem_cache *mm_cachep;
+ 
+-static void account_kernel_stack(struct thread_info *ti, int account)
++static void account_kernel_stack(struct task_struct *tsk, struct thread_info *ti, int account)
+ {
+-#ifndef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++	struct zone *zone = page_zone(virt_to_page(tsk->lowmem_stack));
++#else
+ 	struct zone *zone = page_zone(virt_to_page(ti));
++#endif
+ 
+ 	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
+-#endif
+ }
+ 
+ void free_task(struct task_struct *tsk)
+ {
+-	account_kernel_stack(tsk->stack, -1);
+-	gr_free_thread_info(tsk->stack);
++	account_kernel_stack(tsk, tsk->stack, -1);
++	gr_free_thread_info(tsk, tsk->stack);
+ 	rt_mutex_debug_task_free(tsk);
+ 	ftrace_graph_exit_task(tsk);
+ 	put_seccomp_filter(tsk);
+@@ -282,6 +303,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	struct task_struct *tsk;
+ 	struct thread_info *ti;
+ 	unsigned long *stackend;
++	void *lowmem_stack;
+ 	int node = tsk_fork_get_node(orig);
+ 	int err;
+ 
+@@ -291,7 +313,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	if (!tsk)
+ 		return NULL;
+ 
+-	ti = gr_alloc_thread_info_node(tsk, node);
++	ti = gr_alloc_thread_info_node(tsk, node, &lowmem_stack);
+ 	if (!ti) {
+ 		free_task_struct(tsk);
+ 		return NULL;
+@@ -304,6 +326,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	 * for the clean up path to work correctly.
+ 	 */
+ 	tsk->stack = ti;
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++	tsk->lowmem_stack = lowmem_stack;
++#endif
+ 	setup_thread_stack(tsk, orig);
+ 
+ 	if (err)
+@@ -328,12 +353,12 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ #endif
+ 	tsk->splice_pipe = NULL;
+ 
+-	account_kernel_stack(ti, 1);
++	account_kernel_stack(tsk, ti, 1);
+ 
+ 	return tsk;
+ 
+ out:
+-	gr_free_thread_info(ti);
++	gr_free_thread_info(tsk, ti);
+ 	free_task_struct(tsk);
+ 	return NULL;
+ }
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 0c8633f..acca1fb 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -38,6 +38,19 @@ struct vfree_deferred {
+ };
+ static DEFINE_PER_CPU(struct vfree_deferred, vfree_deferred);
+ 
++struct stack_deferred_llist {
++	struct llist_head list;
++	void *stack;
++	void *lowmem_stack;
++};
++
++struct stack_deferred {
++	struct stack_deferred_llist list;
++	struct work_struct wq;
++};
++
++static DEFINE_PER_CPU(struct stack_deferred, stack_deferred);
++
+ static void __vunmap(const void *, int);
+ 
+ static void free_work(struct work_struct *w)
+@@ -45,9 +58,29 @@ static void free_work(struct work_struct *w)
+ 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
+ 	struct llist_node *llnode = llist_del_all(&p->list);
+ 	while (llnode) {
+-		void *p = llnode;
++		void *x = llnode;
+ 		llnode = llist_next(llnode);
+-		__vunmap(p, 1);
++		__vunmap(x, 1);
++	}
++}
++
++static void unmap_work(struct work_struct *w)
++{
++	struct stack_deferred *p = container_of(w, struct stack_deferred, wq);
++	struct llist_node *llnode = llist_del_all(&p->list.list);
++	while (llnode) {
++		struct stack_deferred_llist *x =
++			llist_entry((struct llist_head *)llnode,
++				     struct stack_deferred_llist, list);
++		void *stack = ACCESS_ONCE(x->stack);
++		void *lowmem_stack = ACCESS_ONCE(x->lowmem_stack);
++		llnode = llist_next(llnode);
++		__vunmap(stack, 0);
++#ifndef __HAVE_ARCH_THREAD_INFO_ALLOCATOR
++		free_pages((unsigned long)lowmem_stack, THREAD_SIZE_ORDER);
++#else
++		free_thread_info(lowmem_stack);
++#endif
+ 	}
+ }
+ 
+@@ -1208,13 +1241,19 @@ void __init vmalloc_init(void)
+ 	for_each_possible_cpu(i) {
+ 		struct vmap_block_queue *vbq;
+ 		struct vfree_deferred *p;
++		struct stack_deferred *p2;
+ 
+ 		vbq = &per_cpu(vmap_block_queue, i);
+ 		spin_lock_init(&vbq->lock);
+ 		INIT_LIST_HEAD(&vbq->free);
++
+ 		p = &per_cpu(vfree_deferred, i);
+ 		init_llist_head(&p->list);
+ 		INIT_WORK(&p->wq, free_work);
++
++		p2 = &per_cpu(stack_deferred, i);
++		init_llist_head(&p2->list.list);
++		INIT_WORK(&p2->wq, unmap_work);
+ 	}
+ 
+ 	/* Import existing vmlist entries. */
+@@ -1578,7 +1617,7 @@ EXPORT_SYMBOL(vfree);
+  *	Free the virtually contiguous memory area starting at @addr,
+  *	which was created from the page array passed to vmap().
+  *
+- *	Must not be called in interrupt context.
++ *	Must not be called in NMI context.
+  */
+ void vunmap(const void *addr)
+ {
+@@ -1589,6 +1628,21 @@ void vunmap(const void *addr)
+ }
+ EXPORT_SYMBOL(vunmap);
+ 
++void unmap_process_stacks(struct task_struct *task)
++{
++	if (unlikely(in_interrupt())) {
++		struct stack_deferred *p = &__get_cpu_var(stack_deferred);
++		struct stack_deferred_llist *list = task->stack;
++		list->stack = task->stack;
++		list->lowmem_stack = task->lowmem_stack;
++		if (llist_add((struct llist_node *)&list->list, &p->list.list))
++			schedule_work(&p->wq);
++	} else {
++		__vunmap(task->stack, 0);
++		free_pages((unsigned long)task->lowmem_stack, THREAD_ORDER);
++	}
++}
++
+ /**
+  *	vmap  -  map an array of pages into virtually contiguous space
+  *	@pages:		array of page pointers
+@@ -1788,18 +1842,6 @@ static inline void *__vmalloc_node_flags(unsigned long size,
+ 					node, __builtin_return_address(0));
+ }
+ 
+-void *vmalloc_stack(int node)
+-{
+-#ifdef CONFIG_DEBUG_STACK_USAGE
+-        gfp_t mask = GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO;
+-#else
+-        gfp_t mask = GFP_KERNEL | __GFP_NOTRACK;
+-#endif
+-
+-	return __vmalloc_node(THREAD_SIZE, THREAD_SIZE, mask, PAGE_KERNEL,
+-				node, __builtin_return_address(0));
+-}
+-
+ /**
+  *	vmalloc  -  allocate virtually contiguous memory
+  *	@size:		allocation size

@@ -1,0 +1,53 @@
+diff -u linux-2.6.29.6/mm/slab.c linux-2.6.29.6/mm/slab.c
+--- linux-2.6.29.6/mm/slab.c	2009-07-28 18:39:01.901581064 -0400
++++ linux-2.6.29.6/mm/slab.c	2009-07-30 08:12:26.993939231 -0400
+@@ -4460,8 +4460,12 @@
+ 
+ 	page = virt_to_head_page(ptr);
+ 
+-	if (!PageSlab(page))
+-		/* TODO: check for stack based ptr */
++	/* XXX: can get a little tighter with this stack check */
++	if (!PageSlab(page) && object_is_on_stack(ptr) &&
++	    (n > ((unsigned long)task_stack_page(current) + THREAD_SIZE -
++	     (unsigned long)ptr))
++		goto report;
++	else
+ 		return;
+ 
+ 	cachep = page_get_cache(page);
+diff -u linux-2.6.29.6/mm/slob.c linux-2.6.29.6/mm/slob.c
+--- linux-2.6.29.6/mm/slob.c	2009-07-28 18:39:01.901581064 -0400
++++ linux-2.6.29.6/mm/slob.c	2009-07-30 08:14:04.827858817 -0400
+@@ -538,7 +538,12 @@
+ 		return;
+ 
+ 	sp = (struct slob_page *)virt_to_head_page(ptr);
+-	if (!PageSlobPage((struct page*)sp))
++	/* XXX: can get a little tighter with this stack check */
++	if (!PageSlobPage((struct page*)sp) && object_is_on_stack(ptr) &&
++	    (n > ((unsigned long)task_stack_page(current) + THREAD_SIZE -
++	     (unsigned long)ptr))
++		goto report;
++	else
+ 		return;
+ 
+ 	if (sp->size) {
+diff -u linux-2.6.29.6/mm/slub.c linux-2.6.29.6/mm/slub.c
+--- linux-2.6.29.6/mm/slub.c	2009-07-28 18:39:01.901581064 -0400
++++ linux-2.6.29.6/mm/slub.c	2009-07-30 08:16:26.983980549 -0400
+@@ -2720,8 +2720,12 @@
+ 
+ 	page = get_object_page(ptr);
+ 
+-	if (!page)
+-		/* TODO: check for stack based ptr */
++	/* XXX: can get a little tighter with this stack check */
++	if (!page && object_is_on_stack(ptr) &&
++	    (n > ((unsigned long)task_stack_page(current) + THREAD_SIZE -
++	     (unsigned long)ptr))
++		goto report;
++	else
+ 		return;
+ 
+ 	s = page->slab;

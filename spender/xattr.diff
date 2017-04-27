@@ -1,0 +1,69 @@
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index 4b85c15..3476e8c 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -259,10 +259,8 @@ static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
+ #ifdef CONFIG_EXT2_FS_XATTR
+ 	if (test_opt(sb, XATTR_USER))
+ 		seq_puts(seq, ",user_xattr");
+-	if (!test_opt(sb, XATTR_USER) &&
+-	    (def_mount_opts & EXT2_DEFM_XATTR_USER)) {
++	if (!test_opt(sb, XATTR_USER))
+ 		seq_puts(seq, ",nouser_xattr");
+-	}
+ #endif
+ 
+ #ifdef CONFIG_EXT2_FS_POSIX_ACL
+@@ -827,8 +825,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 	if (def_mount_opts & EXT2_DEFM_UID16)
+ 		set_opt(sbi->s_mount_opt, NO_UID32);
+ #ifdef CONFIG_EXT2_FS_XATTR
+-	if (def_mount_opts & EXT2_DEFM_XATTR_USER)
+-		set_opt(sbi->s_mount_opt, XATTR_USER);
++	/* always enable user xattrs */
++	set_opt(sbi->s_mount_opt, XATTR_USER);
+ #endif
+ #ifdef CONFIG_EXT2_FS_POSIX_ACL
+ 	if (def_mount_opts & EXT2_DEFM_ACL)
+diff --git a/fs/ext3/super.c b/fs/ext3/super.c
+index 5e56315..62fff74 100644
+--- a/fs/ext3/super.c
++++ b/fs/ext3/super.c
+@@ -655,10 +655,8 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
+ #ifdef CONFIG_EXT3_FS_XATTR
+ 	if (test_opt(sb, XATTR_USER))
+ 		seq_puts(seq, ",user_xattr");
+-	if (!test_opt(sb, XATTR_USER) &&
+-	    (def_mount_opts & EXT3_DEFM_XATTR_USER)) {
++	if (!test_opt(sb, XATTR_USER))
+ 		seq_puts(seq, ",nouser_xattr");
+-	}
+ #endif
+ #ifdef CONFIG_EXT3_FS_POSIX_ACL
+ 	if (test_opt(sb, POSIX_ACL))
+@@ -1699,8 +1697,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
+ 	if (def_mount_opts & EXT3_DEFM_UID16)
+ 		set_opt(sbi->s_mount_opt, NO_UID32);
+ #ifdef CONFIG_EXT3_FS_XATTR
+-	if (def_mount_opts & EXT3_DEFM_XATTR_USER)
+-		set_opt(sbi->s_mount_opt, XATTR_USER);
++	/* always enable user xattrs */
++	set_opt(sbi->s_mount_opt, XATTR_USER);
+ #endif
+ #ifdef CONFIG_EXT3_FS_POSIX_ACL
+ 	if (def_mount_opts & EXT3_DEFM_ACL)
+diff --git a/fs/reiserfs/super.c b/fs/reiserfs/super.c
+index 0886e50f..636bb35 100644
+--- a/fs/reiserfs/super.c
++++ b/fs/reiserfs/super.c
+@@ -1664,6 +1664,10 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
+ 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_SMALLTAIL);
+ 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_ERROR_RO);
+ 	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_BARRIER_FLUSH);
++#ifdef CONFIG_REISERFS_FS_XATTR
++	/* turn on user xattrs by default */
++	REISERFS_SB(s)->s_mount_opt |= (1 << REISERFS_XATTRS_USER);
++#endif
+ 	/* no preallocation minimum, be smart in
+ 	   reiserfs_file_write instead */
+ 	REISERFS_SB(s)->s_alloc_options.preallocmin = 0;

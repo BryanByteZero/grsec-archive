@@ -1,0 +1,35 @@
+diff --git a/arch/x86/include/asm/fpu/internal.h b/arch/x86/include/asm/fpu/internal.h
+index 995858d..33cb41a 100644
+--- a/arch/x86/include/asm/fpu/internal.h
++++ b/arch/x86/include/asm/fpu/internal.h
+@@ -623,7 +623,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
+ 		if (fpu.preload) {
+ 			new_fpu->counter++;
+ 			__fpregs_activate(new_fpu);
+-			prefetch(&new_fpu->state);
++			prefetch(new_fpu->state);
+ 		} else {
+ 			__fpregs_deactivate_hw();
+ 		}
+@@ -635,7 +635,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
+ 			if (fpu_want_lazy_restore(new_fpu, cpu))
+ 				fpu.preload = 0;
+ 			else
+-				prefetch(&new_fpu->state);
++				prefetch(new_fpu->state);
+ 			fpregs_activate(new_fpu);
+ 		}
+ 	}
+diff --git a/arch/x86/kernel/fpu/core.c b/arch/x86/kernel/fpu/core.c
+index 84b0d51..e2df353 100644
+--- a/arch/x86/kernel/fpu/core.c
++++ b/arch/x86/kernel/fpu/core.c
+@@ -258,7 +258,7 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
+ 	 */
+ 	preempt_disable();
+ 	if (!copy_fpregs_to_fpstate(dst_fpu)) {
+-		memcpy(&src_fpu->state, &dst_fpu->state, xstate_size);
++		memcpy(src_fpu->state, dst_fpu->state, xstate_size);
+ 		fpregs_deactivate(src_fpu);
+ 	}
+ 	preempt_enable();

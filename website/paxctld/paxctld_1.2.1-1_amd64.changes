@@ -1,0 +1,33 @@
+Format: 1.8
+Date: Sat, 23 Jul 2016 10:11:00 -0500
+Source: paxctld
+Binary: paxctld
+Architecture: source amd64
+Version: 1.2.1-1
+Distribution: unstable
+Urgency: low
+Maintainer: Brad Spengler <spender@grsecurity.net>
+Changed-By: Brad Spengler <spender@grsecurity.net>
+Description: 
+ paxctld    - Daemon to automatically set appropriate PaX flags
+Changes: 
+ paxctld (1.2.1-1) unstable; urgency=low
+ .
+   * Updated default paxctld.conf to improve Ubuntu usability
+   * Updated chrome/firefox settings now that the anti-defense
+     "features" of firefox in particular have been fixed
+Checksums-Sha1: 
+ 82b2430c3e9060369dfc5016b4cf0c990ee1f6d6 805 paxctld_1.2.1-1.dsc
+ 532852ed15ae9317addc6aa82b1878b93c11ce2e 16347 paxctld_1.2.1.orig.tar.gz
+ e1aa1dca3f05ee855d3a0441f1083f8c6483bc75 3359 paxctld_1.2.1-1.debian.tar.gz
+ c8f4df7ec0ddbfba076196cf83abab9c2ae8fc8d 293128 paxctld_1.2.1-1_amd64.deb
+Checksums-Sha256: 
+ 5a49755c4d970fd89a0a45bae676c24a0d1fff290290bd76a1c6578dc7596074 805 paxctld_1.2.1-1.dsc
+ 176823d414d75f187951818bab545a0d4e89ce0a1f01415390842d77ea40505d 16347 paxctld_1.2.1.orig.tar.gz
+ cf53047bc3247646cfe4ccbfe1c85a9a906343ae4294ea85b74ac0ec1cf7892a 3359 paxctld_1.2.1-1.debian.tar.gz
+ d9c4d4300ab40184e70d727f3901bc0766cf1e200977f974620621be20b5047f 293128 paxctld_1.2.1-1_amd64.deb
+Files: 
+ 60ac44dd2645f10e0964609a7e998ed9 805 admin important paxctld_1.2.1-1.dsc
+ d595f81135c72c80c7c374492a39a55d 16347 admin important paxctld_1.2.1.orig.tar.gz
+ 078de658a2337effa8fc02faa3a10ee7 3359 admin important paxctld_1.2.1-1.debian.tar.gz
+ 3d8a6903626e70764c3d9aeb407c95b2 293128 admin important paxctld_1.2.1-1_amd64.deb

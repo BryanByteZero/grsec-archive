@@ -1,0 +1,28 @@
+diff -u linux-2.6.32.59-pax/arch/x86/mm/pgtable.c linux-2.6.32.59-pax/arch/x86/mm/pgtable.c
+--- linux-2.6.32.59-pax/arch/x86/mm/pgtable.c	2012-04-03 21:29:22.874001930 +0200
++++ linux-2.6.32.59-pax/arch/x86/mm/pgtable.c	2012-04-09 21:24:35.648279997 +0200
+@@ -99,7 +99,11 @@
+ 	while (count--) {
+ 		pgd_t pgd;
+ 
++#ifdef CONFIG_X86_64
+ 		pgd = __pgd(pgd_val(*src++) | _PAGE_USER);
++#else
++		pgd = *src++;
++#endif
+ 
+ #if defined(CONFIG_X86_64) && defined(CONFIG_PAX_MEMORY_UDEREF)
+ 		pgd = __pgd(pgd_val(pgd) & clone_pgd_mask);
+only in patch2:
+unchanged:
+--- linux-2.6.32.59/arch/x86/kernel/kdebugfs.c	2012-03-04 18:49:44.000000000 +0100
++++ linux-2.6.32.59-pax/arch/x86/kernel/kdebugfs.c	2012-04-09 21:24:35.712279997 +0200
+@@ -27,6 +27,8 @@ struct setup_data_node {
+ };
+ 
+ static ssize_t setup_data_read(struct file *file, char __user *user_buf,
++			       size_t count, loff_t *ppos) __size_overflow(3);
++static ssize_t setup_data_read(struct file *file, char __user *user_buf,
+ 			       size_t count, loff_t *ppos)
+ {
+ 	struct setup_data_node *node = file->private_data;

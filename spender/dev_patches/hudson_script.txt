@@ -1,0 +1,23 @@
+PATCH_NAME=`lynx --dump http://grsecurity.net/latest_stable_patch | grep grsec`
+KERNEL_VERSION=`echo "$PATCH_NAME" | cut -d'-' -f3`
+KERNEL_TARBALL="linux-$KERNEL_VERSION.tar.gz"
+KERNEL_URL="http://mirror.anl.gov/pub/linux/kernel/v2.6/$KERNEL_TARBALL"
+PATCH_URL="http://grsecurity.net/stable/$PATCH_NAME"
+
+if [ ! -f "$PATCH_NAME" ]; then
+wget "$PATCH_URL"
+if [ ! -f "$KERNEL_TARBALL" ]; then
+wget "$KERNEL_URL"
+fi
+if [ -d "linux-$KERNEL_VERSION" ]; then
+rm -rf "linux-$KERNEL_VERSION"
+fi
+tar -zxf "$KERNEL_TARBALL"
+patch -p0 < "$PATCH_NAME"
+cd "linux-$KERNEL_VERSION"
+cp /linuxconfig ./.config
+yes '' | make oldconfig
+cd ..
+fi
+cd "linux-$KERNEL_VERSION"
+make -j2

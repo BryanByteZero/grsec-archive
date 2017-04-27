@@ -1,0 +1,22 @@
+diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
+index 22c3bdc..8b091a59 100644
+--- a/arch/x86/kernel/signal.c
++++ b/arch/x86/kernel/signal.c
+@@ -421,6 +421,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+ 	void __user *fp = NULL;
+ 	int err = 0;
+ 	struct task_struct *me = current;
++	void *restorer;
+ 
+ 	frame = get_sigframe(ka, regs, sizeof(struct rt_sigframe), &fp);
+ 
+@@ -450,7 +451,8 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+ 		   already in userspace.  */
+ 		/* x86-64 should always use SA_RESTORER. */
+ 		if (ka->sa.sa_flags & SA_RESTORER) {
+-			put_user_ex(ka->sa.sa_restorer, &frame->pretcode);
++			restorer = (void *)ka->sa.sa_restorer;
++			put_user_ex(restorer, &frame->pretcode);
+ 		} else {
+ 			/* could use a vstub here */
+ 			err |= -EFAULT;

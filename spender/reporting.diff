@@ -1,0 +1,315 @@
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 989dbf2..8c841c3 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -65,6 +65,10 @@ static int elf_core_dump(struct coredump_params *cprm);
+ static void elf_handle_mprotect(struct vm_area_struct *vma, unsigned long newflags);
+ #endif
+ 
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++static void elf_handle_mmap(struct file *file);
++#endif
++
+ #if ELF_EXEC_PAGESIZE > PAGE_SIZE
+ #define ELF_MIN_ALIGN	ELF_EXEC_PAGESIZE
+ #else
+@@ -89,6 +93,10 @@ static struct linux_binfmt elf_format = {
+ 	.handle_mprotect= elf_handle_mprotect,
+ #endif
+ 
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++	.handle_mmap	= elf_handle_mmap,
++#endif
++
+ 	.min_coredump	= ELF_EXEC_PAGESIZE,
+ };
+ 
+@@ -2815,6 +2823,35 @@ static void elf_handle_mprotect(struct vm_area_struct *vma, unsigned long newfla
+ }
+ #endif
+ 
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++
++extern int grsec_enable_log_rwxmaps;
++
++static void elf_handle_mmap(struct file *file)
++{
++	struct elfhdr elf_h;
++	struct elf_phdr elf_p;
++	unsigned long i;
++
++	if (!grsec_enable_log_rwxmaps)
++		return;
++
++	if (sizeof(elf_h) != kernel_read(file, 0UL, (char *)&elf_h, sizeof(elf_h)) ||
++	    memcmp(elf_h.e_ident, ELFMAG, SELFMAG) ||
++	    (elf_h.e_type != ET_DYN && elf_h.e_type != ET_EXEC) || !elf_check_arch(&elf_h) ||
++	    elf_h.e_phentsize != sizeof(struct elf_phdr) ||
++	    elf_h.e_phnum > 65536UL / sizeof(struct elf_phdr))
++		return;
++
++	for (i = 0UL; i < elf_h.e_phnum; i++) {
++		if (sizeof(elf_p) != kernel_read(file, elf_h.e_phoff + i*sizeof(elf_p), (char *)&elf_p, sizeof(elf_p)))
++			return;
++		if (elf_p.p_type == PT_GNU_STACK && (elf_p.p_flags & PF_X))
++			gr_log_ptgnustack(file);
++	}
++}
++#endif
++
+ static int __init init_elf_binfmt(void)
+ {
+ 	register_binfmt(&elf_format);
+diff --git a/fs/exec.c b/fs/exec.c
+index 97f4c7d..d95acf6 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1980,6 +1980,10 @@ void pax_report_fault(struct pt_regs *regs, void *pc, void *sp)
+ 			offset = vma_fault->vm_pgoff << PAGE_SHIFT;
+ 			if (vma_fault->vm_file)
+ 				path_fault = pax_get_path(&vma_fault->vm_file->f_path, buffer_fault, PAGE_SIZE);
++			else if (pc >= mm->start_brk && pc < mm->brk)
++				path_fault = "<heap>";
++			else if (vma_fault->vm_flags & (VM_GROWSDOWN | VM_GROWSUP))
++				path_fault = "<stack>";
+ 			else
+ 				path_fault = "<anonymous mapping>";
+ 		}
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index c9c4ac3..712a85d 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -708,22 +708,11 @@ config GRKERNSEC_RWXMAP_LOG
+ 	help
+ 	  If you say Y here, calls to mmap() and mprotect() with explicit
+ 	  usage of PROT_WRITE and PROT_EXEC together will be logged when
+-	  denied by the PAX_MPROTECT feature.  If the sysctl option is
+-	  enabled, a sysctl option with name "rwxmap_logging" is created.
+-
+-config GRKERNSEC_AUDIT_TEXTREL
+-	bool 'ELF text relocations logging (READ HELP)'
+-	depends on PAX_MPROTECT
+-	help
+-	  If you say Y here, text relocations will be logged with the filename
+-	  of the offending library or binary.  The purpose of the feature is
+-	  to help Linux distribution developers get rid of libraries and
+-	  binaries that need text relocations which hinder the future progress
+-	  of PaX.  Only Linux distribution developers should say Y here, and
+-	  never on a production machine, as this option creates an information
+-	  leak that could aid an attacker in defeating the randomization of
+-	  a single memory region.  If the sysctl option is enabled, a sysctl
+-	  option with name "audit_textrel" is created.
++	  denied by the PAX_MPROTECT feature.  This feature will also
++	  log other problematic scenarios that can occur when PAX_MPROTECT
++	  is enabled on a binary, like textrels and PT_GNU_STACK.  If the 
++          sysctl option is enabled, a sysctl option with name "rwxmap_logging"
++	  is created.
+ 
+ endmenu
+ 
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index a862e9f..ab2d875 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -21,7 +21,6 @@ int grsec_enable_signal;
+ int grsec_enable_forkfail;
+ int grsec_enable_audit_ptrace;
+ int grsec_enable_time;
+-int grsec_enable_audit_textrel;
+ int grsec_enable_group;
+ kgid_t grsec_audit_gid;
+ int grsec_enable_chdir;
+@@ -153,9 +152,6 @@ grsecurity_init(void)
+ 	grsec_lock = 1;
+ #endif
+ 
+-#ifdef CONFIG_GRKERNSEC_AUDIT_TEXTREL
+-	grsec_enable_audit_textrel = 1;
+-#endif
+ #ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
+ 	grsec_enable_log_rwxmaps = 1;
+ #endif
+diff --git a/grsecurity/grsec_log.c b/grsecurity/grsec_log.c
+index 7c06085..9809cd7 100644
+--- a/grsecurity/grsec_log.c
++++ b/grsecurity/grsec_log.c
+@@ -149,6 +149,7 @@ void gr_log_varargs(int audit, const char *msg, int argtypes, ...)
+ 	struct vfsmount *mnt = NULL;
+ 	struct file *file = NULL;
+ 	struct task_struct *task = NULL;
++	struct vm_area_struct *vma = NULL;
+ 	const struct cred *cred, *pcred;
+ 	va_list ap;
+ 
+@@ -288,6 +289,19 @@ void gr_log_varargs(int audit, const char *msg, int argtypes, ...)
+ 		file = va_arg(ap, struct file *);
+ 		gr_log_middle_varargs(audit, msg, file ? gr_to_filename(file->f_path.dentry, file->f_path.mnt) : "<anonymous mapping>");
+ 		break;
++	case GR_RWXMAPVMA:
++		vma = va_arg(ap, struct vm_area_struct *);
++		if (vma->vm_file)
++			str1 = gr_to_filename(vma->vm_file->f_path.dentry, vma->vm_file->f_path.mnt);
++		else if (vma->vm_flags & (VM_GROWSDOWN | VM_GROWSUP))
++			str1 = "<stack>";
++		else if (vma->vm_start <= current->mm->brk &&
++			 vma->vm_end >= current->mm->start_brk)
++			str1 = "<heap>";
++		else
++			str1 = "<anonymous mapping>";
++		gr_log_middle_varargs(audit, msg, str1);
++		break;
+ 	case GR_PSACCT:
+ 		{
+ 			unsigned int wday, cday;
+diff --git a/grsecurity/grsec_pax.c b/grsecurity/grsec_pax.c
+index a3b12a0..6ee9d50 100644
+--- a/grsecurity/grsec_pax.c
++++ b/grsecurity/grsec_pax.c
+@@ -8,9 +8,18 @@
+ void
+ gr_log_textrel(struct vm_area_struct * vma)
+ {
+-#ifdef CONFIG_GRKERNSEC_AUDIT_TEXTREL
+-	if (grsec_enable_audit_textrel)
+-		gr_log_textrel_ulong_ulong(GR_DO_AUDIT, GR_TEXTREL_AUDIT_MSG, vma->vm_file, vma->vm_start, vma->vm_pgoff);
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++	if (grsec_enable_log_rwxmaps)
++		gr_log_textrel_ulong_ulong(GR_DONT_AUDIT, GR_TEXTREL_AUDIT_MSG, vma->vm_file, vma->vm_start, vma->vm_pgoff);
++#endif
++	return;
++}
++
++void gr_log_ptgnustack(struct file *file)
++{
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++	if (grsec_enable_log_rwxmaps)
++		gr_log_rwxmap(GR_DONT_AUDIT, GR_PTGNUSTACK_MSG, file);
+ #endif
+ 	return;
+ }
+@@ -26,11 +35,11 @@ gr_log_rwxmmap(struct file *file)
+ }
+ 
+ void
+-gr_log_rwxmprotect(struct file *file)
++gr_log_rwxmprotect(struct vm_area_struct *vma)
+ {
+ #ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
+ 	if (grsec_enable_log_rwxmaps)
+-		gr_log_rwxmap(GR_DONT_AUDIT, GR_RWXMPROTECT_MSG, file);
++		gr_log_rwxmap_vma(GR_DONT_AUDIT, GR_RWXMPROTECT_MSG, vma);
+ #endif
+ 	return;
+ }
+diff --git a/grsecurity/grsec_sysctl.c b/grsecurity/grsec_sysctl.c
+index f55ef0f..7624d1c 100644
+--- a/grsecurity/grsec_sysctl.c
++++ b/grsecurity/grsec_sysctl.c
+@@ -391,15 +391,6 @@ struct ctl_table grsecurity_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
+-#ifdef CONFIG_GRKERNSEC_AUDIT_TEXTREL
+-	{
+-		.procname	= "audit_textrel",
+-		.data		= &grsec_enable_audit_textrel,
+-		.maxlen		= sizeof(int),
+-		.mode		= 0600,
+-		.proc_handler	= &proc_dointvec,
+-	},
+-#endif
+ #ifdef CONFIG_GRKERNSEC_DMESG
+ 	{
+ 		.procname	= "dmesg",
+diff --git a/include/linux/binfmts.h b/include/linux/binfmts.h
+index cabb82e..0418ee2 100644
+--- a/include/linux/binfmts.h
++++ b/include/linux/binfmts.h
+@@ -74,6 +74,7 @@ struct linux_binfmt {
+ 	int (*load_shlib)(struct file *);
+ 	int (*core_dump)(struct coredump_params *cprm);
+ 	void (*handle_mprotect)(struct vm_area_struct *vma, unsigned long newflags);
++	void (*handle_mmap)(struct file *);
+ 	unsigned long min_coredump;	/* minimal dump size */
+ } __do_const;
+ 
+diff --git a/include/linux/grinternal.h b/include/linux/grinternal.h
+index 12994b5..fc3228e 100644
+--- a/include/linux/grinternal.h
++++ b/include/linux/grinternal.h
+@@ -73,7 +73,6 @@ extern int grsec_enable_socket_server;
+ extern kgid_t grsec_socket_server_gid;
+ extern kgid_t grsec_audit_gid;
+ extern int grsec_enable_group;
+-extern int grsec_enable_audit_textrel;
+ extern int grsec_enable_log_rwxmaps;
+ extern int grsec_enable_mount;
+ extern int grsec_enable_chdir;
+@@ -219,6 +218,7 @@ enum {
+ #define gr_log_crash2(audit, msg, task, ulong1) gr_log_varargs(audit, msg, GR_CRASH2, task, ulong1)
+ #define gr_log_procacct(audit, msg, task, num1, num2, num3, num4, num5, num6, num7, num8, num9) gr_log_varargs(audit, msg, GR_PSACCT, task, num1, num2, num3, num4, num5, num6, num7, num8, num9)
+ #define gr_log_rwxmap(audit, msg, str) gr_log_varargs(audit, msg, GR_RWXMAP, str)
++#define gr_log_rwxmap_vma(audit, msg, str) gr_log_varargs(audit, msg, GR_RWXMAPVMA, str)
+ 
+ void gr_log_varargs(int audit, const char *msg, int argtypes, ...);
+ 
+diff --git a/include/linux/grmsg.h b/include/linux/grmsg.h
+index 2f159b5..a4396b5 100644
+--- a/include/linux/grmsg.h
++++ b/include/linux/grmsg.h
+@@ -101,7 +101,8 @@
+ #define GR_RESOURCE_MSG "denied resource overstep by requesting %lu for %.16s against limit %lu for "
+ #define GR_RWXMMAP_MSG "denied RWX mmap of %.950s by "
+ #define GR_RWXMPROTECT_MSG "denied RWX mprotect of %.950s by "
+-#define GR_TEXTREL_AUDIT_MSG "text relocation in %s, VMA:0x%08lx 0x%08lx by "
++#define GR_TEXTREL_AUDIT_MSG "denied text relocation in %.950s, VMA:0x%08lx 0x%08lx by "
++#define GR_PTGNUSTACK_MSG "denied marking stack executable as requested by PT_GNU_STACK marking in %.950s by "
+ #define GR_VM86_MSG "denied use of vm86 by "
+ #define GR_PTRACE_AUDIT_MSG "process %.950s(%.16s:%d) attached to via ptrace by "
+ #define GR_PTRACE_READEXEC_MSG "denied ptrace of unreadable binary %.950s by "
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index d957f6d..3676b0b 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -75,8 +75,9 @@ void gr_log_remount(const char *devname, const int retval);
+ void gr_log_unmount(const char *devname, const int retval);
+ void gr_log_mount(const char *from, const char *to, const int retval);
+ void gr_log_textrel(struct vm_area_struct *vma);
++void gr_log_ptgnustack(struct file *file);
+ void gr_log_rwxmmap(struct file *file);
+-void gr_log_rwxmprotect(struct file *file);
++void gr_log_rwxmprotect(struct vm_area_struct *vma);
+ 
+ int gr_handle_follow_link(const struct inode *parent,
+ 				 const struct inode *inode,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 4c2577f..623110e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1335,6 +1335,13 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 
+ #ifdef CONFIG_PAX_MPROTECT
+ 	if (mm->pax_flags & MF_PAX_MPROTECT) {
++
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++		if (file && (vm_flags & VM_EXEC) && mm->binfmt &&
++		    mm->binfmt->handle_mmap)
++			mm->binfmt->handle_mmap(file);
++#endif
++
+ #ifndef CONFIG_PAX_MPROTECT_COMPAT
+ 		if ((vm_flags & (VM_WRITE | VM_EXEC)) == (VM_WRITE | VM_EXEC)) {
+ 			gr_log_rwxmmap(file);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 07d9926..e661e29 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -519,7 +519,7 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
+ 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
+ 		if ((newflags & ~(newflags >> 4)) & (VM_READ | VM_WRITE | VM_EXEC)) {
+ 			if (prot & (PROT_WRITE | PROT_EXEC))
+-				gr_log_rwxmprotect(vma->vm_file);
++				gr_log_rwxmprotect(vma);
+ 
+ 			error = -EACCES;
+ 			goto out;

@@ -1,0 +1,16 @@
+diff -urNp vmci-only/linux/driver.c vmci-only-new/linux/driver.c
+--- vmci-only/linux/driver.c	2011-08-21 22:01:14.000000000 -0400
++++ vmci-only-new/linux/driver.c	2011-09-20 02:23:20.000000000 -0400
+@@ -241,8 +241,11 @@ static unsigned int LinuxDriverPoll(stru
+ #define LinuxDriverUnlockIoctlPerFD(mutex) do {} while (0)
+ #endif
+ 
++#ifdef CONSTIFY_PLUGIN
++static file_operations_no_const vmuser_fops;
++#else
+ static struct file_operations vmuser_fops;
+-
++#endif
+ 
+ /*
+  *----------------------------------------------------------------------

@@ -1,0 +1,274 @@
+diff --git a/include/linux/cred.h b/include/linux/cred.h
+index a5c9f09..8d6f342 100644
+--- a/include/linux/cred.h
++++ b/include/linux/cred.h
+@@ -196,11 +196,6 @@ do {								\
+ 	__validate_process_creds(current, __FILE__, __LINE__);	\
+ } while(0)
+ 
+-#define validate_task_creds(task)				\
+-do {								\
+-	__validate_process_creds((task), __FILE__, __LINE__);	\
+-} while(0)
+-
+ extern void validate_creds_for_do_exit(struct task_struct *);
+ #else
+ static inline void validate_creds(const struct cred *cred)
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 5a64056..51dd96c 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1566,6 +1566,7 @@ struct task_struct {
+ 
+ #ifdef CONFIG_GRKERNSEC
+ 	/* grsecurity */
++	const struct cred *delayed_cred;
+ 	struct dentry *gr_chroot_dentry;
+ 	struct acl_subject_label *acl;
+ 	struct acl_role_label *role;
+diff --git a/kernel/cred.c b/kernel/cred.c
+index 7957d07..bed28ea 100644
+--- a/kernel/cred.c
++++ b/kernel/cred.c
+@@ -208,6 +208,15 @@ void exit_creds(struct task_struct *tsk)
+ 		validate_creds(cred);
+ 		put_cred(cred);
+ 	}
++
++#ifdef CONFIG_GRKERNSEC_SETXID
++	cred = (struct cred *) tsk->delayed_cred;
++	if (cred) {
++		tsk->delayed_cred = NULL;
++		validate_creds(cred);
++		put_cred(cred);
++	}
++#endif
+ }
+ 
+ /**
+@@ -290,14 +299,15 @@ error:
+  * Call commit_creds() or abort_creds() to clean up.
+  */
+ 
+-static struct cred *__prepare_creds(struct task_struct *task)
++struct cred *prepare_creds(void)
+ {
++	struct task_struct *task = current;
+ 	const struct cred *old;
+ 	struct cred *new;
+ 
+ 	pax_track_stack();
+ 
+-	validate_task_creds(task);
++	validate_process_creds();
+ 
+ 	new = kmem_cache_alloc(cred_jar, GFP_KERNEL);
+ 	if (!new)
+@@ -332,11 +342,6 @@ error:
+ 	abort_creds(new);
+ 	return NULL;
+ }
+-
+-struct cred *prepare_creds(void)
+-{
+-	return __prepare_creds(current);
+-}
+ EXPORT_SYMBOL(prepare_creds);
+ 
+ /*
+@@ -489,8 +494,9 @@ error_put:
+  * Always returns 0 thus allowing this function to be tail-called at the end
+  * of, say, sys_setgid().
+  */
+-static int __commit_creds(struct task_struct *task, struct cred *new)
++static int __commit_creds(struct cred *new)
+ {
++	struct task_struct *task = current;
+ 	const struct cred *old = task->real_cred;
+ 
+ 	pax_track_stack();
+@@ -560,18 +566,62 @@ static int __commit_creds(struct task_struct *task, struct cred *new)
+ 	put_cred(old);
+ 	return 0;
+ }
+-
+ #ifdef CONFIG_GRKERNSEC_SETXID
+-static int set_task_user(struct user_namespace *user_ns, struct cred *new)
++extern int set_user(struct cred *new);
++
++void gr_delayed_cred_worker(void)
+ {
+-	struct user_struct *new_user;
++	const struct cred *new = current->delayed_cred;
++	struct cred *ncred;
+ 
+-	new_user = alloc_uid(user_ns, new->uid);
+-	if (!new_user)
+-		return -EAGAIN;
+-	free_uid(new->user);
+-	new->user = new_user;
+-	return 0;
++	current->delayed_cred = NULL;
++
++	if (current_uid() && new != NULL) {
++		// from doing get_cred on it when queueing this
++		put_cred(new);
++		return;
++	} else if (new == NULL)
++		return;
++
++	ncred = prepare_creds();
++	if (!ncred)
++		goto die;
++	// uids
++	ncred->uid = new->uid;
++	ncred->euid = new->euid;
++	ncred->suid = new->suid;
++	ncred->fsuid = new->fsuid;
++	// gids
++	ncred->gid = new->gid;
++	ncred->egid = new->egid;
++	ncred->sgid = new->sgid;
++	ncred->fsgid = new->fsgid;
++	// groups
++	if (set_groups(ncred, new->group_info) < 0) {
++		abort_creds(ncred);
++		goto die;
++	}
++	// caps
++	ncred->securebits = new->securebits;
++	ncred->cap_inheritable = new->cap_inheritable;
++	ncred->cap_permitted = new->cap_permitted;
++	ncred->cap_effective = new->cap_effective;
++	ncred->cap_bset = new->cap_bset;
++
++	if (set_user(ncred)) {
++		abort_creds(ncred);
++		goto die;
++	}
++
++	// from doing get_cred on it when queueing this
++	put_cred(new);
++
++	__commit_creds(ncred);
++	return;
++die:
++	// from doing get_cred on it when queueing this
++	put_cred(new);
++	do_group_exit(SIGKILL);
+ }
+ #endif
+ 
+@@ -579,8 +629,6 @@ int commit_creds(struct cred *new)
+ {
+ #ifdef CONFIG_GRKERNSEC_SETXID
+ 	struct task_struct *t;
+-	struct cred *ncred;
+-	const struct cred *old;
+ 
+ 	/* we won't get called with tasklist_lock held for writing
+ 	   and interrupts disabled as the cred struct in that case is
+@@ -592,53 +640,16 @@ int commit_creds(struct cred *new)
+ 		read_lock(&tasklist_lock);
+ 		for (t = next_thread(current); t != current;
+ 		     t = next_thread(t)) {
+-			old = __task_cred(t);
+-			if (old->uid)
+-				continue;
+-			ncred = __prepare_creds(t);
+-			if (!ncred)
+-				goto die;
+-			// uids
+-			ncred->uid = new->uid;
+-			ncred->euid = new->euid;
+-			ncred->suid = new->suid;
+-			ncred->fsuid = new->fsuid;
+-			// gids
+-			ncred->gid = new->gid;
+-			ncred->egid = new->egid;
+-			ncred->sgid = new->sgid;
+-			ncred->fsgid = new->fsgid;
+-			// groups
+-			if (set_groups(ncred, new->group_info) < 0) {
+-				abort_creds(ncred);
+-				goto die;
++			if (t->delayed_cred == NULL) {
++				t->delayed_cred = get_cred(new);
++				set_tsk_need_resched(t);
+ 			}
+-			// caps
+-			ncred->securebits = new->securebits;
+-			ncred->cap_inheritable = new->cap_inheritable;
+-			ncred->cap_permitted = new->cap_permitted;
+-			ncred->cap_effective = new->cap_effective;
+-			ncred->cap_bset = new->cap_bset;
+-
+-			if (set_task_user(old->user_ns, ncred)) {
+-				abort_creds(ncred);
+-				goto die;
+-			}
+-
+-			__commit_creds(t, ncred);
+ 		}
+ 		read_unlock(&tasklist_lock);
+ 		rcu_read_unlock();
+ 	}
+ #endif
+-	return __commit_creds(current, new);
+-#ifdef CONFIG_GRKERNSEC_SETXID
+-die:
+-	read_unlock(&tasklist_lock);
+-	rcu_read_unlock();
+-	abort_creds(new);
+-	do_group_exit(SIGKILL);
+-#endif
++	return __commit_creds(new);
+ }
+ 
+ EXPORT_SYMBOL(commit_creds);
+diff --git a/kernel/sched.c b/kernel/sched.c
+index 1c6c591..91e9aed 100644
+--- a/kernel/sched.c
++++ b/kernel/sched.c
+@@ -4254,6 +4254,19 @@ pick_next_task(struct rq *rq)
+ 	BUG(); /* the idle class will always have a runnable task */
+ }
+ 
++#ifdef CONFIG_GRKERNSEC_SETXID
++extern void gr_delayed_cred_worker(void);
++static inline void gr_cred_schedule(void)
++{
++	if (unlikely(current->delayed_cred))
++		gr_delayed_cred_worker();
++}
++#else
++static inline void gr_cred_schedule(void)
++{
++}
++#endif
++
+ /*
+  * __schedule() is the main scheduler function.
+  */
+@@ -4275,6 +4288,8 @@ need_resched:
+ 
+ 	schedule_debug(prev);
+ 
++	gr_cred_schedule();
++
+ 	if (sched_feat(HRTICK))
+ 		hrtick_clear(rq);
+ 
+diff --git a/kernel/sys.c b/kernel/sys.c
+index e96e1dd..6d0c5d8 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -630,7 +630,7 @@ error:
+ /*
+  * change the user struct in a credentials set to match the new UID
+  */
+-static int set_user(struct cred *new)
++int set_user(struct cred *new)
+ {
+ 	struct user_struct *new_user;
+ 

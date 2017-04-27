@@ -1,0 +1,19 @@
+Apache Benchmark:
+This test profile measures how many requests per second a given system 
+can sustain when carrying out 700,000 requests with 100 requests being 
+carried out concurrently.
+
+Vanilla 2.6.39.1 x64 kernel:			10758
+All grsecurity/PaX features enabled:		8751	+19%
+All but RBAC:					8436	+22%
+All but UDEREF:					9652	+10%
+All but KERNEXEC/UDEREF:			9633	+10%
+All but KERNEXEC/UDEREF/SANITIZE:		9860	+8%
+All but KERNEXEC/UDEREF/SANITIZE/STACKLEAK:	10798	+0%
+
+For Apache benchmark:
+STACKLEAK: 8% hit
+SANITIZE: 2% hit
+KERNEXEC: 0% hit
+UDEREF: 9% hit
+RBAC: -3% hit

@@ -1,0 +1,17 @@
+--- drivers/pci/setup-bus.c.orig        2016-06-11 23:37:16.362091567 +0200
++++ drivers/pci/setup-bus.c     2016-06-11 23:40:05.418093847 +0200
+@@ -406,8 +406,11 @@
+ 
+  	/* Update res in head list with add_size in realloc_head list */
+  	list_for_each_entry_safe(dev_res, tmp_res, head, list) {
+- 		dev_res->res->end += get_res_add_size(realloc_head,
+-  							dev_res->res);
++ 		resource_size_t tmp;
++
++ 		tmp = get_res_add_size(realloc_head, dev_res->res);
++ 		printk(KERN_ERR "PAX: tmp: %lx end: %lx\n", tmp, dev_res->res->end);
++ 		dev_res->res->end += tmp;
+ 
+  		/*
+ 		 * There are two kinds of additional resources in the list:
+

@@ -1,0 +1,63 @@
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 8c70743..b23c815 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2709,6 +2709,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			from the first 4GB of memory as the bootmem allocator
+ 			passes the memory pages to the buddy allocator.
+ 
++	pax_size_overflow_disable_kill
++			Enables rate-limited logging of size_overflow plugin
++			violations while disabling killing of the violating
++			task.
++
+ 	pax_weakuderef	[X86-64] enables the weaker but faster form of UDEREF
+ 			when the processor supports PCID.
+ 
+diff --git a/fs/exec.c b/fs/exec.c
+index 895c666..73f5e4f 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -2226,11 +2226,17 @@ EXPORT_SYMBOL(pax_track_stack);
+ 
+ #ifdef CONFIG_PAX_SIZE_OVERFLOW
+ 
++static DEFINE_RATELIMIT_STATE(size_overflow_ratelimit, 15 * HZ, 3);
++extern int pax_size_overflow_kill;
++
+ void __nocapture(1, 3, 4) __used report_size_overflow(const char *file, unsigned int line, const char *func, const char *ssa_name)
+ {
+-	printk(KERN_EMERG "PAX: size overflow detected in function %s %s:%u %s", func, file, line, ssa_name);
+-	dump_stack();
+-	do_group_exit(SIGKILL);
++	if (pax_size_overflow_kill || __ratelimit(&size_overflow_ratelimit)) {
++		printk(KERN_EMERG "PAX: size overflow detected in function %s %s:%u %s", func, file, line, ssa_name);
++		dump_stack();
++	}
++	if (pax_size_overflow_kill)
++		do_group_exit(SIGKILL);
+ }
+ EXPORT_SYMBOL(report_size_overflow);
+ #endif
+diff --git a/init/main.c b/init/main.c
+index 141e0b4..d2779ac 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -191,6 +191,17 @@ static int __init setup_pax_softmode(char *str)
+ __setup("pax_softmode=", setup_pax_softmode);
+ #endif
+ 
++#ifdef CONFIG_PAX_SIZE_OVERFLOW
++int pax_size_overflow_kill __read_only = 1;
++
++static int __init setup_pax_size_overflow_disable_kill(char *str)
++{
++	pax_size_overflow_kill = 0;
++	return 0;
++}
++early_param("pax_size_overflow_disable_kill", setup_pax_size_overflow_disable_kill);
++#endif
++
+ static const char *argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
+ const char *envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
+ static const char *panic_later, *panic_param;

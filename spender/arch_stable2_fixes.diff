@@ -1,0 +1,444 @@
+diff --git a/Makefile b/Makefile
+index d1011ba..aa55228 100644
+--- a/Makefile
++++ b/Makefile
+@@ -619,7 +619,7 @@ GCC_PLUGINS_CFLAGS += $(KERNEXEC_PLUGIN_CFLAGS) $(CHECKER_PLUGIN_CFLAGS) $(COLOR
+ GCC_PLUGINS_CFLAGS += $(SIZE_OVERFLOW_PLUGIN_CFLAGS) $(LATENT_ENTROPY_PLUGIN_CFLAGS) $(STRUCTLEAK_PLUGIN_CFLAGS)
+ GCC_PLUGINS_CFLAGS += $(RANDSTRUCT_PLUGIN_CFLAGS)
+ GCC_PLUGINS_AFLAGS := $(KERNEXEC_PLUGIN_AFLAGS)
+-export PLUGINCC CONSTIFY_PLUGIN
++export PLUGINCC CONSTIFY_PLUGIN LATENT_ENTROPY_PLUGIN_CFLAGS
+ ifeq ($(KBUILD_EXTMOD),)
+ gcc-plugins:
+ 	$(Q)$(MAKE) $(build)=tools/gcc
+diff --git a/arch/arm/include/asm/uaccess.h b/arch/arm/include/asm/uaccess.h
+index 47aa55e..aef3b4a 100644
+--- a/arch/arm/include/asm/uaccess.h
++++ b/arch/arm/include/asm/uaccess.h
+@@ -201,6 +201,7 @@ static inline void set_fs(mm_segment_t fs)
+ 
+ #endif /* CONFIG_MMU */
+ 
++#define access_ok_noprefault(type,addr,size) access_ok((type),(addr),(size))
+ #define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
+ 
+ /*
+diff --git a/arch/ia64/include/asm/uaccess.h b/arch/ia64/include/asm/uaccess.h
+index 18965fb..3d4b1e9 100644
+--- a/arch/ia64/include/asm/uaccess.h
++++ b/arch/ia64/include/asm/uaccess.h
+@@ -70,6 +70,7 @@
+ 	 && ((segment).seg == KERNEL_DS.seg						\
+ 	     || likely(REGION_OFFSET((unsigned long) (addr)) < RGN_MAP_LIMIT)));	\
+ })
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)	__access_ok((addr), (size), get_fs())
+ 
+ /*
+diff --git a/arch/mips/cavium-octeon/dma-octeon.c b/arch/mips/cavium-octeon/dma-octeon.c
+index 1960ddd..ea4feba 100644
+--- a/arch/mips/cavium-octeon/dma-octeon.c
++++ b/arch/mips/cavium-octeon/dma-octeon.c
+@@ -189,7 +189,7 @@ static void octeon_dma_free_coherent(struct device *dev, size_t size,
+ 	if (dma_release_from_coherent(dev, order, vaddr))
+ 		return;
+ 
+-	swiotlb_free_coherent(dev, size, vaddr, dma_handle, attrs);
++	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
+ }
+ 
+ static dma_addr_t octeon_unity_phys_to_dma(struct device *dev, phys_addr_t paddr)
+diff --git a/arch/mips/include/asm/local.h b/arch/mips/include/asm/local.h
+index 94fde8d..d5825cf 100644
+--- a/arch/mips/include/asm/local.h
++++ b/arch/mips/include/asm/local.h
+@@ -12,15 +12,25 @@ typedef struct
+ 	atomic_long_t a;
+ } local_t;
+ 
++typedef struct {
++	atomic_long_unchecked_t a;
++} local_unchecked_t;
++
+ #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
+ 
+ #define local_read(l)	atomic_long_read(&(l)->a)
++#define local_read_unchecked(l)	atomic_long_read_unchecked(&(l)->a)
+ #define local_set(l, i)	atomic_long_set(&(l)->a, (i))
++#define local_set_unchecked(l, i)	atomic_long_set_unchecked(&(l)->a, (i))
+ 
+ #define local_add(i, l)	atomic_long_add((i), (&(l)->a))
++#define local_add_unchecked(i, l)	atomic_long_add_unchecked((i), (&(l)->a))
+ #define local_sub(i, l)	atomic_long_sub((i), (&(l)->a))
++#define local_sub_unchecked(i, l)	atomic_long_sub_unchecked((i), (&(l)->a))
+ #define local_inc(l)	atomic_long_inc(&(l)->a)
++#define local_inc_unchecked(l)	atomic_long_inc_unchecked(&(l)->a)
+ #define local_dec(l)	atomic_long_dec(&(l)->a)
++#define local_dec_unchecked(l)	atomic_long_dec_unchecked(&(l)->a)
+ 
+ /*
+  * Same as above, but return the result value
+@@ -69,6 +79,7 @@ static __inline__ long local_add_return(long i, local_t * l)
+ 
+ 	return result;
+ }
++#define local_add_return_unchecked(i, l) atomic_long_add_return_unchecked((i), (&(l)->a))
+ 
+ static __inline__ long local_sub_return(long i, local_t * l)
+ {
+@@ -114,9 +125,12 @@ static __inline__ long local_sub_return(long i, local_t * l)
+ 
+ 	return result;
+ }
++#define local_sub_return_unchecked(i, l) atomic_long_sub_return_unchecked((i), (&(l)->a))
+ 
+ #define local_cmpxchg(l, o, n) \
+ 	((long)cmpxchg_local(&((l)->a.counter), (o), (n)))
++#define local_cmpxchg_unchecked(l, o, n) \
++	((long)cmpxchg_local(&((l)->a.counter), (o), (n)))
+ #define local_xchg(l, n) (atomic_long_xchg((&(l)->a), (n)))
+ 
+ /**
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index b2202a6..6780030 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -18,6 +18,9 @@
+ #include <asm/io.h>
+ #include <asm/pgtable-bits.h>
+ 
++#define ktla_ktva(addr)		(addr)
++#define ktva_ktla(addr)		(addr)
++
+ struct mm_struct;
+ struct vm_area_struct;
+ 
+diff --git a/arch/mips/include/asm/uaccess.h b/arch/mips/include/asm/uaccess.h
+index 653a412..f97cc92 100644
+--- a/arch/mips/include/asm/uaccess.h
++++ b/arch/mips/include/asm/uaccess.h
+@@ -119,6 +119,7 @@ extern u64 __ua_limit;
+ 	__ok == 0;							\
+ })
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)					\
+ 	likely(__access_ok((addr), (size), __access_mask))
+ 
+diff --git a/arch/powerpc/include/asm/local.h b/arch/powerpc/include/asm/local.h
+index b8da913..60b608a 100644
+--- a/arch/powerpc/include/asm/local.h
++++ b/arch/powerpc/include/asm/local.h
+@@ -9,15 +9,26 @@ typedef struct
+ 	atomic_long_t a;
+ } local_t;
+ 
++typedef struct
++{
++	atomic_long_unchecked_t a;
++} local_unchecked_t;
++
+ #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
+ 
+ #define local_read(l)	atomic_long_read(&(l)->a)
++#define local_read_unchecked(l)	atomic_long_read_unchecked(&(l)->a)
+ #define local_set(l,i)	atomic_long_set(&(l)->a, (i))
++#define local_set_unchecked(l,i)	atomic_long_set_unchecked(&(l)->a, (i))
+ 
+ #define local_add(i,l)	atomic_long_add((i),(&(l)->a))
++#define local_add_unchecked(i,l)	atomic_long_add_unchecked((i),(&(l)->a))
+ #define local_sub(i,l)	atomic_long_sub((i),(&(l)->a))
++#define local_sub_unchecked(i,l)	atomic_long_sub_unchecked((i),(&(l)->a))
+ #define local_inc(l)	atomic_long_inc(&(l)->a)
++#define local_inc_unchecked(l)	atomic_long_inc_unchecked(&(l)->a)
+ #define local_dec(l)	atomic_long_dec(&(l)->a)
++#define local_dec_unchecked(l)	atomic_long_dec_unchecked(&(l)->a)
+ 
+ static __inline__ long local_add_return(long a, local_t *l)
+ {
+@@ -35,6 +46,7 @@ static __inline__ long local_add_return(long a, local_t *l)
+ 
+ 	return t;
+ }
++#define local_add_return_unchecked(i, l) atomic_long_add_return_unchecked((i), (&(l)->a))
+ 
+ #define local_add_negative(a, l)	(local_add_return((a), (l)) < 0)
+ 
+@@ -54,6 +66,7 @@ static __inline__ long local_sub_return(long a, local_t *l)
+ 
+ 	return t;
+ }
++#define local_sub_return_unchecked(i, l) atomic_long_sub_return_unchecked((i), (&(l)->a))
+ 
+ static __inline__ long local_inc_return(local_t *l)
+ {
+@@ -101,6 +114,8 @@ static __inline__ long local_dec_return(local_t *l)
+ 
+ #define local_cmpxchg(l, o, n) \
+ 	(cmpxchg_local(&((l)->a.counter), (o), (n)))
++#define local_cmpxchg_unchecked(l, o, n) \
++	(cmpxchg_local(&((l)->a.counter), (o), (n)))
+ #define local_xchg(l, n) (xchg_local(&((l)->a.counter), (n)))
+ 
+ /**
+diff --git a/arch/powerpc/include/asm/uaccess.h b/arch/powerpc/include/asm/uaccess.h
+index 1f2d065..a40ed3a 100644
+--- a/arch/powerpc/include/asm/uaccess.h
++++ b/arch/powerpc/include/asm/uaccess.h
+@@ -56,6 +56,7 @@
+ 
+ #endif
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)		\
+ 	(__chk_user_ptr(addr),			\
+ 	 __access_ok((__force unsigned long)(addr), (size), get_fs()))
+diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
+index ce4f7f1..ee682a0 100644
+--- a/arch/powerpc/kernel/Makefile
++++ b/arch/powerpc/kernel/Makefile
+@@ -26,6 +26,8 @@ CFLAGS_REMOVE_ftrace.o = -pg -mno-sched-epilog
+ CFLAGS_REMOVE_time.o = -pg -mno-sched-epilog
+ endif
+ 
++CFLAGS_REMOVE_prom_init.o += $(LATENT_ENTROPY_PLUGIN_CFLAGS)
++
+ obj-y				:= cputable.o ptrace.o syscalls.o \
+ 				   irq.o align.o signal_32.o pmc.o vdso.o \
+ 				   init_task.o process.o systbl.o idle.o \
+diff --git a/arch/powerpc/kvm/powerpc.c b/arch/powerpc/kvm/powerpc.c
+index 607fbdf..ac940f3 100644
+--- a/arch/powerpc/kvm/powerpc.c
++++ b/arch/powerpc/kvm/powerpc.c
+@@ -730,7 +730,7 @@ out:
+ 	return r;
+ }
+ 
+-int kvm_arch_init(void *opaque)
++int kvm_arch_init(const void *opaque)
+ {
+ 	return 0;
+ }
+diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+index 7205007..337e4c3 100644
+--- a/arch/powerpc/mm/numa.c
++++ b/arch/powerpc/mm/numa.c
+@@ -659,7 +659,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
+ 	unsigned int n, rc, ranges, is_kexec_kdump = 0;
+ 	unsigned long lmb_size, base, size, sz;
+ 	int nid;
+-	struct assoc_arrays aa;
++	struct assoc_arrays aa = { .arrays = NULL };
+ 
+ 	n = of_get_drconf_memory(memory, &dm);
+ 	if (!n)
+diff --git a/arch/powerpc/platforms/cell/celleb_scc_pciex.c b/arch/powerpc/platforms/cell/celleb_scc_pciex.c
+index 14be2bd..56f51cb 100644
+--- a/arch/powerpc/platforms/cell/celleb_scc_pciex.c
++++ b/arch/powerpc/platforms/cell/celleb_scc_pciex.c
+@@ -400,8 +400,8 @@ static int scc_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
+ }
+ 
+ static struct pci_ops scc_pciex_pci_ops = {
+-	scc_pciex_read_config,
+-	scc_pciex_write_config,
++	.read = scc_pciex_read_config,
++	.write = scc_pciex_write_config,
+ };
+ 
+ static void pciex_clear_intr_all(unsigned int __iomem *base)
+diff --git a/arch/powerpc/platforms/pseries/eeh_event.c b/arch/powerpc/platforms/pseries/eeh_event.c
+index d2383cf..a6d33c8 100644
+--- a/arch/powerpc/platforms/pseries/eeh_event.c
++++ b/arch/powerpc/platforms/pseries/eeh_event.c
+@@ -61,7 +61,7 @@ static int eeh_event_handler(void * dummy)
+ 	struct eeh_event	*event;
+ 	struct pci_dn *pdn;
+ 
+-	daemonize ("eehd");
++	set_task_comm(current, "eehd");
+ 	set_current_state(TASK_INTERRUPTIBLE);
+ 
+ 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
+diff --git a/arch/s390/include/asm/uaccess.h b/arch/s390/include/asm/uaccess.h
+index e84d6ac..3db7651 100644
+--- a/arch/s390/include/asm/uaccess.h
++++ b/arch/s390/include/asm/uaccess.h
+@@ -55,6 +55,7 @@
+ 	1;			\
+ })
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size) __access_ok(addr, size)
+ 
+ /*
+diff --git a/arch/sparc/include/asm/pgtable.h b/arch/sparc/include/asm/pgtable.h
+index 59ba6f6..4518128 100644
+--- a/arch/sparc/include/asm/pgtable.h
++++ b/arch/sparc/include/asm/pgtable.h
+@@ -5,4 +5,8 @@
+ #else
+ #include <asm/pgtable_32.h>
+ #endif
++
++#define ktla_ktva(addr)		(addr)
++#define ktva_ktla(addr)		(addr)
++
+ #endif
+diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+index 4252f11..2c6406a 100644
+--- a/arch/x86/include/asm/uaccess.h
++++ b/arch/x86/include/asm/uaccess.h
+@@ -82,7 +82,7 @@ void set_fs(mm_segment_t x);
+  * checks that the pointer is in the user space range - after calling
+  * this function, memory access functions may still return -EFAULT.
+  */
+-#define __access_ok(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
++#define access_ok_noprefault(type, addr, size) (likely(__range_not_ok(addr, size) == 0))
+ #define access_ok(type, addr, size)					\
+ ({									\
+ 	long __size = size;						\
+diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
+index 9d90f2c..6f1d97a 100644
+--- a/arch/x86/include/asm/uaccess_64.h
++++ b/arch/x86/include/asm/uaccess_64.h
+@@ -101,7 +101,7 @@ unsigned long __copy_from_user(void *dst, const void __user *src, unsigned long
+ 	check_object_size(dst, size, false);
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+ #endif
+ 
+@@ -162,7 +162,7 @@ unsigned long __copy_to_user(void __user *dst, const void *src, unsigned long si
+ 	check_object_size(src, size, true);
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_WRITE, dst, size))
++	if (!access_ok_noprefault(VERIFY_WRITE, dst, size))
+ 		return size;
+ #endif
+ 
+@@ -220,9 +220,9 @@ unsigned long __copy_in_user(void __user *dst, const void __user *src, unsigned
+ 		return size;
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+-	if (!__access_ok(VERIFY_WRITE, dst, size))
++	if (!access_ok_noprefault(VERIFY_WRITE, dst, size))
+ 		return size;
+ #endif
+ 
+@@ -312,7 +312,7 @@ static inline unsigned long __copy_from_user_nocache(void *dst, const void __use
+ 		return size;
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+ #endif
+ 
+@@ -326,7 +326,7 @@ static inline unsigned long __copy_from_user_inatomic_nocache(void *dst, const v
+ 		return size;
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+ #endif
+ 
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+index 0970b01..3f2d038 100644
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -255,7 +255,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	addr = start;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+ 	end = start + len;
+-	if (unlikely(!__access_ok(write ? VERIFY_WRITE : VERIFY_READ,
++	if (unlikely(!access_ok_noprefault(write ? VERIFY_WRITE : VERIFY_READ,
+ 					(void __user *)start, len)))
+ 		return 0;
+ 
+@@ -331,7 +331,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 		goto slow_irqon;
+ #endif
+ 
+-	if (unlikely(!__access_ok(write ? VERIFY_WRITE : VERIFY_READ,
++	if (unlikely(!access_ok_noprefault(write ? VERIFY_WRITE : VERIFY_READ,
+ 					(void __user *)start, len)))
+ 		return 0;
+ 
+diff --git a/drivers/tty/n_tty.c b/drivers/tty/n_tty.c
+index 64c35dd..2fb7043 100644
+--- a/drivers/tty/n_tty.c
++++ b/drivers/tty/n_tty.c
+@@ -1639,6 +1639,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
+ 	int retval;
+ 	size_t n;
+ 	unsigned long flags;
++	bool is_eof;
+ 
+ 	retval = 0;
+ 	spin_lock_irqsave(&tty->read_lock, flags);
+@@ -1648,15 +1649,15 @@ static int copy_from_read_buf(struct tty_struct *tty,
+ 	if (n) {
+ 		retval = copy_to_user(*b, &tty->read_buf[tty->read_tail], n);
+ 		n -= retval;
++		is_eof = n == 1 &&
++			tty->read_buf[tty->read_tail] == EOF_CHAR(tty);
+ 		tty_audit_add_data(tty, &tty->read_buf[tty->read_tail], n);
+ 		spin_lock_irqsave(&tty->read_lock, flags);
+ 		tty->read_tail = (tty->read_tail + n) & (N_TTY_BUF_SIZE-1);
+ 		tty->read_cnt -= n;
+ 		/* Turn single EOF into zero-length read */
+-		if (L_EXTPROC(tty) && tty->icanon && n == 1) {
+-			if (!tty->read_cnt && (*b)[n-1] == EOF_CHAR(tty))
+-				n--;
+-		}
++		if (L_EXTPROC(tty) && tty->icanon && is_eof && !tty->read_cnt)
++			n = 0;
+ 		spin_unlock_irqrestore(&tty->read_lock, flags);
+ 		*b += n;
+ 		*nr -= n;
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index c5563a6..0725236 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -154,7 +154,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+ 	if (addr) {
+ 		addr = ALIGN(addr, huge_page_size(h));
+ 		vma = find_vma(mm, addr);
+-		if (TASK_SIZE - len >= addr && check_heap_stack_gap(vma, addr, len, offset))
++		if (TASK_SIZE - len >= addr && check_heap_stack_gap(vma, &addr, len, offset))
+ 			return addr;
+ 	}
+ 
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 8532ed2..0069a59 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -24,6 +24,7 @@
+ #include <linux/fdtable.h>
+ #include <linux/percpu.h>
+ #include <linux/posix-timers.h>
++#include <linux/prefetch.h>
+ #if defined(CONFIG_BTRFS_FS) || defined(CONFIG_BTRFS_FS_MODULE)
+ #include <linux/magic.h>
+ #include <linux/pagemap.h>
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 76e9c92..52970b8 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -664,7 +664,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
+ 	/* We can read the guest memory with __xxx_user() later on. */
+ 	if (user_alloc &&
+ 	    ((mem->userspace_addr & (PAGE_SIZE - 1)) ||
+-	     !__access_ok(VERIFY_WRITE,
++	     !access_ok_noprefault(VERIFY_WRITE,
+ 			(void __user *)(unsigned long)mem->userspace_addr,
+ 			mem->memory_size)))
+ 		goto out;

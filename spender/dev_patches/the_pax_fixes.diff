@@ -1,0 +1,561 @@
+diff -u linux-2.6.31-rc8/drivers/atm/suni.c linux-2.6.31-rc8/drivers/atm/suni.c
+--- linux-2.6.31-rc8/drivers/atm/suni.c	2009-09-04 10:53:35.609841533 -0400
++++ linux-2.6.31-rc8/drivers/atm/suni.c	2009-09-04 14:30:28.473992844 -0400
+@@ -50,7 +50,7 @@
+ 
+ #define ADD_LIMITED(s,v) \
+     atomic_add_unchecked((v),&stats->s); \
+-    if (atomic_read(&stats->s) < 0) atomic_set(&stats->s,INT_MAX);
++    if (atomic_read_unchecked(&stats->s) < 0) atomic_set_unchecked(&stats->s,INT_MAX);
+ 
+ 
+ static void suni_hz(unsigned long from_timer)
+diff -u linux-2.6.31-rc8/drivers/char/ipmi/ipmi_msghandler.c linux-2.6.31-rc8/drivers/char/ipmi/ipmi_msghandler.c
+--- linux-2.6.31-rc8/drivers/char/ipmi/ipmi_msghandler.c	2009-09-04 10:53:39.834488534 -0400
++++ linux-2.6.31-rc8/drivers/char/ipmi/ipmi_msghandler.c	2009-09-04 14:30:38.523051047 -0400
+@@ -448,7 +448,7 @@
+ #define ipmi_inc_stat(intf, stat) \
+ 	atomic_inc_unchecked(&(intf)->stats[IPMI_STAT_ ## stat])
+ #define ipmi_get_stat(intf, stat) \
+-	((unsigned int) atomic_read(&(intf)->stats[IPMI_STAT_ ## stat]))
++	((unsigned int) atomic_read_unchecked(&(intf)->stats[IPMI_STAT_ ## stat]))
+ 
+ static int is_lan_addr(struct ipmi_addr *addr)
+ {
+@@ -2807,7 +2807,7 @@
+ 	INIT_LIST_HEAD(&intf->cmd_rcvrs);
+ 	init_waitqueue_head(&intf->waitq);
+ 	for (i = 0; i < IPMI_NUM_STATS; i++)
+-		atomic_set(&intf->stats[i], 0);
++		atomic_set_unchecked(&intf->stats[i], 0);
+ 
+ 	intf->proc_dir = NULL;
+ 
+diff -u linux-2.6.31-rc8/drivers/char/ipmi/ipmi_si_intf.c linux-2.6.31-rc8/drivers/char/ipmi/ipmi_si_intf.c
+--- linux-2.6.31-rc8/drivers/char/ipmi/ipmi_si_intf.c	2009-09-04 10:53:39.835968907 -0400
++++ linux-2.6.31-rc8/drivers/char/ipmi/ipmi_si_intf.c	2009-09-04 14:30:38.529215474 -0400
+@@ -287,7 +287,7 @@
+ #define smi_inc_stat(smi, stat) \
+ 	atomic_inc_unchecked(&(smi)->stats[SI_STAT_ ## stat])
+ #define smi_get_stat(smi, stat) \
+-	((unsigned int) atomic_read(&(smi)->stats[SI_STAT_ ## stat]))
++	((unsigned int) atomic_read_unchecked(&(smi)->stats[SI_STAT_ ## stat]))
+ 
+ #define SI_MAX_PARMS 4
+ 
+@@ -2926,7 +2926,7 @@
+ 	atomic_set(&new_smi->req_events, 0);
+ 	new_smi->run_to_completion = 0;
+ 	for (i = 0; i < SI_NUM_STATS; i++)
+-		atomic_set(&new_smi->stats[i], 0);
++		atomic_set_unchecked(&new_smi->stats[i], 0);
+ 
+ 	new_smi->interrupt_disabled = 0;
+ 	atomic_set(&new_smi->stop_operation, 0);
+diff -u linux-2.6.31-rc8/drivers/char/pcmcia/ipwireless/tty.c linux-2.6.31-rc8/drivers/char/pcmcia/ipwireless/tty.c
+--- linux-2.6.31-rc8/drivers/char/pcmcia/ipwireless/tty.c	2009-09-04 10:53:40.125438218 -0400
++++ linux-2.6.31-rc8/drivers/char/pcmcia/ipwireless/tty.c	2009-09-04 14:30:46.633096127 -0400
+@@ -127,10 +127,10 @@
+ 		mutex_unlock(&tty->ipw_tty_mutex);
+ 		return -ENODEV;
+ 	}
+-	if (tty->open_count == 0)
++	if (atomic_read(&tty->open_count) == 0)
+ 		tty->tx_bytes_queued = 0;
+ 
+-	tty->open_count++;
++	atomic_inc(&tty->open_count);
+ 
+ 	tty->linux_tty = linux_tty;
+ 	linux_tty->driver_data = tty;
+@@ -146,9 +146,7 @@
+ 
+ static void do_ipw_close(struct ipw_tty *tty)
+ {
+-	tty->open_count--;
+-
+-	if (tty->open_count == 0) {
++	if (atomic_dec_return(&tty->open_count) == 0) {
+ 		struct tty_struct *linux_tty = tty->linux_tty;
+ 
+ 		if (linux_tty != NULL) {
+@@ -169,7 +167,7 @@
+ 		return;
+ 
+ 	mutex_lock(&tty->ipw_tty_mutex);
+-	if (tty->open_count == 0) {
++	if (atomic_read(&tty->open_count) == 0) {
+ 		mutex_unlock(&tty->ipw_tty_mutex);
+ 		return;
+ 	}
+@@ -198,7 +196,7 @@
+ 		return;
+ 	}
+ 
+-	if (!tty->open_count) {
++	if (!atomic_read(&tty->open_count)) {
+ 		mutex_unlock(&tty->ipw_tty_mutex);
+ 		return;
+ 	}
+@@ -240,7 +238,7 @@
+ 		return -ENODEV;
+ 
+ 	mutex_lock(&tty->ipw_tty_mutex);
+-	if (!tty->open_count) {
++	if (!atomic_read(&tty->open_count)) {
+ 		mutex_unlock(&tty->ipw_tty_mutex);
+ 		return -EINVAL;
+ 	}
+@@ -280,7 +278,7 @@
+ 	if (!tty)
+ 		return -ENODEV;
+ 
+-	if (!tty->open_count)
++	if (!atomic_read(&tty->open_count))
+ 		return -EINVAL;
+ 
+ 	room = IPWIRELESS_TX_QUEUE_SIZE - tty->tx_bytes_queued;
+@@ -322,7 +320,7 @@
+ 	if (!tty)
+ 		return 0;
+ 
+-	if (!tty->open_count)
++	if (!atomic_read(&tty->open_count))
+ 		return 0;
+ 
+ 	return tty->tx_bytes_queued;
+@@ -403,7 +401,7 @@
+ 	if (!tty)
+ 		return -ENODEV;
+ 
+-	if (!tty->open_count)
++	if (!atomic_read(&tty->open_count))
+ 		return -EINVAL;
+ 
+ 	return get_control_lines(tty);
+@@ -419,7 +417,7 @@
+ 	if (!tty)
+ 		return -ENODEV;
+ 
+-	if (!tty->open_count)
++	if (!atomic_read(&tty->open_count))
+ 		return -EINVAL;
+ 
+ 	return set_control_lines(tty, set, clear);
+@@ -433,7 +431,7 @@
+ 	if (!tty)
+ 		return -ENODEV;
+ 
+-	if (!tty->open_count)
++	if (!atomic_read(&tty->open_count))
+ 		return -EINVAL;
+ 
+ 	/* FIXME: Exactly how is the tty object locked here .. */
+@@ -591,7 +589,7 @@
+ 				   against a parallel ioctl etc */
+ 				mutex_lock(&ttyj->ipw_tty_mutex);
+ 			}
+-			while (ttyj->open_count)
++			while (atomic_read(&ttyj->open_count))
+ 				do_ipw_close(ttyj);
+ 			ipwireless_disassociate_network_ttys(network,
+ 							     ttyj->channel_idx);
+diff -u linux-2.6.31-rc8/drivers/char/sonypi.c linux-2.6.31-rc8/drivers/char/sonypi.c
+--- linux-2.6.31-rc8/drivers/char/sonypi.c	2009-09-04 10:53:40.048745387 -0400
++++ linux-2.6.31-rc8/drivers/char/sonypi.c	2009-09-04 14:30:46.107532801 -0400
+@@ -894,7 +894,7 @@
+ static int sonypi_misc_release(struct inode *inode, struct file *file)
+ {
+ 	mutex_lock(&sonypi_device.lock);
+-	sonypi_device.open_count--;
++	atomic_dec(&sonypi_device.open_count);
+ 	mutex_unlock(&sonypi_device.lock);
+ 	return 0;
+ }
+@@ -904,9 +904,9 @@
+ 	lock_kernel();
+ 	mutex_lock(&sonypi_device.lock);
+ 	/* Flush input queue on first open */
+-	if (!sonypi_device.open_count)
++	if (!atomic_read(&sonypi_device.open_count))
+ 		kfifo_reset(sonypi_device.fifo);
+-	sonypi_device.open_count++;
++	atomic_inc(&sonypi_device.open_count);
+ 	mutex_unlock(&sonypi_device.lock);
+ 	unlock_kernel();
+ 	return 0;
+diff -u linux-2.6.31-rc8/fs/ocfs2/super.c linux-2.6.31-rc8/fs/ocfs2/super.c
+--- linux-2.6.31-rc8/fs/ocfs2/super.c	2009-09-04 10:53:42.516689983 -0400
++++ linux-2.6.31-rc8/fs/ocfs2/super.c	2009-09-04 14:32:08.746151551 -0400
+@@ -284,11 +284,11 @@
+ 			"%10s => GlobalAllocs: %d  LocalAllocs: %d  "
+ 			"SubAllocs: %d  LAWinMoves: %d  SAExtends: %d\n",
+ 			"Stats",
+-			atomic_read(&osb->alloc_stats.bitmap_data),
+-			atomic_read(&osb->alloc_stats.local_data),
+-			atomic_read(&osb->alloc_stats.bg_allocs),
+-			atomic_read(&osb->alloc_stats.moves),
+-			atomic_read(&osb->alloc_stats.bg_extends));
++			atomic_read_unchecked(&osb->alloc_stats.bitmap_data),
++			atomic_read_unchecked(&osb->alloc_stats.local_data),
++			atomic_read_unchecked(&osb->alloc_stats.bg_allocs),
++			atomic_read_unchecked(&osb->alloc_stats.moves),
++			atomic_read_unchecked(&osb->alloc_stats.bg_extends));
+ 
+ 	out += snprintf(buf + out, len - out,
+ 			"%10s => State: %u  Descriptor: %llu  Size: %u bits  "
+@@ -1991,11 +1991,11 @@
+ 	spin_lock_init(&osb->osb_xattr_lock);
+ 	ocfs2_init_inode_steal_slot(osb);
+ 
+-	atomic_set(&osb->alloc_stats.moves, 0);
+-	atomic_set(&osb->alloc_stats.local_data, 0);
+-	atomic_set(&osb->alloc_stats.bitmap_data, 0);
+-	atomic_set(&osb->alloc_stats.bg_allocs, 0);
+-	atomic_set(&osb->alloc_stats.bg_extends, 0);
++	atomic_set_unchecked(&osb->alloc_stats.moves, 0);
++	atomic_set_unchecked(&osb->alloc_stats.local_data, 0);
++	atomic_set_unchecked(&osb->alloc_stats.bitmap_data, 0);
++	atomic_set_unchecked(&osb->alloc_stats.bg_allocs, 0);
++	atomic_set_unchecked(&osb->alloc_stats.bg_extends, 0);
+ 
+ 	/* Copy the blockcheck stats from the superblock probe */
+ 	osb->osb_ecc_stats = *stats;
+diff -u linux-2.6.31-rc8/kernel/module.c linux-2.6.31-rc8/kernel/module.c
+--- linux-2.6.31-rc8/kernel/module.c	2009-09-04 10:53:59.241442127 -0400
++++ linux-2.6.31-rc8/kernel/module.c	2009-09-04 14:34:55.120590152 -0400
+@@ -1286,6 +1284,9 @@
+ 	struct module_notes_attrs *notes_attrs;
+ 	struct bin_attribute *nattr;
+ 
++	if (!mod->sect_attrs)
++		return;
++
+ 	/* Count notes sections and allocate structures.  */
+ 	notes = 0;
+ 	for (i = 0; i < nsect; i++)
+@@ -2493,8 +2494,7 @@
+ 	if (err < 0)
+ 		goto unlink;
+ 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
+-	if (mod->sect_attrs)
+-		add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
++	add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
+ 
+ 	/* Get rid of temporary copy */
+ 	vfree(hdr);
+diff -u linux-2.6.31-rc8/scripts/mod/modpost.c linux-2.6.31-rc8/scripts/mod/modpost.c
+--- linux-2.6.31-rc8/scripts/mod/modpost.c	2009-09-04 10:53:44.359059902 -0400
++++ linux-2.6.31-rc8/scripts/mod/modpost.c	2009-09-04 14:34:00.774236946 -0400
+@@ -1276,12 +1276,10 @@
+ 		"or drop the export.\n",
+ 		tosym, sec2annotation(tosec), sec2annotation(tosec), tosym);
+ 	case DATA_TO_TEXT:
+-/*
+ 		fprintf(stderr,
+ 		"The variable %s references\n"
+-		"the %s %s%s%s\n"
++		"the %s %s%s%s\n",
+ 		fromsym, to, sec2annotation(tosec), tosym, to_p);
+-*/
+ 		break;
+ 	case NO_MISMATCH:
+ 		/* To get warnings on missing members */
+diff -u linux-2.6.31-rc8/sound/drivers/mts64.c linux-2.6.31-rc8/sound/drivers/mts64.c
+--- linux-2.6.31-rc8/sound/drivers/mts64.c	2009-09-04 10:53:31.807702039 -0400
++++ linux-2.6.31-rc8/sound/drivers/mts64.c	2009-09-04 14:28:07.105037159 -0400
+@@ -695,7 +695,7 @@
+ {
+ 	struct mts64 *mts = substream->rmidi->private_data;
+ 
+-	if (mts->open_count == 0) {
++	if (atomic_read(&mts->open_count) == 0) {
+ 		/* We don't need a spinlock here, because this is just called 
+ 		   if the device has not been opened before. 
+ 		   So there aren't any IRQs from the device */
+@@ -703,7 +703,7 @@
+ 
+ 		msleep(50);
+ 	}
+-	++(mts->open_count);
++	atomic_inc(&mts->open_count);
+ 
+ 	return 0;
+ }
+@@ -713,8 +713,7 @@
+ 	struct mts64 *mts = substream->rmidi->private_data;
+ 	unsigned long flags;
+ 
+-	--(mts->open_count);
+-	if (mts->open_count == 0) {
++	if (atomic_dec_return(&mts->open_count) == 0) {
+ 		/* We need the spinlock_irqsave here because we can still
+ 		   have IRQs at this point */
+ 		spin_lock_irqsave(&mts->lock, flags);
+@@ -723,8 +722,8 @@
+ 
+ 		msleep(500);
+ 
+-	} else if (mts->open_count < 0)
+-		mts->open_count = 0;
++	} else if (atomic_read(&mts->open_count) < 0)
++		atomic_set(&mts->open_count, 0);
+ 
+ 	return 0;
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.31-rc8/drivers/isdn/gigaset/common.c	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31-rc8/drivers/isdn/gigaset/common.c	2009-09-04 14:28:51.421001478 -0400
+@@ -665,7 +665,7 @@ struct cardstate *gigaset_initcs(struct 
+ 	cs->commands_pending = 0;
+ 	cs->cur_at_seq = 0;
+ 	cs->gotfwver = -1;
+-	cs->open_count = 0;
++	atomic_set(&cs->open_count, 0);
+ 	cs->dev = NULL;
+ 	cs->tty = NULL;
+ 	cs->tty_dev = NULL;
+only in patch2:
+unchanged:
+--- linux-2.6.31-rc8/drivers/isdn/gigaset/interface.c	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31-rc8/drivers/isdn/gigaset/interface.c	2009-09-04 14:28:51.460056766 -0400
+@@ -165,9 +165,7 @@ static int if_open(struct tty_struct *tt
+ 		return -ERESTARTSYS; // FIXME -EINTR?
+ 	tty->driver_data = cs;
+ 
+-	++cs->open_count;
+-
+-	if (cs->open_count == 1) {
++	if (atomic_inc_return(&cs->open_count) == 1) {
+ 		spin_lock_irqsave(&cs->lock, flags);
+ 		cs->tty = tty;
+ 		spin_unlock_irqrestore(&cs->lock, flags);
+@@ -195,10 +193,10 @@ static void if_close(struct tty_struct *
+ 
+ 	if (!cs->connected)
+ 		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+-	else if (!cs->open_count)
++	else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else {
+-		if (!--cs->open_count) {
++		if (!atomic_dec_return(&cs->open_count)) {
+ 			spin_lock_irqsave(&cs->lock, flags);
+ 			cs->tty = NULL;
+ 			spin_unlock_irqrestore(&cs->lock, flags);
+@@ -233,7 +231,7 @@ static int if_ioctl(struct tty_struct *t
+ 	if (!cs->connected) {
+ 		gig_dbg(DEBUG_IF, "not connected");
+ 		retval = -ENODEV;
+-	} else if (!cs->open_count)
++	} else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else {
+ 		retval = 0;
+@@ -361,7 +359,7 @@ static int if_write(struct tty_struct *t
+ 	if (!cs->connected) {
+ 		gig_dbg(DEBUG_IF, "not connected");
+ 		retval = -ENODEV;
+-	} else if (!cs->open_count)
++	} else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else if (cs->mstate != MS_LOCKED) {
+ 		dev_warn(cs->dev, "can't write to unlocked device\n");
+@@ -395,7 +393,7 @@ static int if_write_room(struct tty_stru
+ 	if (!cs->connected) {
+ 		gig_dbg(DEBUG_IF, "not connected");
+ 		retval = -ENODEV;
+-	} else if (!cs->open_count)
++	} else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else if (cs->mstate != MS_LOCKED) {
+ 		dev_warn(cs->dev, "can't write to unlocked device\n");
+@@ -429,7 +427,7 @@ static int if_chars_in_buffer(struct tty
+ 	if (!cs->connected) {
+ 		gig_dbg(DEBUG_IF, "not connected");
+ 		retval = -ENODEV;
+-	} else if (!cs->open_count)
++	} else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else if (cs->mstate != MS_LOCKED) {
+ 		dev_warn(cs->dev, "can't write to unlocked device\n");
+@@ -458,7 +456,7 @@ static void if_throttle(struct tty_struc
+ 
+ 	if (!cs->connected)
+ 		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+-	else if (!cs->open_count)
++	else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else {
+ 		//FIXME
+@@ -483,7 +481,7 @@ static void if_unthrottle(struct tty_str
+ 
+ 	if (!cs->connected)
+ 		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+-	else if (!cs->open_count)
++	else if (!atomic_read(&cs->open_count))
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 	else {
+ 		//FIXME
+@@ -515,7 +513,7 @@ static void if_set_termios(struct tty_st
+ 		goto out;
+ 	}
+ 
+-	if (!cs->open_count) {
++	if (!atomic_read(&cs->open_count)) {
+ 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+ 		goto out;
+ 	}
+only in patch2:
+unchanged:
+--- linux-2.6.31-rc8/fs/reiserfs/procfs.c	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31-rc8/fs/reiserfs/procfs.c	2009-09-04 14:32:05.912251906 -0400
+@@ -123,7 +123,7 @@ static int show_super(struct seq_file *m
+ 		   "SMALL_TAILS " : "NO_TAILS ",
+ 		   replay_only(sb) ? "REPLAY_ONLY " : "",
+ 		   convert_reiserfs(sb) ? "CONV " : "",
+-		   atomic_read(&r->s_generation_counter),
++		   atomic_read_unchecked(&r->s_generation_counter),
+ 		   SF(s_disk_reads), SF(s_disk_writes), SF(s_fix_nodes),
+ 		   SF(s_do_balance), SF(s_unneeded_left_neighbor),
+ 		   SF(s_good_search_by_key_reada), SF(s_bmaps),
+only in patch2:
+unchanged:
+--- linux-2.6.31-rc8/include/linux/reiserfs_fs.h	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31-rc8/include/linux/reiserfs_fs.h	2009-09-04 14:33:42.763684162 -0400
+@@ -1326,7 +1326,7 @@ static inline loff_t max_reiserfs_offset
+ #define REISERFS_USER_MEM		1	/* reiserfs user memory mode            */
+ 
+ #define fs_generation(s) (REISERFS_SB(s)->s_generation_counter)
+-#define get_generation(s) atomic_read (&fs_generation(s))
++#define get_generation(s) atomic_read_unchecked (&fs_generation(s))
+ #define FILESYSTEM_CHANGED_TB(tb)  (get_generation((tb)->tb_sb) != (tb)->fs_gen)
+ #define __fs_changed(gen,s) (gen != get_generation (s))
+ #define fs_changed(gen,s) ({cond_resched(); __fs_changed(gen, s);})
+only in patch2:
+unchanged:
+--- linux-2.6.31-rc8/net/irda/ircomm/ircomm_tty.c	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31-rc8/net/irda/ircomm/ircomm_tty.c	2009-09-04 14:32:59.727203558 -0400
+@@ -280,16 +280,16 @@ static int ircomm_tty_block_til_ready(st
+ 	add_wait_queue(&self->open_wait, &wait);
+ 
+ 	IRDA_DEBUG(2, "%s(%d):block_til_ready before block on %s open_count=%d\n",
+-	      __FILE__,__LINE__, tty->driver->name, self->open_count );
++	      __FILE__,__LINE__, tty->driver->name, atomic_read(&self->open_count) );
+ 
+ 	/* As far as I can see, we protect open_count - Jean II */
+ 	spin_lock_irqsave(&self->spinlock, flags);
+ 	if (!tty_hung_up_p(filp)) {
+ 		extra_count = 1;
+-		self->open_count--;
++		atomic_dec(&self->open_count);
+ 	}
+ 	spin_unlock_irqrestore(&self->spinlock, flags);
+-	self->blocked_open++;
++	atomic_inc(&self->blocked_open);
+ 
+ 	while (1) {
+ 		if (tty->termios->c_cflag & CBAUD) {
+@@ -329,7 +329,7 @@ static int ircomm_tty_block_til_ready(st
+ 		}
+ 
+ 		IRDA_DEBUG(1, "%s(%d):block_til_ready blocking on %s open_count=%d\n",
+-		      __FILE__,__LINE__, tty->driver->name, self->open_count );
++		      __FILE__,__LINE__, tty->driver->name, atomic_read(&self->open_count) );
+ 
+ 		schedule();
+ 	}
+@@ -340,13 +340,13 @@ static int ircomm_tty_block_til_ready(st
+ 	if (extra_count) {
+ 		/* ++ is not atomic, so this should be protected - Jean II */
+ 		spin_lock_irqsave(&self->spinlock, flags);
+-		self->open_count++;
++		atomic_inc(&self->open_count);
+ 		spin_unlock_irqrestore(&self->spinlock, flags);
+ 	}
+-	self->blocked_open--;
++	atomic_dec(&self->blocked_open);
+ 
+ 	IRDA_DEBUG(1, "%s(%d):block_til_ready after blocking on %s open_count=%d\n",
+-	      __FILE__,__LINE__, tty->driver->name, self->open_count);
++	      __FILE__,__LINE__, tty->driver->name, atomic_read(&self->open_count));
+ 
+ 	if (!retval)
+ 		self->flags |= ASYNC_NORMAL_ACTIVE;
+@@ -415,14 +415,14 @@ static int ircomm_tty_open(struct tty_st
+ 	}
+ 	/* ++ is not atomic, so this should be protected - Jean II */
+ 	spin_lock_irqsave(&self->spinlock, flags);
+-	self->open_count++;
++	atomic_inc(&self->open_count);
+ 
+ 	tty->driver_data = self;
+ 	self->tty = tty;
+ 	spin_unlock_irqrestore(&self->spinlock, flags);
+ 
+ 	IRDA_DEBUG(1, "%s(), %s%d, count = %d\n", __func__ , tty->driver->name,
+-		   self->line, self->open_count);
++		   self->line, atomic_read(&self->open_count));
+ 
+ 	/* Not really used by us, but lets do it anyway */
+ 	self->tty->low_latency = (self->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+@@ -511,7 +511,7 @@ static void ircomm_tty_close(struct tty_
+ 		return;
+ 	}
+ 
+-	if ((tty->count == 1) && (self->open_count != 1)) {
++	if ((tty->count == 1) && (atomic_read(&self->open_count) != 1)) {
+ 		/*
+ 		 * Uh, oh.  tty->count is 1, which means that the tty
+ 		 * structure will be freed.  state->count should always
+@@ -521,16 +521,16 @@ static void ircomm_tty_close(struct tty_
+ 		 */
+ 		IRDA_DEBUG(0, "%s(), bad serial port count; "
+ 			   "tty->count is 1, state->count is %d\n", __func__ ,
+-			   self->open_count);
+-		self->open_count = 1;
++			   atomic_read(&self->open_count));
++		atomic_set(&self->open_count, 1);
+ 	}
+ 
+-	if (--self->open_count < 0) {
++	if (atomic_dec_return(&self->open_count) < 0) {
+ 		IRDA_ERROR("%s(), bad serial port count for ttys%d: %d\n",
+-			   __func__, self->line, self->open_count);
+-		self->open_count = 0;
++			   __func__, self->line, atomic_read(&self->open_count));
++		atomic_set(&self->open_count, 0);
+ 	}
+-	if (self->open_count) {
++	if (atomic_read(&self->open_count)) {
+ 		spin_unlock_irqrestore(&self->spinlock, flags);
+ 
+ 		IRDA_DEBUG(0, "%s(), open count > 0\n", __func__ );
+@@ -562,7 +562,7 @@ static void ircomm_tty_close(struct tty_
+ 	tty->closing = 0;
+ 	self->tty = NULL;
+ 
+-	if (self->blocked_open) {
++	if (atomic_read(&self->blocked_open)) {
+ 		if (self->close_delay)
+ 			schedule_timeout_interruptible(self->close_delay);
+ 		wake_up_interruptible(&self->open_wait);
+@@ -1017,7 +1017,7 @@ static void ircomm_tty_hangup(struct tty
+ 	spin_lock_irqsave(&self->spinlock, flags);
+ 	self->flags &= ~ASYNC_NORMAL_ACTIVE;
+ 	self->tty = NULL;
+-	self->open_count = 0;
++	atomic_set(&self->open_count, 0);
+ 	spin_unlock_irqrestore(&self->spinlock, flags);
+ 
+ 	wake_up_interruptible(&self->open_wait);
+@@ -1369,7 +1369,7 @@ static void ircomm_tty_line_info(struct 
+ 	seq_putc(m, '\n');
+ 
+ 	seq_printf(m, "Role: %s\n", self->client ? "client" : "server");
+-	seq_printf(m, "Open count: %d\n", self->open_count);
++	seq_printf(m, "Open count: %d\n", atomic_read(&self->open_count));
+ 	seq_printf(m, "Max data size: %d\n", self->max_data_size);
+ 	seq_printf(m, "Max header size: %d\n", self->max_header_size);
+ 

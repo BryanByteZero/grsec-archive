@@ -1,0 +1,24 @@
+diff -urp vboxdrv.orig/SUPDrvIDC.h vboxdrv/SUPDrvIDC.h
+--- vboxdrv.orig/SUPDrvIDC.h	2011-07-15 18:30:57.000000000 +0200
++++ vboxdrv/SUPDrvIDC.h	2011-07-19 10:31:12.870994641 +0200
+@@ -160,7 +160,7 @@ typedef struct SUPDRVIDCREQGETSYM
+         {
+             /** The symbol address. */
+             PFNRT           pfnSymbol;
+-        } Out;
++        } __no_const Out;
+     } u;
+ } SUPDRVIDCREQGETSYM;
+ /** Pointer to a SUPDRV IDC get symbol request. */
+diff -urp vboxnetflt.orig/include/VBox/intnet.h vboxnetflt/include/VBox/intnet.h
+--- vboxnetflt.orig/include/VBox/intnet.h	2011-07-19 10:35:18.174994967 +0200
++++ vboxnetflt/include/VBox/intnet.h	2011-07-19 10:35:32.718994952 +0200
+@@ -783,7 +783,7 @@ typedef struct INTNETTRUNKFACTORY
+     DECLR0CALLBACKMEMBER(int, pfnCreateAndConnect,(struct INTNETTRUNKFACTORY *pIfFactory, const char *pszName,
+                                                    PINTNETTRUNKSWPORT pSwitchPort, uint32_t fFlags,
+                                                    PINTNETTRUNKIFPORT *ppIfPort));
+-} INTNETTRUNKFACTORY;
++} __no_const INTNETTRUNKFACTORY;
+ /** Pointer to the trunk factory. */
+ typedef INTNETTRUNKFACTORY *PINTNETTRUNKFACTORY;
+ 

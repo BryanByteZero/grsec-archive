@@ -1,0 +1,320 @@
+diff -urNp gradm2-old/gradm_adm.c gradm2/gradm_adm.c
+--- gradm2-old/gradm_adm.c	2011-10-18 02:07:43.000000000 -0400
++++ gradm2/gradm_adm.c	2011-10-18 02:49:54.000000000 -0400
+@@ -172,6 +172,7 @@ add_gradm_pam_acl(struct role_acl *role)
+ 	add_proc_object_acl(current_subject, "/dev/tty?", proc_object_mode_conv("rw"), GR_FEXIST);
+ 	add_proc_object_acl(current_subject, "/dev/pts", proc_object_mode_conv("rw"), GR_FEXIST);
+ 	add_proc_object_acl(current_subject, "/var/run", proc_object_mode_conv(""), GR_FEXIST);
++	add_proc_object_acl(current_subject, "/run", proc_object_mode_conv(""), GR_FEXIST);
+ 	add_proc_object_acl(current_subject, "/var/run/utmp", proc_object_mode_conv("rw"), GR_FEXIST);
+ 	add_proc_object_acl(current_subject, "/var/run/utmpx", proc_object_mode_conv("rw"), GR_FEXIST);
+ 	add_proc_object_acl(current_subject, "/var/log/faillog", proc_object_mode_conv("rw"), GR_FEXIST);
+@@ -181,6 +182,8 @@ add_gradm_pam_acl(struct role_acl *role)
+ 	add_proc_object_acl(current_subject, "/usr/lib", proc_object_mode_conv("rx"), GR_FEXIST);
+ 	add_proc_object_acl(current_subject, "/lib64", proc_object_mode_conv("rx"), GR_FEXIST | GR_IGNOREDUPE);
+ 	add_proc_object_acl(current_subject, "/usr/lib64", proc_object_mode_conv("rx"), GR_FEXIST | GR_IGNOREDUPE);
++	add_proc_object_acl(current_subject, "/lib32", proc_object_mode_conv("rx"), GR_FEXIST | GR_IGNOREDUPE);
++	add_proc_object_acl(current_subject, "/usr/lib32", proc_object_mode_conv("rx"), GR_FEXIST | GR_IGNOREDUPE);
+ 	add_proc_object_acl(current_subject, GRPAM_PATH, proc_object_mode_conv("x"), GR_FEXIST);
+ 
+ 	add_cap_acl(current_subject, "-CAP_ALL", NULL);
+@@ -257,6 +260,7 @@ static void add_fulllearn_shutdown_acl(v
+ 	ADD_OBJ("/bin", "rx");
+ 	ADD_OBJ("/sbin", "rx");
+ 	ADD_OBJ("/lib", "rx");
++	ADD_OBJ("/lib32", "rx");
+ 	ADD_OBJ("/lib64", "rx");
+ 	ADD_OBJ("/usr", "rx");
+ 	ADD_OBJ("/proc", "r");
+diff -urNp gradm2-old/gradm_analyze.c gradm2/gradm_analyze.c
+--- gradm2-old/gradm_analyze.c	2011-10-18 02:07:43.000000000 -0400
++++ gradm2/gradm_analyze.c	2011-10-18 02:43:37.000000000 -0400
+@@ -69,6 +69,30 @@ check_permission(struct role_acl *role, 
+ 	return 0;
+ }
+ 
++static void
++check_symlinks(void)
++{
++	struct symlink *sym = symlinks;
++	struct file_acl *tmpf;
++	while (sym) {
++		char buf[PATH_MAX];
++		memset(&buf, 0, sizeof (buf));
++
++		if (!realpath(sym->obj->filename, buf))
++			goto next;
++
++		tmpf = lookup_acl_object_by_name(sym->subj, buf);
++		if (tmpf == NULL) {
++			fprintf(stdout, "Warning: object does not exist in role %s, subject %s for the target of the symlink object %s.\n",
++				sym->role->rolename, sym->subj->filename, sym->obj->filename);
++		}
++next:
++		sym = sym->next;
++	}
++
++	return;
++}
++
+ static int
+ check_subjects(struct role_acl *role)
+ {
+@@ -671,6 +695,22 @@ analyze_acls(void)
+ 			errs_found++;
+ 		}
+ 
++		if (!stat("/lib32", &fstat) && !check_permission(role, def_acl, "/lib32", &chk)) {
++			fprintf(stderr,
++				"Write access is allowed by role %s to /lib32, a directory which "
++				"holds system libraries.\n\n",
++				role->rolename);
++			errs_found++;
++		}
++
++		if (!stat("/usr/lib32", &fstat) && !check_permission(role, def_acl, "/usr/lib32", &chk)) {
++			fprintf(stderr,
++				"Write access is allowed by role %s to /usr/lib32, a directory which "
++				"holds system libraries.\n\n", role->rolename);
++			errs_found++;
++		}
++
++
+ 		if (!stat("/lib64", &fstat) && !check_permission(role, def_acl, "/lib64", &chk)) {
+ 			fprintf(stderr,
+ 				"Write access is allowed by role %s to /lib64, a directory which "
+@@ -747,6 +787,18 @@ analyze_acls(void)
+ 			errs_found++;
+ 		}
+ 
++		if (!stat("/lib32/modules", &fstat) && !check_permission(role, def_acl, "/lib32/modules", &chk)) {
++			fprintf(stderr,
++				"Reading access is allowed by role %s to "
++				"/lib32/modules, the directory which holds kernel "
++				"kernel modules.  The ability to read these "
++				"images provides an attacker with very "
++				"useful information for launching \"ret-to-libc\" "
++				"style attacks against the kernel"
++				".\n\n", role->rolename);
++			errs_found++;
++		}
++
+ 		if (!stat("/lib64/modules", &fstat) && !check_permission(role, def_acl, "/lib64/modules", &chk)) {
+ 			fprintf(stderr,
+ 				"Reading access is allowed by role %s to "
+@@ -865,6 +917,8 @@ analyze_acls(void)
+ 
+ 	errs_found += handle_notrojan_mode();
+ 
++	check_symlinks();
++
+ 	if (errs_found) {
+ 		printf("There were %d holes found in your RBAC "
+ 		       "configuration.  These must be fixed before the "
+diff -urNp gradm2-old/gradm_defs.h gradm2/gradm_defs.h
+--- gradm2-old/gradm_defs.h	2011-10-18 02:07:43.000000000 -0400
++++ gradm2/gradm_defs.h	2011-10-18 02:44:24.000000000 -0400
+@@ -29,8 +29,7 @@
+ #define GR_FEXIST		0x1
+ #define GR_FFAKE		0x2
+ #define GR_FLEARN		0x4
+-#define GR_SYMLINK		0x8
+-#define GR_IGNOREDUPE		0x10
++#define GR_IGNOREDUPE		0x8
+ 
+ #define CHK_FILE		0
+ #define CHK_CAP			1
+@@ -478,6 +477,19 @@ struct deleted_file {
+ 	struct deleted_file *next;
+ };
+ 
++/* to keep track of symlinks, for processing after all other objects have
++   been added
++*/
++
++struct symlink {
++	struct role_acl *role;
++	struct file_acl *obj;
++	struct proc_acl *subj;
++	struct symlink *next;
++};
++
++extern struct symlink *symlinks;
++
+ extern struct deleted_file *deleted_files;
+ 
+ extern unsigned long lineno;
+diff -urNp gradm2-old/gradm_globals.c gradm2/gradm_globals.c
+--- gradm2-old/gradm_globals.c	2011-10-18 02:07:43.000000000 -0400
++++ gradm2/gradm_globals.c	2011-10-18 02:36:14.000000000 -0400
+@@ -1,5 +1,6 @@
+ #include "gradm.h"
+ 
++struct symlink *symlinks;
+ struct deleted_file *deleted_files;
+ struct role_acl *current_role;
+ struct proc_acl *current_subject;
+diff -urNp gradm2-old/gradm_parse.c gradm2/gradm_parse.c
+--- gradm2-old/gradm_parse.c	2011-10-18 02:07:43.000000000 -0400
++++ gradm2/gradm_parse.c	2011-10-18 02:52:29.000000000 -0400
+@@ -203,6 +203,30 @@ add_role_transition(struct role_acl *rol
+ 	return;
+ }
+ 
++void add_symlink(struct proc_acl *subj, struct file_acl *obj)
++{
++	if (!symlinks) {
++		symlinks = malloc(sizeof (struct symlink));
++		if (!symlinks)
++			failure("malloc");
++		symlinks->role = current_role;
++		symlinks->subj = subj;
++		symlinks->obj = obj;
++		symlinks->next = NULL;
++	} else {
++		struct symlink *sym = malloc(sizeof (struct symlink));
++		if (!sym)
++			failure("malloc");
++		sym->role = current_role;
++		sym->subj = subj;
++		sym->obj = obj;
++		sym->next = symlinks;
++		symlinks = sym;
++	}
++
++	return;
++}
++
+ static struct deleted_file *
+ is_deleted_file_dupe(const char *filename)
+ {
+@@ -582,54 +606,19 @@ add_proc_object_acl(struct proc_acl *sub
+ 
+ 	file_len++;
+ 
+-	num_objects++;
+-	/* one for the object, one for the filename, one for the name entry struct, and one for the inodev_entry struct in the kernel*/
+-	num_pointers += 4;
++	memset(&fstat, 0, sizeof(fstat));
+ 
+ 	if (lstat64(filename, &fstat)) {
+-		/* don't add object for dangling symlink */
+-		if (type & GR_SYMLINK) {
+-			num_objects--;
+-			num_pointers -= 4;
+-			return 1;
+-		}
+ 		dfile = add_deleted_file(filename);
+ 		fstat.st_ino = dfile->ino;
+ 		fstat.st_dev = 0;
+ 		mode |= GR_DELETED;
+-		link_count = 0;
+-	} else if (S_ISLNK(fstat.st_mode)) {
+-		if (link_count > MAX_SYMLINK_DEPTH) {
+-			fprintf(stderr, "Error: Too many levels of symbolic links when accessing "
+-					"%s\n", filename);
+-			exit(EXIT_FAILURE);
+-		} else {
+-			char buf[PATH_MAX];
+-			memset(&buf, 0, sizeof (buf));
+-
+-			if (!(type & GR_SYMLINK))
+-				symlink_uid = fstat.st_uid;
+-
+-			if (!realpath(filename, buf)) {
+-				fprintf(stderr, "Error determining real path for %s\n", filename);
+-				exit(EXIT_FAILURE);
+-			}
+-			link_count++;
+-			if(!add_proc_object_acl(subject, gr_strdup(buf), mode, type | GR_IGNOREDUPE | GR_SYMLINK))
+-				return 0;
+-		}
+-	} else if ((type & GR_SYMLINK) && (fstat.st_uid != symlink_uid)) {
+-		/* don't add symlink target if the owner of the symlink !=
+-		   the owner of the target
+-		*/
+-		link_count = 0;
+-		num_objects--;
+-		num_pointers -= 4;
+-		return 1;
+-	} else {
+-		link_count = 0;
+ 	}
+ 
++	num_objects++;
++	/* one for the object, one for the filename, one for the name entry struct, and one for the inodev_entry struct in the kernel*/
++	num_pointers += 4;
++
+ 	if ((p =
+ 	     (struct file_acl *) calloc(1, sizeof (struct file_acl))) == NULL)
+ 		failure("calloc");
+@@ -681,6 +670,10 @@ add_proc_object_acl(struct proc_acl *sub
+ 
+ 	insert_acl_object(subject, p);
+ 
++	if (S_ISLNK(fstat.st_mode)) {
++		add_symlink(subject, p);
++	}
++
+ 	return 1;
+ }
+ 
+@@ -723,6 +716,7 @@ add_proc_subject_acl(struct role_acl *ro
+ 
+ 	file_len = strlen(filename) + 1;
+ 
++	// FIXME: for subjects we currently follow symlinks
+ 	if (stat(filename, &fstat)) {
+ 		dfile = add_deleted_file(filename);
+ 		fstat.st_ino = dfile->ino;
+diff -urNp gradm2-old/policy gradm2/policy
+--- gradm2-old/policy	2011-10-18 02:07:43.000000000 -0400
++++ gradm2/policy	2011-10-18 02:53:01.000000000 -0400
+@@ -240,6 +240,7 @@ define grsec_denied {
+ 	/proc/kallsyms	h
+ 	# hide and suppress logs about accessing this path
+ 	/lib/modules	hs
++	/lib32/modules	hs
+ 	/lib64/modules	hs
+ 	/etc/ssh	h
+ }
+@@ -256,6 +257,7 @@ subject / rvka
+ 	/bin		rx
+ 	/sbin		rx
+ 	/lib		rx
++	/lib32		rx
+ 	/lib64		rx
+ 	/usr		rx
+ 	/proc r
+@@ -304,6 +306,7 @@ subject /
+ 	/bin		rx
+ 	/sbin		rx
+ 	/lib		rx
++	/lib32		rx
+ 	/lib64		rx
+ 	/usr		rx
+ # compilation of kernel code should be done within the admin role	
+@@ -368,6 +371,7 @@ subject /usr/sbin/sshd dpo
+ 	/home
+ 	/home/*/.ssh/authorized_keys r
+ 	/lib		rx
++	/lib32		rx
+ 	/lib64		rx
+ 	/root
+ 	/proc		r
+@@ -377,6 +381,7 @@ subject /usr/sbin/sshd dpo
+ 	/proc/sys/kernel/ngroups_max r
+ 	/selinux	r
+ 	/usr/lib	rx
++	/usr/lib32	rx
+ 	/usr/lib64	rx
+ 	/usr/share/zoneinfo r
+ 	/var/log
+@@ -384,6 +389,7 @@ subject /usr/sbin/sshd dpo
+ 	/var/log/lastlog	rw
+ 	/var/log/wtmp		w
+ 	/var/run
++	/run
+ 	/var/run/sshd
+ 	/var/run/utmp		rw
+ 	/var/run/utmpx		rw

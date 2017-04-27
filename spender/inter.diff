@@ -1,0 +1,127 @@
+reverted:
+--- linux-2.6.32.59-pax/include/linux/Kbuild	2012-05-30 18:37:55.736804172 +0200
++++ linux-2.6.32.59/include/linux/Kbuild	2012-03-04 18:49:44.000000000 +0100
+@@ -381,6 +381,6 @@
+ unifdef-y += xattr.h
+ unifdef-y += xfrm.h
+ 
++objhdr-y += version.h
+-genhdr-y += version.h
+ header-y += wimax.h
+ header-y += wimax/
+diff -u linux-2.6.32.59-pax/Makefile linux-2.6.32.59-pax/Makefile
+--- linux-2.6.32.59-pax/Makefile	2012-05-28 00:43:35.883125814 +0200
++++ linux-2.6.32.59-pax/Makefile	2012-06-01 17:35:04.418572159 +0200
+@@ -335,10 +335,9 @@
+ 
+ # Use LINUXINCLUDE when you must reference the include/ directory.
+ # Needed to be compatible with the O= option
+-LINUXINCLUDE    := -isystem include \
++LINUXINCLUDE    := -Iinclude \
+                    $(if $(KBUILD_SRC),-Iinclude2 -I$(srctree)/include) \
+-                   -isystem arch/$(hdr-arch)/include               \
+-                   -isystem include/generated \
++                   -I$(srctree)/arch/$(hdr-arch)/include               \
+                    -include include/linux/autoconf.h
+ 
+ KBUILD_CPPFLAGS := -D__KERNEL__
+@@ -406,7 +405,7 @@
+ 
+ no-dot-config-targets := clean mrproper distclean \
+ 			 cscope gtags TAGS tags help %docs check% \
+-			 include/generated/linux/version.h headers_% \
++			 include/linux/version.h headers_% \
+ 			 kernelrelease kernelversion
+ 
+ config-targets := 0
+@@ -449,11 +448,11 @@
+ export KBUILD_DEFCONFIG KBUILD_KCONFIG
+ 
+ config: scripts_basic outputmakefile FORCE
+-	$(Q)mkdir -p include/generated/linux include/config
++	$(Q)mkdir -p include/linux include/config
+ 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+ 
+ %config: scripts_basic outputmakefile FORCE
+-	$(Q)mkdir -p include/generated/linux include/config
++	$(Q)mkdir -p include/linux include/config
+ 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
+ 
+ else
+@@ -1019,14 +1018,12 @@
+ 	    mkdir -p include2;                                          \
+ 	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
+ 	fi
+-	$(Q)for dir in $(srctree)/include/* ; do ln -fsn $$dir include/`basename $$dir` ; done
+-	$(Q)ln -fsn $(srctree)/arch/$(SRCARCH)/include/asm arch/$(SRCARCH)/include;
+ endif
+ 
+ # prepare2 creates a makefile if using a separate output directory
+ prepare2: prepare3 outputmakefile
+ 
+-prepare1: prepare2 include/generated/linux/version.h include/linux/utsrelease.h \
++prepare1: prepare2 include/linux/version.h include/linux/utsrelease.h \
+                    include/asm include/config/auto.conf
+ 	$(cmd_crmodverdir)
+ 
+@@ -1097,7 +1094,7 @@
+ 	echo '#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))';)
+ endef
+ 
+-include/generated/linux/version.h: $(srctree)/Makefile FORCE
++include/linux/version.h: $(srctree)/Makefile FORCE
+ 	$(call filechk,version.h)
+ 
+ include/linux/utsrelease.h: include/config/kernel.release FORCE
+@@ -1140,7 +1137,7 @@
+ hdr-dst = $(if $(KBUILD_HEADERS), dst=include/asm-$(hdr-arch), dst=include/asm)
+ 
+ PHONY += __headers
+-__headers: include/generated/linux/version.h scripts_basic FORCE
++__headers: include/linux/version.h scripts_basic FORCE
+ 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
+ 
+ PHONY += headers_install_all
+@@ -1252,7 +1249,7 @@
+ # Directories & files removed with 'make mrproper'
+ MRPROPER_DIRS  += include/config include2 usr/include include/generated
+ MRPROPER_FILES += .config .config.old include/asm .version .old_version \
+-                  include/linux/autoconf.h include/generated/linux/version.h      \
++                  include/linux/autoconf.h include/linux/version.h      \
+                   include/linux/utsrelease.h                            \
+                   include/linux/bounds.h include/asm*/asm-offsets.h     \
+ 		  Module.symvers Module.markers tags TAGS cscope* GPATH GTAGS GRTAGS GSYMS
+reverted:
+--- linux-2.6.32.59-pax/scripts/Makefile.lib	2012-05-25 08:53:14.562759996 +0200
++++ linux-2.6.32.59/scripts/Makefile.lib	2012-03-04 18:49:44.000000000 +0100
+@@ -145,15 +145,15 @@
+ __cpp_flags     =                          $(call flags,_cpp_flags)
+ endif
+ 
++c_flags        = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
+-c_flags        = -Wp,-MD,$(depfile) $(LINUXINCLUDE) $(NOSTDINC_FLAGS)     \
+ 		 $(__c_flags) $(modkern_cflags)                           \
+ 		 -D"KBUILD_STR(s)=\#s" $(basename_flags) $(modname_flags) \
+ 		  $(debug_flags)
+ 
++a_flags        = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
+-a_flags        = -Wp,-MD,$(depfile) $(LINUXINCLUDE) $(NOSTDINC_FLAGS)     \
+ 		 $(__a_flags) $(modkern_aflags)
+ 
++cpp_flags      = -Wp,-MD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
+-cpp_flags      = -Wp,-MD,$(depfile) $(LINUXINCLUDE) $(NOSTDINC_FLAGS)     \
+ 		 $(__cpp_flags)
+ 
+ ld_flags       = $(LDFLAGS) $(ldflags-y)
+diff -u linux-2.6.32.59-pax/tools/gcc/size_overflow_plugin.c linux-2.6.32.59-pax/tools/gcc/size_overflow_plugin.c
+--- linux-2.6.32.59-pax/tools/gcc/size_overflow_plugin.c	2012-05-20 19:00:11.125098071 +0200
++++ linux-2.6.32.59-pax/tools/gcc/size_overflow_plugin.c	2012-06-01 17:54:33.014507938 +0200
+@@ -217,7 +217,7 @@
+ 	const char *curfunc = NAME(func);
+ 
+ 	new_hash = get_hash_num(curfunc, filename, 0);
+-	inform(loc, "Function %s is missing from the size_overflow hash table +%s+%d+%u+%s+", curfunc, curfunc, argnum, new_hash, filename);
++//	inform(loc, "Function %s is missing from the size_overflow hash table +%s+%d+%u+%s+", curfunc, curfunc, argnum, new_hash, filename);
+ }
+ 
+ static void check_missing_attribute(tree arg)

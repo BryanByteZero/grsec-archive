@@ -1,0 +1,15 @@
+diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
+index 22c3bdc..32bfa1f 100644
+--- a/arch/x86/kernel/signal.c
++++ b/arch/x86/kernel/signal.c
+@@ -302,7 +304,9 @@ __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
+ 		return -EFAULT;
+ 
+ 	if (_NSIG_WORDS > 1) {
+-		if (__copy_to_user(&frame->extramask, &set->sig[1],
++		unsigned long sigcopy;
++		memcpy(&sigcopy, &set->sig[1], sizeof(frame->extramask));
++		if (__copy_to_user(&frame->extramask, &sigcopy,
+ 				   sizeof(frame->extramask)))
+ 			return -EFAULT;
+ 	}

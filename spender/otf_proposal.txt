@@ -1,0 +1,20 @@
+While many of the projects OTF supports focus on the security/privacy of communications themselves, the recent FBI attack on the Tor Browser Bundle demonstrated the need to secure the endpoint system engaging in such communications.  grsecurity is a Linux security project with a long and widely-respected history in the community.  Through close collaboration with the PaX Team (who will be involved in our proposed project), we've pioneered a host of security technologies that have been cited in hundreds of academic papers and changed the face of software exploitation over the past decade.  We've also served as a necessary watchdog for upstream Linux security and transparency.  grsecurity provides easy to use access control and state-of-the-art defenses against userland and kernel exploitation vectors.  Most importantly, it's designed to be able to achieve this with little to no configuration -- simply by replacing the installed Linux kernel.  Since many privacy solutions center around Linux due to its freely-available source, many current projects (Tails, Whonix, Liberte Linux, Ipredia, Ubuntu Privacy Remix, Privatix Live System, Polippix, etc) will benefit from our efforts.  To our knowledge, only Liberte Linux currently uses grsecurity via the Gentoo Hardened project.
+
+grsecurity currently exists as a 100k+ line patch to the Linux kernel, creating a barrier to entry for many potential end-users and projects with a desire for much improved security.  Our focus to date has been pushing the envelope with novel defense techniques, demonstrating several times our ability to quickly react to new exploitation techniques (often in the same day).
+
+Surprisingly, we've accomplished everything we've done so far purely in our free time.  Our current sponsorship level unfortunately does not come close to permitting us to work on grsecurity full-time.  With funding to work on grsecurity full-time for a year, we'll be able to:
+
+* Begin shipping kernel packages for any mainstream Linux distribution to eliminate the need for custom kernel compilation
+* Focus on our pioneering work in security-focused GCC plugins and extending these to add protections to userland applications like Tor, Firefox, etc
+* Find and fix vulnerabilities in the Linux kernel and critical userland applications through static/dynamic analysis including GCC plugins, instrumentation of various grsecurity features, and extending existing syntax checkers
+* Publish tools and documentation to ease maintenance of a grsecurity-enabled kernel
+* Work directly with the projects interested in grsecurity and assist them in integration efforts
+* Present on grsecurity at relevant conferences to raise visibility and interest
+* Design niche kernel-enforced protections as needed by Linux deployments of Tor or other privacy applications
+* Improve cloud security through hypervisor self-protection
+* Adapt grsecurity for use on Android-based phones/devices
+* Improve recent pioneering work in ARM kernel self-protection (see "Future Work" section of http://forums.grsecurity.net/viewtopic.php?f=7&t=3292)
+
+We're also open to suggestions to drive our focus to areas of greatest need.
+
+We invite you to verify some of the papers referencing our work at http://grsecurity.net/research.php , view the extensive feature list at http://en.wikibooks.org/wiki/grsecurity/Appendix/grsecurity_and_PaX_Configuration_Options , and see a recent presentation on the necessity of grsecurity delivered at H2HC 2012: http://grsecurity.net/the_case_for_grsecurity.pdf .

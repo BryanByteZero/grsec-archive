@@ -1,0 +1,81 @@
+diff -urNp linux-2.6.31-rc8-newbeforeconst/drivers/gpu/drm/ttm/ttm_bo_vm.c linux-2.6.31-rc8-new/drivers/gpu/drm/ttm/ttm_bo_vm.c
+--- linux-2.6.31-rc8-newbeforeconst/drivers/gpu/drm/ttm/ttm_bo_vm.c	2009-09-04 10:53:36.431608892 -0400
++++ linux-2.6.31-rc8-new/drivers/gpu/drm/ttm/ttm_bo_vm.c	2009-09-04 12:25:58.009239436 -0400
+@@ -232,7 +232,7 @@ static void ttm_bo_vm_close(struct vm_ar
+ 	vma->vm_private_data = NULL;
+ }
+ 
+-static struct vm_operations_struct ttm_bo_vm_ops = {
++static const struct vm_operations_struct ttm_bo_vm_ops = {
+ 	.fault = ttm_bo_vm_fault,
+ 	.open = ttm_bo_vm_open,
+ 	.close = ttm_bo_vm_close
+diff -urNp linux-2.6.31-rc8-newbeforeconst/drivers/staging/cpc-usb/cpc-usb_drv.c linux-2.6.31-rc8-new/drivers/staging/cpc-usb/cpc-usb_drv.c
+--- linux-2.6.31-rc8-newbeforeconst/drivers/staging/cpc-usb/cpc-usb_drv.c	2009-09-04 10:53:33.198697031 -0400
++++ linux-2.6.31-rc8-new/drivers/staging/cpc-usb/cpc-usb_drv.c	2009-09-04 12:25:54.245438643 -0400
+@@ -104,7 +104,7 @@ static void cpcusb_read_interrupt_callba
+ 
+ static int cpcusb_setup_intrep(CPC_USB_T *card);
+ 
+-static struct file_operations cpcusb_fops = {
++static const struct file_operations cpcusb_fops = {
+ 	/*
+ 	 * The owner field is part of the module-locking
+ 	 * mechanism. The idea is that the kernel knows
+diff -urNp linux-2.6.31-rc8-newbeforeconst/drivers/staging/rtl8192su/ieee80211/proc.c linux-2.6.31-rc8-new/drivers/staging/rtl8192su/ieee80211/proc.c
+--- linux-2.6.31-rc8-newbeforeconst/drivers/staging/rtl8192su/ieee80211/proc.c	2009-09-04 10:53:33.178697828 -0400
++++ linux-2.6.31-rc8-new/drivers/staging/rtl8192su/ieee80211/proc.c	2009-09-04 12:26:01.442203375 -0400
+@@ -87,7 +87,7 @@ static int c_show(struct seq_file *m, vo
+ 	return 0;
+ }
+ 
+-static struct seq_operations crypto_seq_ops = {
++static const struct seq_operations crypto_seq_ops = {
+ 	.start		= c_start,
+ 	.next		= c_next,
+ 	.stop		= c_stop,
+@@ -99,7 +99,7 @@ static int crypto_info_open(struct inode
+ 	return seq_open(file, &crypto_seq_ops);
+ }
+ 
+-static struct file_operations proc_crypto_ops = {
++static const struct file_operations proc_crypto_ops = {
+ 	.open		= crypto_info_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+diff -urNp linux-2.6.31-rc8-newbeforeconst/fs/nilfs2/btnode.c linux-2.6.31-rc8-new/fs/nilfs2/btnode.c
+--- linux-2.6.31-rc8-newbeforeconst/fs/nilfs2/btnode.c	2009-09-04 10:53:42.383705705 -0400
++++ linux-2.6.31-rc8-new/fs/nilfs2/btnode.c	2009-09-04 12:26:15.523232215 -0400
+@@ -46,7 +46,7 @@ void nilfs_btnode_cache_init_once(struct
+ 	INIT_LIST_HEAD(&btnc->i_mmap_nonlinear);
+ }
+ 
+-static struct address_space_operations def_btnode_aops = {
++static const struct address_space_operations def_btnode_aops = {
+ 	.sync_page		= block_sync_page,
+ };
+ 
+diff -urNp linux-2.6.31-rc8-newbeforeconst/kernel/perf_counter.c linux-2.6.31-rc8-new/kernel/perf_counter.c
+--- linux-2.6.31-rc8-newbeforeconst/kernel/perf_counter.c	2009-09-04 10:53:59.316744038 -0400
++++ linux-2.6.31-rc8-new/kernel/perf_counter.c	2009-09-04 12:25:58.073681213 -0400
+@@ -2214,7 +2214,7 @@ static void perf_mmap_close(struct vm_ar
+ 	}
+ }
+ 
+-static struct vm_operations_struct perf_mmap_vmops = {
++static const struct vm_operations_struct perf_mmap_vmops = {
+ 	.open		= perf_mmap_open,
+ 	.close		= perf_mmap_close,
+ 	.fault		= perf_mmap_fault,
+diff -urNp linux-2.6.31-rc8-newbeforeconst/kernel/rcutree_trace.c linux-2.6.31-rc8-new/kernel/rcutree_trace.c
+--- linux-2.6.31-rc8-newbeforeconst/kernel/rcutree_trace.c	2009-09-04 10:53:59.227233368 -0400
++++ linux-2.6.31-rc8-new/kernel/rcutree_trace.c	2009-09-04 12:25:54.252264351 -0400
+@@ -255,7 +255,7 @@ static int rcu_pending_open(struct inode
+ 	return single_open(file, show_rcu_pending, NULL);
+ }
+ 
+-static struct file_operations rcu_pending_fops = {
++static const struct file_operations rcu_pending_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = rcu_pending_open,
+ 	.read = seq_read,

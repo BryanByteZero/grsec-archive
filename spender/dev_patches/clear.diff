@@ -1,0 +1,126 @@
+diff -urNp linux-2.6.38.4-new/arch/x86/ia32/ia32entry.S linux-2.6.38.4-test/arch/x86/ia32/ia32entry.S
+--- linux-2.6.38.4-new/arch/x86/ia32/ia32entry.S	2011-04-17 15:57:32.000000000 -0400
++++ linux-2.6.38.4-test/arch/x86/ia32/ia32entry.S	2011-04-22 23:09:52.000000000 -0400
+@@ -197,6 +197,23 @@ sysenter_dispatch:
+ 	testl	$_TIF_ALLWORK_MASK,TI_flags(%r10)
+ 	jnz	sysexit_audit
+ sysexit_from_sys_call:
++
++        pushq %rdi
++        pushq %rcx
++        pushq %rax
++
++        movq %rsp,%rdi
++        movq %rdi,%rcx
++        andq $-THREAD_SIZE,%rdi
++        subq %rdi, %rcx
++        shrl $3, %ecx
++        xorq %rax, %rax
++        rep stosq
++
++        popq %rax
++        popq %rcx
++        popq %rdi
++
+ 	pax_exit_kernel_user
+ 	andl    $~TS_COMPAT,TI_status(%r10)
+ 	/* clear IF, that popfq doesn't enable interrupts early */
+@@ -370,6 +387,23 @@ cstar_dispatch:
+ 	testl $_TIF_ALLWORK_MASK,TI_flags(%r10)
+ 	jnz sysretl_audit
+ sysretl_from_sys_call:
++
++        pushq %rdi
++        pushq %rcx
++        pushq %rax
++
++        movq %rsp,%rdi
++        movq %rdi,%rcx
++        andq $-THREAD_SIZE,%rdi
++        subq %rdi, %rcx
++        shrl $3, %ecx
++        xorq %rax, %rax
++        rep stosq
++
++        popq %rax
++        popq %rcx
++        popq %rdi
++
+ 	pax_exit_kernel_user
+ 	andl $~TS_COMPAT,TI_status(%r10)
+ 	RESTORE_ARGS 1,-ARG_SKIP,1,1,1
+@@ -478,6 +512,23 @@ ia32_do_call:
+ ia32_sysret:
+ 	movq %rax,RAX-ARGOFFSET(%rsp)
+ ia32_ret_from_sys_call:
++
++        pushq %rdi
++        pushq %rcx
++        pushq %rax
++
++        movq %rsp,%rdi
++        movq %rdi,%rcx
++        andq $-THREAD_SIZE,%rdi
++        subq %rdi, %rcx
++        shrl $3, %ecx
++        xorq %rax, %rax
++        rep stosq
++
++        popq %rax
++        popq %rcx
++        popq %rdi
++
+ 	CLEAR_RREGS -ARGOFFSET
+ 	jmp int_ret_from_sys_call 
+ 
+diff -urNp linux-2.6.38.4-new/arch/x86/kernel/entry_64.S linux-2.6.38.4-test/arch/x86/kernel/entry_64.S
+--- linux-2.6.38.4-new/arch/x86/kernel/entry_64.S	2011-04-17 15:57:32.000000000 -0400
++++ linux-2.6.38.4-test/arch/x86/kernel/entry_64.S	2011-04-23 09:27:12.000000000 -0400
+@@ -691,6 +691,23 @@ system_call_fastpath:
+  * Has incomplete stack frame and undefined top of stack.
+  */
+ ret_from_sys_call:
++
++	pushq %rdi
++	pushq %rcx
++	pushq %rax
++
++	movq %rsp,%rdi
++	movq %rdi,%rcx
++	andq $-THREAD_SIZE,%rdi
++	subq %rdi, %rcx
++	shrl $3, %ecx
++	xorq %rax, %rax
++	repne stosq
++
++	popq %rax
++	popq %rcx
++	popq %rdi
++
+ 	movl $_TIF_ALLWORK_MASK,%edi
+ 	/* edi:	flagmask */
+ sysret_check:
+@@ -810,6 +827,23 @@ tracesys:
+  * Has correct top of stack, but partial stack frame.
+  */
+ GLOBAL(int_ret_from_sys_call)
++
++	pushq %rdi
++	pushq %rcx
++	pushq %rax
++
++	movq %rsp,%rdi
++	movq %rdi,%rcx
++	andq $-THREAD_SIZE,%rdi
++	subq %rdi, %rcx
++	shrl $3, %ecx
++	xorq %rax, %rax
++	repne stosq
++
++	popq %rax
++	popq %rcx
++	popq %rdi
++
+ 	DISABLE_INTERRUPTS(CLBR_NONE)
+ 	TRACE_IRQS_OFF
+ 	testb $3,CS-ARGOFFSET(%rsp)

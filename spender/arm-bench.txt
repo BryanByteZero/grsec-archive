@@ -1,0 +1,67 @@
+3.7.1 grsec-only
+NGINX Benchmark 1.0.11:
+    pts/nginx-1.1.0
+    Test 1 of 1
+    Estimated Trial Run Count:    3
+    Estimated Time To Completion: 5 Minutes
+        Running Pre-Test Script @ 00:40:19
+        Started Run 1 @ 00:40:24
+        Started Run 2 @ 00:43:21
+        Started Run 3 @ 00:46:24  [Std. Dev: 3.46%]
+        Running Post-Test Script @ 00:49:25
+
+    Test Results:
+        2976.05
+        2803.78
+        2805.48
+
+    Average: 2861.77 Requests Per Second
+
+3.7.1 all grsec/PaX with UDEREF/KERNEXEC:
+
+NGINX Benchmark 1.0.11:
+    pts/nginx-1.1.0
+    Test 1 of 1
+    Estimated Trial Run Count:    3
+    Estimated Time To Completion: 10 Minutes
+        Running Pre-Test Script @ 00:01:56
+        Started Run 1 @ 00:02:01
+        Started Run 2 @ 00:04:54
+        Started Run 3 @ 00:07:50  [Std. Dev: 7.07%]
+        Started Run 4 @ 00:11:08  [Std. Dev: 5.87%]
+        Started Run 5 @ 00:14:13  [Std. Dev: 5.08%]
+        Started Run 6 @ 00:17:14  [Std. Dev: 4.59%]
+        Running Post-Test Script @ 00:20:17
+
+    Test Results:
+        2960.24
+        2917.71
+        2595.11
+        2772.55
+        2825.56
+        2777.82
+
+    Average: 2808.17 Requests Per Second
+
+
+all grsec/PaX without UDEREF/KERNEXEC:
+
+NGINX Benchmark 1.0.11:
+    pts/nginx-1.1.0
+    Test 1 of 1
+    Estimated Trial Run Count:    3
+    Estimated Time To Completion: 14 Minutes
+        Running Pre-Test Script @ 00:02:43
+        Started Run 1 @ 00:02:48
+        Started Run 2 @ 00:05:42
+        Started Run 3 @ 00:08:51  [Std. Dev: 3.68%]
+        Started Run 4 @ 00:11:50  [Std. Dev: 3.03%]
+        Running Post-Test Script @ 00:14:49
+
+    Test Results:
+        2953
+        2745.15
+        2877.52
+        2839.92
+
+    Average: 2853.90 Requests Per Second

@@ -1,0 +1,47 @@
+diff --git a/grsecurity/grsec_sig.c b/grsecurity/grsec_sig.c
+index 3860c7e..99933aa 100644
+--- a/grsecurity/grsec_sig.c
++++ b/grsecurity/grsec_sig.c
+@@ -5,6 +5,7 @@
+ #include <linux/grsecurity.h>
+ #include <linux/grinternal.h>
+ #include <linux/hardirq.h>
++#include <linux/tty.h>
+ 
+ char *signames[] = {
+ 	[SIGSEGV] = "Segmentation fault",
+@@ -160,31 +161,13 @@ void gr_handle_kernel_exploit(void)
+ 	if (in_irq() || in_serving_softirq() || in_nmi())
+ 		panic("grsec: halting the system due to suspicious kernel crash caused in interrupt context");
+ 
++	
+ 	uid = current_uid();
+ 
+ 	if (gr_is_global_root(uid))
+ 		panic("grsec: halting the system due to suspicious kernel crash caused by root");
+-	else {
+-		/* kill all the processes of this user, hold a reference
+-		   to their creds struct, and prevent them from creating
+-		   another process until system reset
+-		*/
+-		printk(KERN_ALERT "grsec: banning user with uid %u until system restart for suspicious kernel crash\n",
+-			GR_GLOBAL_UID(uid));
+-		/* we intentionally leak this ref */
+-		user = get_uid(current->cred->user);
+-		if (user)
+-			user->kernel_banned = 1;
+-
+-		/* kill all processes of this user */
+-		read_lock(&tasklist_lock);
+-		do_each_thread(tsk2, tsk) {
+-			cred = __task_cred(tsk);
+-			if (uid_eq(cred->uid, uid))
+-				gr_fake_force_sig(SIGKILL, tsk);
+-		} while_each_thread(tsk2, tsk);
+-		read_unlock(&tasklist_lock); 
+-	}
++	else
++		tty_write_message(current->signal->tty, "Stop it, or I call your mom!\n");
+ #endif
+ }
+ 

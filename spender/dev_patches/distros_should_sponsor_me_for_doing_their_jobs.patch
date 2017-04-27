@@ -1,0 +1,115 @@
+diff --git a/fs/exec.c b/fs/exec.c
+index fac01f4..ac2402f 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1463,6 +1463,8 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
+ 
+ EXPORT_SYMBOL(search_binary_handler);
+ 
++atomic64_t global_exec_counter = ATOMIC64_INIT(0);
++
+ /*
+  * sys_execve() executes a new program.
+  */
+@@ -1613,6 +1615,7 @@ static int do_execve_common(const char *filename,
+ 	/* execve succeeded */
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;
++	current->exec_id = atomic64_inc_return(&global_exec_counter);
+ 	acct_update_integrals(current);
+ 	free_bprm(bprm);
+ 	if (displaced)
+diff --git a/fs/proc/array.c b/fs/proc/array.c
+index d41fc37..2d5b649 100644
+--- a/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -409,6 +409,9 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
+ 	char tcomm[sizeof(task->comm)];
+ 	unsigned long flags;
+ 
++	if (current->exec_id != m->exec_id)
++		return 0;
++
+ 	state = *get_task_state(task);
+ 	vsize = eip = esp = 0;
+ 	permitted = ptrace_may_access(task, PTRACE_MODE_READ);
+@@ -585,6 +588,9 @@ int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
+ 	unsigned long size = 0, resident = 0, shared = 0, text = 0, data = 0;
+ 	struct mm_struct *mm = get_task_mm(task);
+ 
++	if (current->exec_id != m->exec_id)
++		return 0;
++
+ 	if (mm) {
+ 		size = task_statm(mm, &shared, &text, &data, &resident);
+ 		mmput(mm);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index d1d9cb6..0fe27f8 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -303,6 +303,9 @@ static int show_map(struct seq_file *m, void *v)
+ 	struct proc_maps_private *priv = m->private;
+ 	struct task_struct *task = priv->task;
+ 
++	if (current->exec_id != m->exec_id)
++		return 0;
++
+ 	show_map_vma(m, vma);
+ 
+ 	if (m->count < m->size)  /* vma is copied successfully */
+@@ -456,6 +459,9 @@ static int show_smap(struct seq_file *m, void *v)
+ 		.private = &mss,
+ 	};
+ 
++	if (current->exec_id != m->exec_id)
++		return 0;
++
+ 	memset(&mss, 0, sizeof mss);
+ #ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+ 	if (!PAX_RAND_FLAGS(vma->vm_mm)) {
+@@ -1046,6 +1052,9 @@ static int show_numa_map(struct seq_file *m, void *v)
+ 	int n;
+ 	char buffer[50];
+ 
++	if (current->exec_id != m->exec_id)
++		return 0;
++
+ 	if (!mm)
+ 		return 0;
+ 
+diff --git a/fs/seq_file.c b/fs/seq_file.c
+index a99fb63..97c0e9c 100644
+--- a/fs/seq_file.c
++++ b/fs/seq_file.c
+@@ -40,6 +40,7 @@ int seq_open(struct file *file, const struct seq_operations *op)
+ 	memset(p, 0, sizeof(*p));
+ 	mutex_init(&p->lock);
+ 	p->op = op;
++	p->exec_id = current->exec_id;
+ 
+ 	/*
+ 	 * Wrappers around seq_open(e.g. swaps_open) need to be
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index f29cbeb..4b0e05d 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1569,6 +1569,7 @@ struct task_struct {
+ 
+ #ifdef CONFIG_GRKERNSEC
+ 	/* grsecurity */
++	long long exec_id;
+ #ifdef CONFIG_GRKERNSEC_SETXID
+ 	const struct cred *delayed_cred;
+ #endif
+diff --git a/include/linux/seq_file.h b/include/linux/seq_file.h
+index e9e5538..e9440be 100644
+--- a/include/linux/seq_file.h
++++ b/include/linux/seq_file.h
+@@ -24,6 +24,7 @@ struct seq_file {
+ 	struct mutex lock;
+ 	const struct seq_operations *op;
+ 	int poll_event;
++	long long exec_id;
+ 	void *private;
+ };
+ 

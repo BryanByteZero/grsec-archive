@@ -1,0 +1,206 @@
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index 9629731..4639511 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -132,6 +132,7 @@ config GRKERNSEC_HIGH
+ 	select GRKERNSEC_PROC_ADD
+ 	select GRKERNSEC_CHROOT_CHMOD
+ 	select GRKERNSEC_CHROOT_NICE
++	select GRKERNSEC_SETXID
+ 	select GRKERNSEC_AUDIT_MOUNT
+ 	select GRKERNSEC_MODHARDEN if (MODULES)
+ 	select GRKERNSEC_HARDEN_PTRACE
+@@ -797,6 +798,19 @@ config GRKERNSEC_HARDEN_PTRACE
+ 	  option is enabled, a sysctl option with name "harden_ptrace" is
+ 	  created.
+ 
++config GRKERNSEC_SETXID
++	bool "Enforce consistent multithreaded privileges"
++	help
++	  If you say Y here, a change from a root uid to a non-root uid
++	  in a multithreaded application will cause the resulting uids,
++	  gids, supplementary groups, and capabilities in that thread
++	  to be propagated to the other threads of the process.  In most
++	  cases this is unnecessary, as glibc will emulate this behavior
++	  on behalf of the application.  Other libcs do not act in the
++	  same way, allowing the other threads of the process to continue
++	  running with root privileges.  If the sysctl option is enabled,
++	  a sysctl option with name "consistent_setxid" is created.
++
+ config GRKERNSEC_TPE
+ 	bool "Trusted Path Execution (TPE)"
+ 	help
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index 356ef00..cb8e5a1 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -7,6 +7,7 @@
+ #include <linux/percpu.h>
+ #include <linux/module.h>
+ 
++int grsec_enable_setxid;
+ int grsec_enable_brute;
+ int grsec_enable_link;
+ int grsec_enable_dmesg;
+@@ -187,6 +188,9 @@ grsecurity_init(void)
+ #ifdef CONFIG_GRKERNSEC_EXECLOG
+ 	grsec_enable_execlog = 1;
+ #endif
++#ifdef CONFIG_GRKERNSEC_SETXID
++	grsec_enable_setxid = 1;
++#endif
+ #ifdef CONFIG_GRKERNSEC_SIGNAL
+ 	grsec_enable_signal = 1;
+ #endif
+diff --git a/grsecurity/grsec_sysctl.c b/grsecurity/grsec_sysctl.c
+index 174668f..bceef2f 100644
+--- a/grsecurity/grsec_sysctl.c
++++ b/grsecurity/grsec_sysctl.c
+@@ -61,6 +61,15 @@ struct ctl_table grsecurity_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
++#ifdef CONFIG_GRKERNSEC_SETXID
++	{
++		.procname	= "consistent_setxid",
++		.data		= &grsec_enable_setxid,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= &proc_dointvec,
++	},
++#endif
+ #ifdef CONFIG_GRKERNSEC_BLACKHOLE
+ 	{
+ 		.procname	= "ip_blackhole",
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index bd25f72..4620f36 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -223,6 +223,9 @@ extern int grsec_disable_privio;
+ #ifdef CONFIG_GRKERNSEC_CHROOT_FINDTASK
+ extern int grsec_enable_chroot_findtask;
+ #endif
++#ifdef CONFIG_GRKERNSEC_SETXID
++extern int grsec_enable_setxid;
++#endif
+ #endif
+ 
+ #endif
+diff --git a/kernel/cred.c b/kernel/cred.c
+index f63d997..d7d50d8 100644
+--- a/kernel/cred.c
++++ b/kernel/cred.c
+@@ -289,9 +289,9 @@ error:
+  *
+  * Call commit_creds() or abort_creds() to clean up.
+  */
+-struct cred *prepare_creds(void)
++
++static struct cred *__prepare_creds(struct task_struct *task)
+ {
+-	struct task_struct *task = current;
+ 	const struct cred *old;
+ 	struct cred *new;
+ 
+@@ -332,6 +332,11 @@ error:
+ 	abort_creds(new);
+ 	return NULL;
+ }
++
++struct cred *prepare_creds(void)
++{
++	return __prepare_creds(current);
++}
+ EXPORT_SYMBOL(prepare_creds);
+ 
+ /*
+@@ -484,9 +489,8 @@ error_put:
+  * Always returns 0 thus allowing this function to be tail-called at the end
+  * of, say, sys_setgid().
+  */
+-int commit_creds(struct cred *new)
++static int __commit_creds(struct task_struct *task, struct cred *new)
+ {
+-	struct task_struct *task = current;
+ 	const struct cred *old = task->real_cred;
+ 
+ 	pax_track_stack();
+@@ -556,6 +560,64 @@ int commit_creds(struct cred *new)
+ 	put_cred(old);
+ 	return 0;
+ }
++
++int commit_creds(struct cred *new)
++{
++#ifdef CONFIG_GRKERNSEC_SETXID
++	struct task_struct *t;
++	struct cred *ncred;
++	const struct cred *old;
++
++	if (grsec_enable_setxid && !current_is_single_threaded() &&
++	    !current_uid() && new->uid) {
++		rcu_read_lock();
++		read_lock(&tasklist_lock);
++		for (t = next_thread(current); t != current;
++		     t = next_thread(t)) {
++			old = __task_cred(t);
++			if (old->uid)
++				continue;
++			ncred = __prepare_creds(t);
++			if (!ncred)
++				goto die;
++			// uids
++			ncred->uid = new->uid;
++			ncred->euid = new->euid;
++			ncred->suid = new->suid;
++			ncred->fsuid = new->fsuid;
++			// gids
++			ncred->gid = new->gid;
++			ncred->egid = new->egid;
++			ncred->sgid = new->sgid;
++			ncred->fsgid = new->fsgid;
++			// groups
++			if (set_groups(ncred, new->group_info) < 0) {
++				abort_creds(ncred);
++				goto die;
++			}
++			// caps
++			ncred->securebits = new->securebits;
++			ncred->cap_inheritable = new->cap_inheritable;
++			ncred->cap_permitted = new->cap_permitted;
++			ncred->cap_effective = new->cap_effective;
++			ncred->cap_bset = new->cap_bset;
++
++			__commit_creds(t, ncred);
++		}	
++		read_unlock(&tasklist_lock);
++		rcu_read_unlock();
++	}
++#endif
++	return __commit_creds(current, new);
++#ifdef CONFIG_GRKERNSEC_SETXID
++die:
++	read_unlock(&tasklist_lock);
++	rcu_read_unlock();
++	abort_creds(new);
++	do_group_exit(SIGKILL);
++#endif
++}
++
+ EXPORT_SYMBOL(commit_creds);
+ 
+ /**
+diff --git a/lib/is_single_threaded.c b/lib/is_single_threaded.c
+index bd2bea9..6b3c95e 100644
+--- a/lib/is_single_threaded.c
++++ b/lib/is_single_threaded.c
+@@ -22,6 +22,9 @@ bool current_is_single_threaded(void)
+ 	struct task_struct *p, *t;
+ 	bool ret;
+ 
++	if (!mm)
++		return true;
++
+ 	if (atomic_read(&task->signal->live) != 1)
+ 		return false;
+ 

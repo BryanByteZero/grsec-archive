@@ -1,0 +1,83 @@
+commit f36ba2a503a679875cb23d5ae46c6dabb5ea0804
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jul 9 23:14:19 2014 -0400
+
+    Allow /proc/net/if_inet6 to be visible by non-root users -- it is needed
+    on Fedora 20 and the contents are similar to those of the already-allowed
+    /proc/net/dev
+    
+    Conflicts:
+    
+    	fs/proc/proc_net.c
+    	net/ipv6/addrconf.c
+
+diff --git a/fs/proc/proc_net.c b/fs/proc/proc_net.c
+index 867e17d..c2f9e5e 100644
+--- a/fs/proc/proc_net.c
++++ b/fs/proc/proc_net.c
+@@ -27,6 +27,22 @@
+ 
+ #include "internal.h"
+ 
++#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
++static struct seq_operations *ipv6_seq_ops_addr;
++
++void register_ipv6_seq_ops_addr(struct seq_operations *addr)
++{
++	ipv6_seq_ops_addr = addr;
++}
++
++void unregister_ipv6_seq_ops_addr(void)
++{
++	ipv6_seq_ops_addr = NULL;
++}
++
++EXPORT_SYMBOL_GPL(register_ipv6_seq_ops_addr);
++EXPORT_SYMBOL_GPL(unregister_ipv6_seq_ops_addr);
++#endif
+ 
+ static struct net *get_proc_net(const struct inode *inode)
+ {
+@@ -44,7 +60,11 @@ int seq_open_net(struct inode *ino, struct file *f,
+ 	BUG_ON(size < sizeof(*p));
+ 
+ 	/* only permit access to /proc/net/dev */
+-	if (ops != &dev_seq_ops && gr_proc_is_restricted())
++	if (
++#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
++	    ops != ipv6_seq_ops_addr && 
++#endif
++	    ops != &dev_seq_ops && gr_proc_is_restricted())
+ 		return -EACCES;
+ 
+ 	net = get_proc_net(ino);
+diff --git a/net/ipv6/addrconf.c b/net/ipv6/addrconf.c
+index 2dba43d..16b9b60 100644
+--- a/net/ipv6/addrconf.c
++++ b/net/ipv6/addrconf.c
+@@ -3227,16 +3227,23 @@ static const struct file_operations if6_fops = {
+ 	.release	= seq_release_net,
+ };
+ 
++extern void register_ipv6_seq_ops_addr(struct seq_operations *addr);
++extern void unregister_ipv6_seq_ops_addr(void);
++
+ static int __net_init if6_proc_net_init(struct net *net)
+ {
+-	if (!proc_net_fops_create(net, "if_inet6", S_IRUGO, &if6_fops))
++	register_ipv6_seq_ops_addr(&if6_seq_ops);
++	if (!proc_net_fops_create(net, "if_inet6", S_IRUGO, &if6_fops)) {
++		unregister_ipv6_seq_ops_addr();
+ 		return -ENOMEM;
++	}
+ 	return 0;
+ }
+ 
+ static void __net_exit if6_proc_net_exit(struct net *net)
+ {
+-       proc_net_remove(net, "if_inet6");
++	proc_net_remove(net, "if_inet6");
++	unregister_ipv6_seq_ops_addr();
+ }
+ 
+ static struct pernet_operations if6_proc_net_ops = {

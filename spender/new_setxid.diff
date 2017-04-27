@@ -1,0 +1,176 @@
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index 1b1127d..a62ab95 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -89,6 +89,7 @@ struct thread_info {
+ #define TIF_BLOCKSTEP		25	/* set when we want DEBUGCTLMSR_BTF */
+ #define TIF_LAZY_MMU_UPDATES	27	/* task is updating the mmu lazily */
+ #define TIF_SYSCALL_TRACEPOINT	28	/* syscall tracepoint instrumentation */
++#define TIF_GRSEC_SETXID	29	/* update credentials on syscall entry/exit */
+ 
+ #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
+ #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
+@@ -110,16 +111,17 @@ struct thread_info {
+ #define _TIF_BLOCKSTEP		(1 << TIF_BLOCKSTEP)
+ #define _TIF_LAZY_MMU_UPDATES	(1 << TIF_LAZY_MMU_UPDATES)
+ #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
++#define _TIF_GRSEC_SETXID	(1 << TIF_GRSEC_SETXID)
+ 
+ /* work to do in syscall_trace_enter() */
+ #define _TIF_WORK_SYSCALL_ENTRY	\
+ 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU | _TIF_SYSCALL_AUDIT |	\
+-	 _TIF_SECCOMP | _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT)
++	 _TIF_SECCOMP | _TIF_SINGLESTEP | _TIF_SYSCALL_TRACEPOINT | _TIF_GRSEC_SETXID)
+ 
+ /* work to do in syscall_trace_leave() */
+ #define _TIF_WORK_SYSCALL_EXIT	\
+ 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SINGLESTEP |	\
+-	 _TIF_SYSCALL_TRACEPOINT)
++	 _TIF_SYSCALL_TRACEPOINT | _TIF_GRSEC_SETXID)
+ 
+ /* work to do on interrupt/exception return */
+ #define _TIF_WORK_MASK							\
+@@ -129,7 +131,7 @@ struct thread_info {
+ 
+ /* work to do on any return to user space */
+ #define _TIF_ALLWORK_MASK						\
+-	((0x0000FFFF & ~_TIF_SECCOMP) | _TIF_SYSCALL_TRACEPOINT)
++	((0x0000FFFF & ~_TIF_SECCOMP) | _TIF_SYSCALL_TRACEPOINT | _TIF_GRSEC_SETXID)
+ 
+ /* Only used for 64 bit */
+ #define _TIF_DO_NOTIFY_MASK						\
+diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+index e1b5aa8..574f70a 100644
+--- a/arch/x86/kernel/ptrace.c
++++ b/arch/x86/kernel/ptrace.c
+@@ -1365,6 +1365,10 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
+ # define IS_IA32	0
+ #endif
+ 
++#ifdef CONFIG_GRKERNSEC_SETXID
++extern void gr_delayed_cred_worker(void);
++#endif
++
+ /*
+  * We must return the syscall number to actually look up in the table.
+  * This can be -1L to skip running any syscall at all.
+@@ -1373,6 +1377,11 @@ long syscall_trace_enter(struct pt_regs *regs)
+ {
+ 	long ret = 0;
+ 
++#ifdef CONFIG_GRKERNSEC_SETXID
++	if (unlikely(test_and_clear_thread_flag(TIF_GRSEC_SETXID)))
++                gr_delayed_cred_worker();
++#endif		
++
+ 	/*
+ 	 * If we stepped into a sysenter/syscall insn, it trapped in
+ 	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
+@@ -1416,6 +1425,11 @@ void syscall_trace_leave(struct pt_regs *regs)
+ {
+ 	bool step;
+ 
++#ifdef CONFIG_GRKERNSEC_SETXID
++	if (unlikely(test_and_clear_thread_flag(TIF_GRSEC_SETXID)))
++                gr_delayed_cred_worker();
++#endif		
++
+ 	audit_syscall_exit(regs);
+ 
+ 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index 4089e05..ba6f598 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -132,7 +132,7 @@ config GRKERNSEC_HIGH
+ 	select GRKERNSEC_PROC_ADD
+ 	select GRKERNSEC_CHROOT_CHMOD
+ 	select GRKERNSEC_CHROOT_NICE
+-	select GRKERNSEC_SETXID
++	select GRKERNSEC_SETXID if (X86)
+ 	select GRKERNSEC_AUDIT_MOUNT
+ 	select GRKERNSEC_MODHARDEN if (MODULES)
+ 	select GRKERNSEC_HARDEN_PTRACE
+@@ -827,6 +827,7 @@ config GRKERNSEC_PTRACE_READEXEC
+ 
+ config GRKERNSEC_SETXID
+ 	bool "Enforce consistent multithreaded privileges"
++	depends on (X86)
+ 	help
+ 	  If you say Y here, a change from a root uid to a non-root uid
+ 	  in a multithreaded application will cause the resulting uids,
+diff --git a/kernel/cred.c b/kernel/cred.c
+index 3342f00..8398912 100644
+--- a/kernel/cred.c
++++ b/kernel/cred.c
+@@ -613,6 +613,8 @@ die:
+ int commit_creds(struct cred *new)
+ {
+ #ifdef CONFIG_GRKERNSEC_SETXID
++	int ret;
++	int schedule_it = 0;
+ 	struct task_struct *t;
+ 
+ 	/* we won't get called with tasklist_lock held for writing
+@@ -621,20 +623,27 @@ int commit_creds(struct cred *new)
+ 	*/
+ 	if (grsec_enable_setxid && !current_is_single_threaded() &&
+ 	    !current_uid() && new->uid) {
++		schedule_it = 1;
++	}
++	ret = __commit_creds(new);
++	if (schedule_it) {
+ 		rcu_read_lock();
+ 		read_lock(&tasklist_lock);
+ 		for (t = next_thread(current); t != current;
+ 		     t = next_thread(t)) {
+ 			if (t->delayed_cred == NULL) {
+ 				t->delayed_cred = get_cred(new);
++				set_tsk_thread_flag(t, TIF_GRSEC_SETXID);
+ 				set_tsk_need_resched(t);
+ 			}
+ 		}
+ 		read_unlock(&tasklist_lock);
+ 		rcu_read_unlock();
+ 	}
+-#endif
++	return ret;
++#else
+ 	return __commit_creds(new);
++#endif
+ }
+ 
+ EXPORT_SYMBOL(commit_creds);
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 6970d99..e16339a 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -3142,19 +3142,6 @@ pick_next_task(struct rq *rq)
+ 	BUG(); /* the idle class will always have a runnable task */
+ }
+ 
+-#ifdef CONFIG_GRKERNSEC_SETXID
+-extern void gr_delayed_cred_worker(void);
+-static inline void gr_cred_schedule(void)
+-{
+-	if (unlikely(current->delayed_cred))
+-		gr_delayed_cred_worker();
+-}
+-#else
+-static inline void gr_cred_schedule(void)
+-{
+-}
+-#endif
+-
+ /*
+  * __schedule() is the main scheduler function.
+  */
+@@ -3174,8 +3161,6 @@ need_resched:
+ 
+ 	schedule_debug(prev);
+ 
+-	gr_cred_schedule();
+-
+ 	if (sched_feat(HRTICK))
+ 		hrtick_clear(rq);
+ 

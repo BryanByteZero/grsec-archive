@@ -1,0 +1,22 @@
+diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
+index 22c3bdc..6db6a25 100644
+--- a/arch/x86/kernel/signal.c
++++ b/arch/x86/kernel/signal.c
+@@ -130,6 +130,7 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
+ 		 struct pt_regs *regs, unsigned long mask)
+ {
+ 	int err = 0;
++	unsigned long saved_cr2;
+ 
+ 	put_user_try {
+ 
+@@ -178,7 +179,8 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
+ 
+ 		/* non-iBCS2 extensions.. */
+ 		put_user_ex(mask, &sc->oldmask);
+-		put_user_ex(current->thread.cr2, &sc->cr2);
++		saved_cr2 = current->thread.cr2
++		put_user_ex(saved_cr2, &sc->cr2);
+ 	} put_user_catch(err);
+ 
+ 	return err;

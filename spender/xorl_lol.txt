@@ -1,0 +1,28 @@
+Taken directly from:
+http://xorl.wordpress.com/2011/02/01/irssi-create_addr_conn-null-pointer-dereference/
+in case it gets edited...hilarious!
+
+
+The above snippet was taken from src/core/chat-protocols.c file and of 
+course, if we manage to make g_return_val_if_fail() return NULL like 
+sha0 did in his Perl IRC bot, the subsequent call to 
+‘proto->create_server_connect()’ will result in a NULL pointer 
+dereference at the 0×20 offset.
+Jesús Olmos who discovered this vulnerability suggests using a simple 
+check against NULL for ‘proto’ pointer before using it but he also 
+discusses an interesting approach for exploiting this vulnerability 
+which you can find <a href=http://bugs.irssi.org/index.php?do=details&task_id=790>here</a>.
+
+Using Nelson Elhage’s <a href=http://blog.nelhage.com/2010/12/cve-2010-4258-from-dos-to-privesc/>CVE-2010-4258</a> 
+vulnerability (which by the way has 
+countless more uses) he could make a call like:
+
+clone((int (*)(void *))kernel_access_ok_bypass, (void *)((unsigned 
+long)stack), CLONE_VM | CLONE_CHILD_CLEARTID | SIGCHLD, NULL, NULL, 
+NULL, target);
+
+To bypass the check on unpatched Linux systems. In addition, we must 
+also consider the numerous users that use irssi as their IRC client on 
+other operating systems such as BSD derivatives, Windows, Solaris etc. 
+It’s an interesting bug since if you’re able to map some code to the 
+0×20 offset a function pointer is used to call that address immediately.

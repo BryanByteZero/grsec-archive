@@ -1,0 +1,431 @@
+2003-08-28 06:49  paxguy1
+
+	* arch/ppc/mm/fault.c: Whitespace.
+
+2003-08-26 14:13  paxguy1
+
+	* include/linux/mm.h: Cosmetic...
+
+2003-08-26 14:11  paxguy1
+
+	* include/linux/mm.h: Simplified previous change.
+
+2003-08-22 17:02  paxguy1
+
+	* include/linux/mm.h: Fixed MPROTECT/VMMIRROR bug with executable
+	stacks.
+
+2003-08-10 14:57  paxguy1
+
+	* arch/parisc/mm/fault.c: Get EMUPLT to work on a 64 bit kernel as
+	well, thanks to pappy for the hint.
+
+2003-08-08 11:10  paxguy1
+
+	* arch/i386/kernel/traps.c: Fixed potential KERNEXEC oops.
+
+2003-08-05 15:52  paxguy1
+
+	* arch/i386/kernel/traps.c: More consistent KERNEXEC read-only area
+	handling.
+
+2003-07-28 14:35  paxguy1
+
+	* arch/: parisc/kernel/sys_parisc32.c,
+	sparc64/kernel/sys_sparc32.c: Switch to the new PRNG.
+
+2003-07-28 14:34  paxguy1
+
+	* include/: asm-alpha/a.out.h, asm-i386/hw_irq.h, linux/elf.h:
+	Cleanup.
+
+2003-07-26 14:09  paxguy1
+
+	* drivers/char/random.c, fs/binfmt_elf.c, fs/exec.c,
+	include/linux/random.h: New PRNG for ASLR, puts less load on the
+	kernel entropy pool.
+
+2003-07-14 09:41  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Put more data into the proper sections.
+
+2003-07-14 09:23  paxguy1
+
+	* fs/binfmt_elf.c: Added extra heap randomization, applies to
+	ET_EXEC files as well.
+
+2003-07-02 11:05  paxguy1
+
+	* arch/i386/: kernel/pci-pc.c, mm/init.c: Fixed problem with
+	KERNEXEC and PCI BIOS accesses during SMP boot.
+
+2003-06-21 18:42  paxguy1
+
+	* arch/alpha/mm/fault.c, arch/i386/mm/fault.c,
+	arch/parisc/mm/fault.c, arch/ppc/mm/fault.c, arch/sparc/mm/fault.c,
+	arch/sparc64/mm/fault.c, fs/exec.c, include/linux/binfmts.h:
+	Unified pax_report_fault.
+
+2003-06-21 15:09  paxguy1
+
+	* fs/binfmt_elf.c, include/linux/mm.h, mm/mmap.c: More consistent
+	behaviour when MPROTECT is disabled.
+
+2003-05-28 13:24  paxguy1
+
+	* arch/i386/kernel/apm.c: Fixed APM with KERNEXEC.
+
+2003-05-27 07:24  paxguy1
+
+	* arch/i386/: vmlinux.lds.S, mm/init.c: Fixed off-by-one-page error
+	in KERNEXEC.
+
+2003-05-26 16:28  paxguy1
+
+	* arch/i386/Makefile, include/asm-i386/page_offset.h: Simplify
+	dependencies so that KERNEXEC does not cause a full recompile.
+
+2003-05-26 16:26  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Cosmetic change.
+
+2003-05-15 04:16  paxguy1
+
+	* arch/parisc/mm/fault.c: whitespace fixes.
+
+2003-05-15 04:05  paxguy1
+
+	* arch/: alpha/mm/fault.c, parisc/mm/fault.c, ppc/mm/fault.c: fixed
+	formatting.
+
+2003-05-13 17:22  paxguy1
+
+	* arch/i386/vmlinux.lds.S: More read-only data and a small cleanup
+	so that section addresses look more like reality.
+
+2003-05-08 18:54  paxguy1
+
+	* arch/i386/kernel/traps.c: Fixed KERNEXEC when PSE was not
+	available, take two.
+
+2003-05-08 18:53  paxguy1
+
+	* arch/i386/kernel/traps.c: Fixed KERNEXEC when PSE was not
+	available.
+
+2003-05-05 08:53  paxguy1
+
+	* arch/: parisc/kernel/sys_parisc32.c,
+	sparc64/kernel/sys_sparc32.c: Added missing stack randomization
+	bits, thanks Brad.
+
+2003-04-30 12:49  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Make it really a jmp far instead of a
+	call far....
+
+2003-04-28 18:34  paxguy1
+
+	* arch/i386/: vmlinux.lds.S, boot/compressed/head.S: Kernel startup
+	code is backwards compatible now, UPX should work again.
+
+2003-04-19 15:07  paxguy1
+
+	* Documentation/Configure.help, arch/ppc/config.in,
+	arch/ppc/kernel/syscalls.c, arch/ppc/mm/fault.c,
+	include/asm-ppc/a.out.h, include/asm-ppc/elf.h,
+	include/asm-ppc/mman.h, include/asm-ppc/pgtable.h,
+	include/linux/sched.h: ppc support.
+
+2003-04-19 15:04  paxguy1
+
+	* arch/sparc/mm/fault.c: Make type uniform across all archs.
+
+2003-04-19 15:03  paxguy1
+
+	* mm/mmap.c: Make decision based on actual and not requested flags.
+
+2003-04-14 11:08  paxguy1
+
+	* Documentation/Configure.help, arch/parisc/config.in: parisc needs
+	ET_EXEC relocations too...
+
+2003-04-14 09:37  paxguy1
+
+	* arch/: alpha/config.in, sparc/config.in, sparc64/config.in: fixed
+	bad attempt at setting default confi. beware, you do need EMUPLT on
+	these archs.
+
+2003-04-14 09:34  paxguy1
+
+	* Documentation/Configure.help, arch/parisc/config.in,
+	arch/parisc/kernel/traps.c, arch/parisc/mm/fault.c: fixed PAGEEXEC
+	on parisc, thanks to Alex Gabert.
+
+2003-04-10 10:54  paxguy1
+
+	* arch/parisc/mm/fault.c: ignore privilege level part in address
+	check.
+
+2003-04-10 08:58  paxguy1
+
+	* mm/memory.c: flush icache as well when setting up the vma mirror.
+
+2003-04-08 10:02  paxguy1
+
+	* include/linux/mm.h: added parisc stack support which happens to
+	grow upwards.
+
+2003-04-05 03:41  paxguy1
+
+	* arch/i386/: vmlinux.lds.S, kernel/head.S: more read-only data, no
+	mix with code.
+
+2003-04-04 15:53  paxguy1
+
+	* arch/i386/mm/init.c: fixed read-only kernel pages for i386/i486.
+
+2003-04-04 10:02  paxguy1
+
+	* include/asm-i386/page_offset.h: new defines for KERNEXEC.
+
+2003-04-04 09:07  paxguy1
+
+	* arch/i386/vmlinux.lds.S: the new linker script, fed through the
+	preprocessor.
+
+2003-04-04 08:49  paxguy1
+
+	* arch/i386/vmlinux.lds: no longer needed, generated at compile
+	time from vmlinux.lds.S.
+
+2003-04-04 08:42  paxguy1
+
+	* fs/binfmt_elf.c: changed pax_reload_gdt() to
+	pax_switch_segments() for arch independence.
+
+2003-04-04 08:39  paxguy1
+
+	* Documentation/Configure.help, arch/i386/Makefile,
+	arch/i386/config.in, arch/i386/boot/compressed/head.S,
+	arch/i386/kernel/entry.S, arch/i386/kernel/head.S,
+	arch/i386/kernel/pci-pc.c, arch/i386/kernel/process.c,
+	arch/i386/kernel/setup.c, arch/i386/kernel/trampoline.S,
+	arch/i386/kernel/traps.c, arch/i386/mm/fault.c,
+	arch/i386/mm/init.c, include/asm-i386/desc.h,
+	include/asm-i386/hw_irq.h, include/asm-i386/page.h,
+	include/asm-i386/pgtable.h, include/asm-i386/system.h: added
+	KERNEXEC. not compatible with modules\!
+
+2003-03-26 15:59  paxguy1
+
+	* arch/alpha/config.in, arch/alpha/kernel/osf_sys.c,
+	arch/alpha/mm/fault.c, arch/sparc/config.in,
+	arch/sparc/kernel/sys_sparc.c, arch/sparc/kernel/sys_sunos.c,
+	arch/sparc/mm/fault.c, arch/sparc64/config.in,
+	arch/sparc64/kernel/sys_sparc.c, arch/sparc64/kernel/sys_sunos32.c,
+	arch/sparc64/mm/fault.c, arch/parisc/config.in,
+	arch/parisc/kernel/sys_parisc.c, arch/parisc/mm/fault.c,
+	include/asm-alpha/mman.h, include/asm-parisc/mman.h,
+	include/asm-sparc/mman.h, include/asm-sparc64/mman.h: RANDEXEC
+	support for alpha, parisc, sparc and sparc64, latter two require
+	MPROTECT to be active as well.
+
+2003-03-20 14:00  paxguy1
+
+	* arch/: sparc/mm/fault.c, sparc64/mm/fault.c: Fixed special EMUPLT
+	page handling.
+
+2003-03-19 19:22  paxguy1
+
+	* arch/sparc64/mm/fault.c: compile fixes.
+
+2003-03-19 10:42  paxguy1
+
+	* arch/sparc64/mm/fault.c: changed get_user_insn to get_user.
+
+2003-03-19 10:12  paxguy1
+
+	* arch/sparc64/mm/fault.c: fixed call target decoding.
+
+2003-03-19 04:48  paxguy1
+
+	* arch/sparc64/mm/fault.c: compile fixes.
+
+2003-03-17 15:48  paxguy1
+
+	* arch/: sparc/mm/fault.c, sparc64/mm/fault.c: Fixed unpatched PLT
+	emulation on sparc and sparc64.
+
+2003-03-16 06:44  paxguy1
+
+	* arch/parisc/config.in, arch/parisc/kernel/sys_parisc.c,
+	arch/parisc/mm/fault.c, include/asm-parisc/a.out.h,
+	include/asm-parisc/pgtable.h: preliminary NOEXEC and ASLR support
+	on parisc.
+
+2003-03-16 06:44  paxguy1
+
+	* arch/sparc64/config.in, arch/sparc64/kernel/itlb_base.S,
+	arch/sparc64/kernel/sys_sparc.c, arch/sparc64/mm/fault.c,
+	include/asm-sparc64/a.out.h, include/asm-sparc64/pgtable.h: NOEXEC
+	and ASLR support on sparc64.
+
+2003-03-16 06:43  paxguy1
+
+	* arch/sparc/config.in, arch/sparc/kernel/sys_sparc.c,
+	arch/sparc/mm/fault.c, arch/sparc/mm/init.c, arch/sparc/mm/srmmu.c,
+	include/asm-sparc/a.out.h, include/asm-sparc/pgtable.h,
+	include/asm-sparc/pgtsrmmu.h, include/asm-sparc/uaccess.h: NOEXEC
+	and ASLR support on sparc.
+
+2003-03-16 06:42  paxguy1
+
+	* arch/alpha/config.in, arch/alpha/kernel/osf_sys.c,
+	arch/alpha/mm/fault.c, include/asm-alpha/a.out.h,
+	include/asm-alpha/pgtable.h: NOEXEC and ASLR support on alpha.
+
+2003-03-16 06:39  paxguy1
+
+	* include/linux/mm.h: whitespace fixes.
+
+2003-03-16 06:39  paxguy1
+
+	* include/linux/sched.h: added CONFIG_PAX_DLRESOLVE support to
+	mm_struct.
+
+2003-03-16 06:37  paxguy1
+
+	* Documentation/Configure.help: added description of arch specific
+	features.
+
+2003-03-16 06:35  paxguy1
+
+	* include/: asm-alpha/elf.h, asm-i386/elf.h, asm-parisc/elf.h,
+	asm-sparc/elf.h, asm-sparc64/elf.h: arch specific ASLR bits for
+	alpha, i386, parisc, sparc and sparc64.
+
+2003-03-16 06:32  paxguy1
+
+	* fs/binfmt_elf.c: added CONFIG_PAX_DLRESOLVE needed by sparc and
+	sparc64. expanded ASLR to handle the arch specific randomized bits.
+
+2003-03-16 06:30  paxguy1
+
+	* mm/mprotect.c: added CONFIG_PAX_ETEXECRELOCS needed by some apps
+	on alpha.
+
+2003-03-16 06:26  paxguy1
+
+	* include/: asm-i386/a.out.h, linux/a.out.h: moved STACK_TOP
+	definition to simplify the arch specific ones.
+
+2003-03-16 06:24  paxguy1
+
+	* mm/mmap.c: relaxed MPROTECT a bit so that when disabled apps
+	still work under PAGEEXEC on non-i386 archs.
+
+2003-03-16 06:21  paxguy1
+
+	* arch/i386/mm/fault.c: reindented pax_handle_read_fault and
+	changed its name to pax_handle_fetch_fault. task termination
+	message changed to be the same on all archs (EIP->PC, ESP->SP).
+
+2003-02-10 13:30  paxguy1
+
+	* arch/i386/: config.in, config.in: Fixed whitespace.
+
+2003-02-01 16:58  paxguy1
+
+	* arch/i386/kernel/process.c: Fixed typo, doh.
+
+2003-02-01 16:50  paxguy1
+
+	* arch/i386/kernel/process.c: Fixed RANDKSTACK.
+
+2003-01-20 10:14  paxguy1
+
+	* include/linux/elf.h: Fixed whitespace.
+
+2003-01-20 10:10  paxguy1
+
+	* fs/binfmt_elf.c, include/linux/elf.h: Switch to new flag location
+	in the ELF header.
+
+2003-01-14 17:22  paxguy1
+
+	* include/linux/mm.h: Removed unnecessary PROT_WRITE masking.
+
+2003-01-14 16:43  paxguy1
+
+	* drivers/char/mem.c, include/linux/mm.h, mm/mmap.c: Writable file
+	mappings are non-exec, no need for /dev/zero checks.
+
+2003-01-13 19:36  paxguy1
+
+	* include/linux/mm.h: Request read-only executable mirrors.
+
+2003-01-13 19:07  paxguy1
+
+	* mm/mmap.c: MPROTECT did not remove VM_WRITE on non-exec file
+	mappings, doh.
+
+2003-01-13 11:20  paxguy1
+
+	* Documentation/Configure.help, mm/mmap.c: Whitespace fixes.
+
+2003-01-13 10:41  paxguy1
+
+	* arch/i386/mm/fault.c, fs/binfmt_elf.c, include/asm-i386/elf.h,
+	include/asm-i386/processor.h, include/linux/mm.h, mm/mmap.c,
+	mm/mremap.c: Introduced SEGMEXEC_TASK_SIZE.
+
+2003-01-13 10:11  paxguy1
+
+	* fs/binfmt_elf.c: Small rearrangement.
+
+2003-01-13 09:20  paxguy1
+
+	* fs/binfmt_elf.c: Fixed bss setup and mirroring.
+
+2003-01-13 09:15  paxguy1
+
+	* Documentation/Configure.help, arch/i386/config.in,
+	arch/i386/mm/fault.c: Added EMUSIGRT.
+
+2003-01-13 08:55  paxguy1
+
+	* mm/mmap.c: Fix map_count handling during munmap.
+
+2003-01-13 08:50  paxguy1
+
+	* Documentation/Configure.help, arch/i386/config.in, mm/mprotect.c:
+	Added NOELFRELOCS.
+
+2003-01-13 08:39  paxguy1
+
+	* drivers/char/mem.c: Made /dev/zero mappings non-executable.
+
+2003-01-13 08:29  paxguy1
+
+	* arch/i386/mm/fault.c: Fixed Dos when writing to a read-only page.
+
+2003-01-13 08:25  paxguy1
+
+	* mm/memory.c: Fixed typo.
+
+2003-01-13 08:23  paxguy1
+
+	* kernel/ptrace.c: Removed check since executable mirrors are
+	read-only.
+
+2002-12-18 08:24  paxguy1
+
+	* fs/binfmt_elf.c, include/linux/mm.h: Fixed vma mirror flags
+	asymmetry.
+
+2002-12-17 06:04  paxguy1
+
+	* fs/binfmt_elf.c: Correct include for pax_reload_gdt without
+	breaking other archs.
+

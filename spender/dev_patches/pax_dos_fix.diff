@@ -1,0 +1,240 @@
+diff -u linux-2.6.32.33-pax/arch/powerpc/mm/slice.c linux-2.6.32.33-pax/arch/powerpc/mm/slice.c
+--- linux-2.6.32.33-pax/arch/powerpc/mm/slice.c	2010-12-16 23:50:54.000000000 +0100
++++ linux-2.6.32.33-pax/arch/powerpc/mm/slice.c	2011-03-21 02:47:07.000000000 +0100
+@@ -313,10 +313,14 @@
+ 		}
+ 	}
+ 
+-	addr = mm->mmap_base;
+-	while (addr > len) {
++	if (mm->mmap_base < len)
++		addr = -ENOMEM;
++	else
++		addr = mm->mmap_base - len;
++
++	while (!IS_ERR_VALUE(addr)) {
+ 		/* Go down by chunk size */
+-		addr = _ALIGN_DOWN(addr - len, 1ul << pshift);
++		addr = _ALIGN_DOWN(addr, 1ul << pshift);
+ 
+ 		/* Check for hit with different page size */
+ 		mask = slice_range_to_mask(addr, len);
+@@ -348,7 +352,7 @@
+ 		        mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = vma->vm_start;
++		addr = skip_heap_stack_gap(vma, len);
+ 	}
+ 
+ 	/*
+diff -u linux-2.6.32.33-pax/arch/sh/mm/mmap.c linux-2.6.32.33-pax/arch/sh/mm/mmap.c
+--- linux-2.6.32.33-pax/arch/sh/mm/mmap.c	2010-12-16 23:50:54.000000000 +0100
++++ linux-2.6.32.33-pax/arch/sh/mm/mmap.c	2011-03-21 02:47:07.000000000 +0100
+@@ -186,11 +186,11 @@
+ 	if (unlikely(mm->mmap_base < len))
+ 		goto bottomup;
+ 
+-	addr = mm->mmap_base-len;
+-	if (do_colour_align)
+-		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
++	addr = mm->mmap_base - len;
+ 
+ 	do {
++		if (do_colour_align)
++			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+ 		/*
+ 		 * Lookup failure means no vma is above this address,
+ 		 * else if new region fits below vma->vm_start,
+@@ -207,10 +207,8 @@
+ 		        mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = vma->vm_start-len;
+-		if (do_colour_align)
+-			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+-	} while (likely(len < vma->vm_start));
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ bottomup:
+ 	/*
+diff -u linux-2.6.32.33-pax/arch/sparc/kernel/sys_sparc_64.c linux-2.6.32.33-pax/arch/sparc/kernel/sys_sparc_64.c
+--- linux-2.6.32.33-pax/arch/sparc/kernel/sys_sparc_64.c	2010-12-16 23:50:54.000000000 +0100
++++ linux-2.6.32.33-pax/arch/sparc/kernel/sys_sparc_64.c	2011-03-21 02:47:07.000000000 +0100
+@@ -270,11 +270,11 @@
+ 	if (unlikely(mm->mmap_base < len))
+ 		goto bottomup;
+ 
+-	addr = mm->mmap_base-len;
+-	if (do_color_align)
+-		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
++	addr = mm->mmap_base - len;
+ 
+ 	do {
++		if (do_color_align)
++			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+ 		/*
+ 		 * Lookup failure means no vma is above this address,
+ 		 * else if new region fits below vma->vm_start,
+@@ -291,10 +291,8 @@
+  		        mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = vma->vm_start-len;
+-		if (do_color_align)
+-			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+-	} while (likely(len < vma->vm_start));
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ bottomup:
+ 	/*
+diff -u linux-2.6.32.33-pax/arch/sparc/mm/hugetlbpage.c linux-2.6.32.33-pax/arch/sparc/mm/hugetlbpage.c
+--- linux-2.6.32.33-pax/arch/sparc/mm/hugetlbpage.c	2010-12-16 23:50:54.000000000 +0100
++++ linux-2.6.32.33-pax/arch/sparc/mm/hugetlbpage.c	2011-03-21 02:47:07.000000000 +0100
+@@ -117,9 +117,10 @@
+ 	if (unlikely(mm->mmap_base < len))
+ 		goto bottomup;
+ 
+-	addr = (mm->mmap_base-len) & HPAGE_MASK;
++	addr = mm->mmap_base - len;
+ 
+ 	do {
++		addr &= HPAGE_MASK;
+ 		/*
+ 		 * Lookup failure means no vma is above this address,
+ 		 * else if new region fits below vma->vm_start,
+@@ -136,8 +137,8 @@
+  		        mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = (vma->vm_start-len) & HPAGE_MASK;
+-	} while (likely(len < vma->vm_start));
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ bottomup:
+ 	/*
+diff -u linux-2.6.32.33-pax/arch/x86/kernel/sys_i386_32.c linux-2.6.32.33-pax/arch/x86/kernel/sys_i386_32.c
+--- linux-2.6.32.33-pax/arch/x86/kernel/sys_i386_32.c	2010-12-19 16:15:01.000000000 +0100
++++ linux-2.6.32.33-pax/arch/x86/kernel/sys_i386_32.c	2011-03-21 02:47:07.000000000 +0100
+@@ -243,8 +243,8 @@
+ 			mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = vma->vm_start-len;
+-	} while (len < vma->vm_start);
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ bottomup:
+ 	/*
+diff -u linux-2.6.32.33-pax/arch/x86/kernel/sys_x86_64.c linux-2.6.32.33-pax/arch/x86/kernel/sys_x86_64.c
+--- linux-2.6.32.33-pax/arch/x86/kernel/sys_x86_64.c	2010-12-16 23:50:54.000000000 +0100
++++ linux-2.6.32.33-pax/arch/x86/kernel/sys_x86_64.c	2011-03-21 02:47:07.000000000 +0100
+@@ -151,9 +151,11 @@
+ 	/* requesting a specific address */
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+-		vma = find_vma(mm, addr);
+-		if (TASK_SIZE - len >= addr && check_heap_stack_gap(vma, addr, len))
+-			return addr;
++		if (TASK_SIZE - len >= addr) {
++			vma = find_vma(mm, addr);
++			if (check_heap_stack_gap(vma, addr, len))
++				return addr;
++		}
+ 	}
+ 
+ 	/* check if free_area_cache is useful for us */
+@@ -194,8 +196,8 @@
+ 			mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = vma->vm_start-len;
+-	} while (len < vma->vm_start);
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ bottomup:
+ 	/*
+diff -u linux-2.6.32.33-pax/arch/x86/mm/hugetlbpage.c linux-2.6.32.33-pax/arch/x86/mm/hugetlbpage.c
+--- linux-2.6.32.33-pax/arch/x86/mm/hugetlbpage.c	2010-12-16 23:50:54.000000000 +0100
++++ linux-2.6.32.33-pax/arch/x86/mm/hugetlbpage.c	2011-03-21 02:47:07.000000000 +0100
+@@ -335,8 +335,9 @@
+ 		goto fail;
+ 
+ 	/* either no address requested or cant fit in requested address hole */
+-	addr = (mm->free_area_cache - len) & huge_page_mask(h);
++	addr = (mm->free_area_cache - len);
+ 	do {
++		addr &= huge_page_mask(h);
+ 		vma = find_vma(mm, addr);
+ 		/*
+ 		 * Lookup failure means no vma is above this address,
+@@ -360,8 +361,8 @@
+ 			largest_hole = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = (vma->vm_start - len) & huge_page_mask(h);
+-	} while (len <= vma->vm_start);
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ fail:
+ 	/*
+diff -u linux-2.6.32.33-pax/include/linux/sched.h linux-2.6.32.33-pax/include/linux/sched.h
+--- linux-2.6.32.33-pax/include/linux/sched.h	2011-02-24 20:08:18.000000000 +0100
++++ linux-2.6.32.33-pax/include/linux/sched.h	2011-03-21 02:47:37.000000000 +0100
+@@ -376,7 +376,8 @@
+ 
+ #include <linux/aio.h>
+ 
+-extern bool check_heap_stack_gap(struct vm_area_struct *vma, unsigned long addr, unsigned long len);
++extern bool check_heap_stack_gap(const struct vm_area_struct *vma, unsigned long addr, unsigned long len);
++extern unsigned long skip_heap_stack_gap(const struct vm_area_struct *vma, unsigned long len);
+ extern unsigned long
+ arch_get_unmapped_area(struct file *, unsigned long, unsigned long,
+ 		       unsigned long, unsigned long);
+diff -u linux-2.6.32.33-pax/mm/mmap.c linux-2.6.32.33-pax/mm/mmap.c
+--- linux-2.6.32.33-pax/mm/mmap.c	2011-01-12 15:11:42.000000000 +0100
++++ linux-2.6.32.33-pax/mm/mmap.c	2011-03-21 02:47:07.000000000 +0100
+@@ -1398,7 +1398,7 @@
+ 	return error;
+ }
+ 
+-bool check_heap_stack_gap(struct vm_area_struct *vma, unsigned long addr, unsigned long len)
++bool check_heap_stack_gap(const struct vm_area_struct *vma, unsigned long addr, unsigned long len)
+ {
+ 	if (!vma) {
+ #ifdef CONFIG_STACK_GROWSUP
+@@ -1425,6 +1425,17 @@
+ 	return true;
+ }
+ 
++unsigned long skip_heap_stack_gap(const struct vm_area_struct *vma, unsigned long len)
++{
++	if (vma->vm_start < len)
++		return -ENOMEM;
++	if (!(vma->vm_flags & VM_GROWSDOWN))
++		return vma->vm_start - len;
++	if (sysctl_heap_stack_gap <= vma->vm_start - len)
++		return vma->vm_start - len - sysctl_heap_stack_gap;
++	return -ENOMEM;
++}
++
+ /* Get an address range which is currently unmapped.
+  * For shmat() with addr=0.
+  *
+@@ -1590,8 +1601,8 @@
+  		        mm->cached_hole_size = vma->vm_start - addr;
+ 
+ 		/* try just below the current vma->vm_start */
+-		addr = vma->vm_start-len;
+-	} while (len < vma->vm_start);
++		addr = skip_heap_stack_gap(vma, len);
++	} while (!IS_ERR_VALUE(addr));
+ 
+ bottomup:
+ 	/*

@@ -1,0 +1,32 @@
+PAX: From x.x.x.x: test:2582, uid/euid: 0/0, attempted to execute userland memory at 00008000
+Internal error: : f [#1] PREEMPT SMP ARM
+Modules linked in:
+CPU: 1    Not tainted  (3.7.1-grsec-00076-g809b48f-dirty #61)
+pc : [<00008000>]    lr : [<c1129054>]    psr: 60000013
+sp : ee5aff88  ip : 10c53c7d  fp : 00000000
+r10: 00000000  r9 : ee5ae000  r8 : c1106268
+r7 : ee5aff8c  r6 : 0000831d  r5 : b5043ab8  r4 : 00007a6b
+r3 : 00008000  r2 : b5043bfc  r1 : b5043bf4  r0 : 00007a6b
+Flags: nZCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
+Control: 10c53c7d  Table: 6d03406a  DAC: 00000015
+Process test (pid: 2582, stack limit = 0xee5ae238)
+Stack: (0xee5aff88 to 0xee5b0000)
+ff80:                   ee5ae000 00008000 80000030 00000000 b5043ab8 0000831d
+ffa0: 000000d5 c11060c0 00000000 b5043ab8 00007a6b b5043bf4 b5043bfc 00000000
+ffc0: 00000000 b5043ab8 0000831d 000000d5 00000000 00000000 aaf28000 00000000
+ffe0: 000000d5 b5043a78 aae95721 aae3e276 80000030 00007a6b eaffffc1 e2822003
+[<c1129054>] (c1129054) from [<c11060c0>] (c11060c0)
+Code: bad PC value
+---[ end trace baaefff1ef15e9da ]---
+Kernel panic - not syncing: grsec: halting the system due to suspicious kernel crash caused by root
+CPU0: stopping
+[<c110c544>] (c110c544) from [<c110ae24>] (c110ae24)
+[<c110ae24>] (c110ae24) from [<c110058c>] (c110058c)
+[<c110058c>] (c110058c) from [<c1105cc0>] (c1105cc0)
+Exception stack(0xc1701f48 to 0xc1701f90)
+1f40:                   00000003 00000000 00000000 00000000 c1700000 c1745e08
+1f60: c142ff80 c1700000 c17282f0 f34d4cd6 c1700000 1246ba68 01000000 c1701f90
+1f80: c1107258 c110725c 60000013 ffffffff
+[<c1105cc0>] (c1105cc0) from [<c110725c>] (c110725c)
+[<c110725c>] (c110725c) from [<c11073ac>] (c11073ac)
+[<c11073ac>] (c11073ac) from [<c160112c>] (c160112c)

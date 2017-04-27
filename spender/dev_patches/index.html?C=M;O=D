@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+ <head>
+  <title>Index of /~spender/dev_patches</title>
+ </head>
+ <body>
+<h1>Index of /~spender/dev_patches</h1>
+<table><tr><th><img src="/icons/blank.gif" alt="[ICO]"></th><th><a href="?C=N;O=A">Name</a></th><th><a href="?C=M;O=A">Last modified</a></th><th><a href="?C=S;O=A">Size</a></th><th><a href="?C=D;O=A">Description</a></th></tr><tr><th colspan="5"><hr></th></tr>
+<tr><td valign="top"><img src="/icons/back.gif" alt="[DIR]"></td><td><a href="/~spender/">Parent Directory</a></td><td>&nbsp;</td><td align="right">  - </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grsecurity-2.9-2.6.32.54-201204241824.patch.sig">grsecurity-2.9-2.6.32.54-201204241824.patch.sig</a></td><td align="right">24-Apr-2012 18:33  </td><td align="right"> 72 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grsecurity-2.9-2.6.32.54-201204241824.patch">grsecurity-2.9-2.6.32.54-201204241824.patch</a></td><td align="right">24-Apr-2012 18:32  </td><td align="right">3.5M</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_32_refcount_4.diff">pax_32_refcount_4.diff</a></td><td align="right">24-Feb-2012 19:47  </td><td align="right">596 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_32_refcount_3.diff">pax_32_refcount_3.diff</a></td><td align="right">24-Feb-2012 19:47  </td><td align="right">906 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_32_refcount_2.diff">pax_32_refcount_2.diff</a></td><td align="right">24-Feb-2012 18:55  </td><td align="right">771 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_3.2_refcount.diff">pax_3.2_refcount.diff</a></td><td align="right">24-Feb-2012 18:50  </td><td align="right">9.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_32_refcount.diff">pax_32_refcount.diff</a></td><td align="right">24-Feb-2012 18:19  </td><td align="right">6.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="distros_should_sponsor_me_for_doing_their_jobs.patch">distros_should_sponsor_me_for_doing_their_jobs.patch</a></td><td align="right">09-Feb-2012 20:34  </td><td align="right">3.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="ptrace_readexec.diff">ptrace_readexec.diff</a></td><td align="right">24-Jan-2012 19:46  </td><td align="right">5.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_creds4.diff">new_creds4.diff</a></td><td align="right">18-Jan-2012 19:51  </td><td align="right">6.5K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_creds3.diff">new_creds3.diff</a></td><td align="right">17-Jan-2012 22:18  </td><td align="right">6.4K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_creds.diff">new_creds.diff</a></td><td align="right">16-Jan-2012 20:52  </td><td align="right">6.4K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="setxid.patch">setxid.patch</a></td><td align="right">19-Dec-2011 20:57  </td><td align="right">5.4K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grsec-2.2.2-2.6.32.48-openvz.patch">grsec-2.2.2-2.6.32.48-openvz.patch</a></td><td align="right">17-Nov-2011 21:11  </td><td align="right">4.9M</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_symlink_and_globbing_behavior.diff">new_symlink_and_globbing_behavior.diff</a></td><td align="right">18-Oct-2011 07:46  </td><td align="right"> 27K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_symlink_behavior.diff">new_symlink_behavior.diff</a></td><td align="right">18-Oct-2011 02:55  </td><td align="right">9.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="attempted_backdoor_by_dan_rosenberg.diff">attempted_backdoor_by_dan_rosenberg.diff</a></td><td align="right">27-Sep-2011 20:39  </td><td align="right">3.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="vmware-8-vmci-const.diff">vmware-8-vmci-const.diff</a></td><td align="right">20-Sep-2011 02:34  </td><td align="right">542 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="inspircd-ciphers.diff">inspircd-ciphers.diff</a></td><td align="right">01-Sep-2011 00:10  </td><td align="right">915 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="sparc-compile.diff">sparc-compile.diff</a></td><td align="right">18-Aug-2011 22:48  </td><td align="right">1.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="improved_net_randomization.patch">improved_net_randomization.patch</a></td><td align="right">07-Aug-2011 19:47  </td><td align="right"> 33K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="brlock.diff">brlock.diff</a></td><td align="right">22-May-2011 16:49  </td><td align="right">1.4K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grsec-2.2.2-2.6.32.40-openvz.patch">grsec-2.2.2-2.6.32.40-openvz.patch</a></td><td align="right">21-May-2011 23:04  </td><td align="right">4.5M</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="newstackleak.diff">newstackleak.diff</a></td><td align="right">09-May-2011 22:48  </td><td align="right">4.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="clear_v2.c">clear_v2.c</a></td><td align="right">30-Apr-2011 15:37  </td><td align="right">1.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="clear.diff">clear.diff</a></td><td align="right">23-Apr-2011 10:06  </td><td align="right">2.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="shutdown_feature.diff">shutdown_feature.diff</a></td><td align="right">26-Mar-2011 17:58  </td><td align="right"> 13K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="chrome_learn_fix.diff">chrome_learn_fix.diff</a></td><td align="right">26-Mar-2011 12:06  </td><td align="right">4.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="btrfs.diff">btrfs.diff</a></td><td align="right">24-Mar-2011 23:18  </td><td align="right">8.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_dos_fix_37.diff">pax_dos_fix_37.diff</a></td><td align="right">21-Mar-2011 17:47  </td><td align="right">8.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_dos_fix.diff">pax_dos_fix.diff</a></td><td align="right">21-Mar-2011 17:47  </td><td align="right">8.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="learning3.diff">learning3.diff</a></td><td align="right">08-Dec-2010 23:08  </td><td align="right">2.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="learning2.diff">learning2.diff</a></td><td align="right">08-Dec-2010 22:13  </td><td align="right"> 16K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="learning.diff">learning.diff</a></td><td align="right">06-Dec-2010 17:22  </td><td align="right"> 72K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="exp_patch3.patch">exp_patch3.patch</a></td><td align="right">16-Sep-2010 13:48  </td><td align="right">5.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="exp_patch2.patch">exp_patch2.patch</a></td><td align="right">16-Sep-2010 13:47  </td><td align="right">2.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="exp_patch1.patch">exp_patch1.patch</a></td><td align="right">16-Sep-2010 13:47  </td><td align="right">1.0K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="helping_those_who_cant_help_themselves.diff">helping_those_who_cant_help_themselves.diff</a></td><td align="right">16-Sep-2010 11:37  </td><td align="right">3.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="more_hidesym.diff">more_hidesym.diff</a></td><td align="right">15-Sep-2010 13:37  </td><td align="right">8.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="usercopy_stack.diff">usercopy_stack.diff</a></td><td align="right">14-Sep-2010 21:10  </td><td align="right">3.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="kmaps-sparc.c">kmaps-sparc.c</a></td><td align="right">22-Aug-2010 17:27  </td><td align="right">8.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="sparc64_kernexec.patch">sparc64_kernexec.patch</a></td><td align="right">12-Aug-2010 00:24  </td><td align="right">6.5K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="uderef_fix.patch">uderef_fix.patch</a></td><td align="right">11-Jul-2010 20:48  </td><td align="right">893 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="chroot_proc_fix.diff">chroot_proc_fix.diff</a></td><td align="right">10-Jul-2010 14:58  </td><td align="right">641 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_chroot2.diff">new_chroot2.diff</a></td><td align="right">10-Jul-2010 08:25  </td><td align="right">4.5K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="hudson_script.txt">hudson_script.txt</a></td><td align="right">04-Jul-2010 17:55  </td><td align="right">662 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_chroot.patch">new_chroot.patch</a></td><td align="right">29-Jun-2010 19:12  </td><td align="right"> 11K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="wireless-infoleak-fix2.patch">wireless-infoleak-fix2.patch</a></td><td align="right">15-May-2010 17:05  </td><td align="right">507 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="wireless-infoleak-fix.patch">wireless-infoleak-fix.patch</a></td><td align="right">15-May-2010 16:47  </td><td align="right">1.4K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="blackhole3.diff">blackhole3.diff</a></td><td align="right">10-Mar-2010 18:27  </td><td align="right">1.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="blackhole2.diff">blackhole2.diff</a></td><td align="right">09-Mar-2010 20:07  </td><td align="right">360 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="copy_fixes.diff">copy_fixes.diff</a></td><td align="right">06-Mar-2010 20:49  </td><td align="right">6.1K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax-arm.diff">pax-arm.diff</a></td><td align="right">10-Feb-2010 13:23  </td><td align="right">2.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="chroot_proc.diff">chroot_proc.diff</a></td><td align="right">09-Jan-2010 11:06  </td><td align="right">1.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="checksec.diff">checksec.diff</a></td><td align="right">01-Jan-2010 19:08  </td><td align="right">6.6K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="wasted_saturday.txt">wasted_saturday.txt</a></td><td align="right">11-Oct-2009 03:37  </td><td align="right">1.3K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_fix.diff">pax_fix.diff</a></td><td align="right">27-Sep-2009 12:36  </td><td align="right"> 12K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_refcnt.diff">pax_refcnt.diff</a></td><td align="right">12-Sep-2009 10:08  </td><td align="right"> 36K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="the_pax_fixes.diff">the_pax_fixes.diff</a></td><td align="right">04-Sep-2009 14:50  </td><td align="right"> 19K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="new_const_fixes.diff">new_const_fixes.diff</a></td><td align="right">04-Sep-2009 12:32  </td><td align="right">3.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="pax_fixes.diff">pax_fixes.diff</a></td><td align="right">02-Aug-2009 11:44  </td><td align="right">3.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="more_const_fixes.diff">more_const_fixes.diff</a></td><td align="right">30-Jul-2009 13:16  </td><td align="right"> 19K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="check_stack.diff">check_stack.diff</a></td><td align="right">30-Jul-2009 08:59  </td><td align="right">1.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grsec_constfixes-2.4.37.4.patch">grsec_constfixes-2.4.37.4.patch</a></td><td align="right">26-Jul-2009 23:10  </td><td align="right">388K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="oooo_fancy.diff">oooo_fancy.diff</a></td><td align="right">19-Jul-2009 19:20  </td><td align="right">176K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="usercopy.diff">usercopy.diff</a></td><td align="right">15-Jun-2009 20:48  </td><td align="right">5.7K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="killing_bugs.diff">killing_bugs.diff</a></td><td align="right">08-Jun-2009 20:17  </td><td align="right"> 11K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="fortify_source_30_percent_coverage_sucks.patch">fortify_source_30_percent_coverage_sucks.patch</a></td><td align="right">01-Jun-2009 21:42  </td><td align="right"> 28K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="fortify_source.diff">fortify_source.diff</a></td><td align="right">30-May-2009 22:28  </td><td align="right"> 18K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="copy_tofrom_user_protection_26.diff">copy_tofrom_user_protection_26.diff</a></td><td align="right">26-Apr-2009 19:55  </td><td align="right"> 11K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grsec_mem.txt">grsec_mem.txt</a></td><td align="right">18-Apr-2009 10:26  </td><td align="right">1.2K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="kheap24.diff">kheap24.diff</a></td><td align="right">16-Apr-2009 19:26  </td><td align="right">3.8K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="inter.diff">inter.diff</a></td><td align="right">27-Oct-2008 13:34  </td><td align="right">  0 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="grseconly.patch">grseconly.patch</a></td><td align="right">17-May-2008 21:25  </td><td align="right">405K</td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="cvs.diff">cvs.diff</a></td><td align="right">29-Dec-2005 21:01  </td><td align="right">873 </td><td>&nbsp;</td></tr>
+<tr><td valign="top"><img src="/icons/text.gif" alt="[TXT]"></td><td><a href="glibc-output-fix.diff">glibc-output-fix.diff</a></td><td align="right">18-Dec-2004 00:46  </td><td align="right">1.5K</td><td>&nbsp;</td></tr>
+<tr><th colspan="5"><hr></th></tr>
+</table>
+</body></html>

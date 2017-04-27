@@ -1,0 +1,20 @@
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 6ae3aa0..99a6f82 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -100,9 +100,13 @@ static inline dev_t __get_dev(const struct dentry *dentry)
+ #if defined(CONFIG_BTRFS_FS) || defined(CONFIG_BTRFS_FS_MODULE)
+ 	if (dentry->d_sb->s_magic == BTRFS_SUPER_MAGIC)
+ 		return BTRFS_I(dentry->d_inode)->root->anon_dev;
+-	else
+ #endif
+-		return dentry->d_sb->s_dev;
++	if (dentry->d_sb == NULL) {
++		printk(KERN_ALERT "dentry->d_name.name=%.16s dentry->d_inode = %p, dentry->d_inode->i_sb = %p\n",
++			dentry->d_name.name, dentry->d_inode, dentry->d_inode->i_sb);
++		return dentry->d_inode->i_sb->s_dev;
++	}
++	return dentry->d_sb->s_dev;
+ }
+ 
+ dev_t gr_get_dev_from_dentry(struct dentry *dentry)

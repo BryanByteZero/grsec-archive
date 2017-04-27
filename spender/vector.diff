@@ -1,0 +1,60 @@
+diff --git a/arch/arm/kernel/process.c b/arch/arm/kernel/process.c
+index bf4bcfb..b808e3b 100644
+--- a/arch/arm/kernel/process.c
++++ b/arch/arm/kernel/process.c
+@@ -463,9 +463,8 @@ static int __init gate_vma_init(void)
+ {
+ 	gate_vma.vm_start	= 0xffff0000;
+ 	gate_vma.vm_end		= 0xffff0000 + PAGE_SIZE;
+-	gate_vma.vm_page_prot	= PAGE_READONLY_EXEC;
+-	gate_vma.vm_flags	= VM_READ | VM_EXEC |
+-				  VM_MAYREAD | VM_MAYEXEC;
++	gate_vma.vm_flags	= VM_NONE;
++	gate_vma.vm_page_prot	= vm_get_page_prot(gate_vma.vm_flags);
+ 	return 0;
+ }
+ arch_initcall(gate_vma_init);
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index 364795d..ff09c98 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -640,8 +640,8 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
+ 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
+ 	struct siginfo info;
+ 
+-#if defined(CONFIG_PAX_KERNEXEC) || defined(CONFIG_PAX_MEMORY_UDEREF)
+         if (!user_mode(regs)) {
++#if defined(CONFIG_PAX_KERNEXEC) || defined(CONFIG_PAX_MEMORY_UDEREF)
+ 		if (addr >= TASK_SIZE && is_xn_fault(ifsr)) {
+ 			if (current->signal->curr_ip)
+ 				printk(KERN_ERR "PAX: From %pI4: %s:%d, uid/euid: %u/%u, attempted to execute non-executable kernel memory at %08lx\n",
+@@ -659,8 +659,15 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
+ 						current->comm, task_pid_nr(current), current_uid(), current_euid(), addr);
+ 			goto die;
+ 		}
+-	}
+ #endif
++	} else if (addr == 0xffff0fe0) {
++		/* PaX: userland attempted to execute __kuser_get_tls entry in vector mapping,
++		 * emulate it
++		 */
++		regs->ARM_r0 = current_thread_info()->tp_value;
++		regs->ARM_pc = regs->ARM_lr;
++		return;
++	}
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	if (fsr_fs(ifsr) == FAULT_CODE_DEBUG) {
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 9b80663..dcbd093 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -268,7 +268,7 @@ static struct mem_type mem_types[] = {
+ 	},
+ 	[MT_HIGH_VECTORS] = {
+ 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY |
+-				L_PTE_USER | L_PTE_RDONLY,
++			     L_PTE_RDONLY,
+ 		.prot_l1   = PMD_TYPE_TABLE,
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+ 		.domain    = DOMAIN_KERNEL,

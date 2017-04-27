@@ -1,0 +1,23 @@
+diff --git a/grsecurity/grsum.c b/grsecurity/grsum.c
+index 9f7b1ac..67d6be1 100644
+--- a/grsecurity/grsum.c
++++ b/grsecurity/grsum.c
+@@ -36,14 +36,15 @@ chkpw(struct gr_arg *entry, unsigned char *salt, unsigned char *sum)
+ 
+ 	crypto_hash_init(&desc);
+ 
+-	p = salt;
++	p = kmemdup(salt, GR_SALT_LEN, GFP_KERNEL);
+ 	sg_set_buf(&sg, p, GR_SALT_LEN);
+ 	crypto_hash_update(&desc, &sg, sg.length);
++	kfree(p);
+ 
+-	p = entry->pw;
++	p = kmemdup(entry->pw, strlen(entry->pw), GFP_KERNEL);
+ 	sg_set_buf(&sg, p, strlen(p));
+-	
+ 	crypto_hash_update(&desc, &sg, sg.length);
++	kfree(p);
+ 
+ 	crypto_hash_final(&desc, temp_sum);
+ 

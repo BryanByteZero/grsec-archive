@@ -1,0 +1,84 @@
+diff --git a/fs/posix_acl.c b/fs/posix_acl.c
+index 39df95a..9077587 100644
+--- a/fs/posix_acl.c
++++ b/fs/posix_acl.c
+@@ -19,6 +19,7 @@
+ #include <linux/sched.h>
+ #include <linux/posix_acl.h>
+ #include <linux/module.h>
++#include <linux/grsecurity.h>
+ 
+ #include <linux/errno.h>
+ 
+@@ -175,7 +176,7 @@ posix_acl_equiv_mode(const struct posix_acl *acl, mode_t *mode_p)
+ 		}
+ 	}
+         if (mode_p)
+-                *mode_p = (*mode_p & ~S_IRWXUGO) | mode;
++                *mode_p = ((*mode_p & ~S_IRWXUGO) | mode) & ~gr_acl_umask();
+         return not_equiv;
+ }
+ 
+@@ -282,6 +283,8 @@ posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
+ 	mode_t mode = *mode_p;
+ 	int not_equiv = 0;
+ 
++	*mode_p &= ~gr_acl_umask();
++
+ 	/* assert(atomic_read(acl->a_refcount) == 1); */
+ 
+ 	FOREACH_ACL_ENTRY(pa, acl, pe) {
+@@ -325,7 +328,7 @@ posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
+ 		mode &= (group_obj->e_perm << 3) | ~S_IRWXG;
+ 	}
+ 
+-	*mode_p = (*mode_p & ~S_IRWXUGO) | mode;
++	*mode_p = ((*mode_p & ~S_IRWXUGO) | mode) & ~gr_acl_umask();
+         return not_equiv;
+ }
+ 
+diff --git a/fs/xattr_acl.c b/fs/xattr_acl.c
+index f2847a7..d2eed09 100644
+--- a/fs/xattr_acl.c
++++ b/fs/xattr_acl.c
+@@ -9,7 +9,7 @@
+ #include <linux/slab.h>
+ #include <linux/fs.h>
+ #include <linux/posix_acl_xattr.h>
+-
++#include <linux/grsecurity.h>
+ 
+ /*
+  * Convert from extended attribute to in-memory representation.
+@@ -22,6 +22,7 @@ posix_acl_from_xattr(const void *value, size_t size)
+ 	int count;
+ 	struct posix_acl *acl;
+ 	struct posix_acl_entry *acl_e;
++	umode_t umask = gr_acl_umask();
+ 
+ 	if (!value)
+ 		return NULL;
+@@ -47,14 +48,23 @@ posix_acl_from_xattr(const void *value, size_t size)
+ 
+ 		switch(acl_e->e_tag) {
+ 			case ACL_USER_OBJ:
++				acl_e->e_perm &= ~((umask & S_IRWXU) >> 6);
++				break;
+ 			case ACL_GROUP_OBJ:
+ 			case ACL_MASK:
++				acl_e->e_perm &= ~((umask & S_IRWXG) >> 3);
++				break;
+ 			case ACL_OTHER:
++				acl_e->e_perm &= ~(umask & S_IRWXO);
+ 				acl_e->e_id = ACL_UNDEFINED_ID;
+ 				break;
+ 
+ 			case ACL_USER:
++				acl_e->e_perm &= ~((umask & S_IRWXU) >> 6);
++				acl_e->e_id = le32_to_cpu(entry->e_id);
++				break;
+ 			case ACL_GROUP:
++				acl_e->e_perm &= ~((umask & S_IRWXG) >> 3);
+ 				acl_e->e_id = le32_to_cpu(entry->e_id);
+ 				break;
+ 

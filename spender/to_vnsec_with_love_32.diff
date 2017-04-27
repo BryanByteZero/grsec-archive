@@ -1,0 +1,214 @@
+diff --git a/fs/compat.c b/fs/compat.c
+index c2ef8ed..c71a7d2 100644
+--- a/fs/compat.c
++++ b/fs/compat.c
+@@ -1575,46 +1575,53 @@ int compat_do_execve(char * filename,
+ 	if (retval < 0)
+ 		goto out;
+ 
+-	retval = copy_strings_kernel(1, &bprm->filename, bprm);
+-	if (retval < 0)
+-		goto out;
+-
+-	bprm->exec = bprm->p;
+-	retval = compat_copy_strings(bprm->envc, envp, bprm);
+-	if (retval < 0)
+-		goto out;
+-
+-	retval = compat_copy_strings(bprm->argc, argv, bprm);
+-	if (retval < 0)
+-		goto out;
++#ifdef CONFIG_GRKERNSEC
++	old_acl = current->acl;
++	memcpy(old_rlim, current->signal->rlim, sizeof(old_rlim));
++	old_exec_file = current->exec_file;
++	get_file(file);
++	current->exec_file = file;
++#endif
++#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
++	/* limit suid stack to 8MB
++	   we saved the old limits above and will restore them if this exec fails
++	*/
++	if ((bprm->cred->euid != current_euid()) || (bprm->cred->egid != current_egid()))
++		current->signal->rlim[RLIMIT_STACK].rlim_cur = 8 * 1024 * 1024;
++#endif
+ 
+ 	if (!gr_tpe_allow(file)) {
+ 		retval = -EACCES;
+-		goto out;
++		goto out_fail;
+ 	}
+ 
+ 	if (gr_check_crash_exec(file)) {
+ 		retval = -EACCES;
+-		goto out;
++		goto out_fail;
+ 	}
+ 
+-	gr_log_chroot_exec(file->f_dentry, file->f_vfsmnt);
++	retval = gr_set_proc_label(file->f_dentry, file->f_vfsmnt,
++				   bprm->unsafe);
++	if (retval < 0)
++		goto out_fail;
+ 
+-	gr_handle_exec_args_compat(bprm, argv);
++	retval = copy_strings_kernel(1, &bprm->filename, bprm);
++	if (retval < 0)
++		goto out_fail;
+ 
+-#ifdef CONFIG_GRKERNSEC
+-	old_acl = current->acl;
+-	memcpy(old_rlim, current->signal->rlim, sizeof(old_rlim));
+-	old_exec_file = current->exec_file;
+-	get_file(file);
+-	current->exec_file = file;
+-#endif
++	bprm->exec = bprm->p;
++	retval = compat_copy_strings(bprm->envc, envp, bprm);
++	if (retval < 0)
++		goto out_fail;
+ 
+-	retval = gr_set_proc_label(file->f_dentry, file->f_vfsmnt,
+-				   bprm->unsafe);
++	retval = compat_copy_strings(bprm->argc, argv, bprm);
+ 	if (retval < 0)
+ 		goto out_fail;
+ 
++	gr_log_chroot_exec(file->f_dentry, file->f_vfsmnt);
++
++	gr_handle_exec_args_compat(bprm, argv);
++
+ 	retval = search_binary_handler(bprm, regs);
+ 	if (retval < 0)
+ 		goto out_fail;
+diff --git a/fs/exec.c b/fs/exec.c
+index 6272c0e..6ecec31 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -214,11 +214,11 @@ struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+ 			return page;
+ 
+ #ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-		// only allow 1MB for argv+env on suid/sgid binaries
++		// only allow 512KB for argv+env on suid/sgid binaries
+ 		// to prevent easy ASLR exhaustion
+ 		if (((bprm->cred->euid != current_euid()) ||
+ 		     (bprm->cred->egid != current_egid())) &&
+-		    (size > (1024 * 1024))) {
++		    (size > (512 * 1024))) {
+ 			put_page(page);
+ 			return NULL;
+ 		}
+@@ -303,7 +303,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 
+ #ifdef CONFIG_PAX_RANDUSTACK
+ 	if (randomize_va_space)
+-		bprm->p ^= (pax_get_random_long() & ~15) & ~PAGE_MASK;
++		bprm->p ^= random32() & ~PAGE_MASK;
+ #endif
+ 
+ 	return 0;
+@@ -1487,46 +1487,53 @@ int do_execve(char * filename,
+ 	if (retval < 0)
+ 		goto out;
+ 
+-	retval = copy_strings_kernel(1, &bprm->filename, bprm);
+-	if (retval < 0)
+-		goto out;
+-
+-	bprm->exec = bprm->p;
+-	retval = copy_strings(bprm->envc, envp, bprm);
+-	if (retval < 0)
+-		goto out;
+-
+-	retval = copy_strings(bprm->argc, argv, bprm);
+-	if (retval < 0)
+-		goto out;
++#ifdef CONFIG_GRKERNSEC
++	old_acl = current->acl;
++	memcpy(old_rlim, current->signal->rlim, sizeof(old_rlim));
++	old_exec_file = current->exec_file;
++	get_file(file);
++	current->exec_file = file;
++#endif
++#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
++	/* limit suid stack to 8MB
++	   we saved the old limits above and will restore them if this exec fails
++	*/
++	if ((bprm->cred->euid != current_euid()) || (bprm->cred->egid != current_egid()))
++		current->signal->rlim[RLIMIT_STACK].rlim_cur = 8 * 1024 * 1024;
++#endif
+ 
+ 	if (!gr_tpe_allow(file)) {
+ 		retval = -EACCES;
+-		goto out;
++		goto out_fail;
+ 	}
+ 
+ 	if (gr_check_crash_exec(file)) {
+ 		retval = -EACCES;
+-		goto out;
++		goto out_fail;
+ 	}
+ 
+-	gr_log_chroot_exec(file->f_dentry, file->f_vfsmnt);
++	retval = gr_set_proc_label(file->f_dentry, file->f_vfsmnt,
++				   bprm->unsafe);
++	if (retval < 0)
++		goto out_fail;
+ 
+-	gr_handle_exec_args(bprm, (const char __user *const __user *)argv);
++	retval = copy_strings_kernel(1, &bprm->filename, bprm);
++	if (retval < 0)
++		goto out_fail;
+ 
+-#ifdef CONFIG_GRKERNSEC
+-	old_acl = current->acl;
+-	memcpy(old_rlim, current->signal->rlim, sizeof(old_rlim));
+-	old_exec_file = current->exec_file;
+-	get_file(file);
+-	current->exec_file = file;
+-#endif
++	bprm->exec = bprm->p;
++	retval = copy_strings(bprm->envc, envp, bprm);
++	if (retval < 0)
++		goto out_fail;
+ 
+-	retval = gr_set_proc_label(file->f_dentry, file->f_vfsmnt,
+-				   bprm->unsafe);
++	retval = copy_strings(bprm->argc, argv, bprm);
+ 	if (retval < 0)
+ 		goto out_fail;
+ 
++	gr_log_chroot_exec(file->f_dentry, file->f_vfsmnt);
++
++	gr_handle_exec_args(bprm, (const char __user *const __user *)argv);
++
+ 	current->flags &= ~PF_KTHREAD;
+ 	retval = search_binary_handler(bprm,regs);
+ 	if (retval < 0)
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index 7026cbd..efaa490 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -273,7 +273,7 @@ config GRKERNSEC_PROC_MEMMAP
+ 	  /proc/<pid> entries where the file descriptor was opened in a different
+ 	  task than the one performing the read.  Such attempts are logged.
+ 	  Finally, this option limits argv/env strings for suid/sgid binaries
+-	  to 1MB to prevent a complete exhaustion of the stack entropy provided
++	  to 512KB to prevent a complete exhaustion of the stack entropy provided
+ 	  by ASLR.
+ 	  If you use PaX it is essential that you say Y here as it closes up
+ 	  several holes that make full ASLR useless for suid/sgid binaries.
+diff --git a/include/linux/personality.h b/include/linux/personality.h
+index 1261208..ddef96f 100644
+--- a/include/linux/personality.h
++++ b/include/linux/personality.h
+@@ -43,6 +43,7 @@ enum {
+ #define PER_CLEAR_ON_SETID (READ_IMPLIES_EXEC  | \
+ 			    ADDR_NO_RANDOMIZE  | \
+ 			    ADDR_COMPAT_LAYOUT | \
++			    ADDR_LIMIT_3GB     | \
+ 			    MMAP_PAGE_ZERO)
+ 
+ /*

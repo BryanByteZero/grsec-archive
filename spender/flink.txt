@@ -1,0 +1,5 @@
+think of a chroot without /proc mounted
+process has a file with r/w access opened for read only
+process then chroots to place without /proc mounted
+flink will allow to hardlink a file outside of the chroot to the inside
+allowing r/w access to the file

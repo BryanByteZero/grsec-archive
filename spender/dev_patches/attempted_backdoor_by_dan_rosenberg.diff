@@ -1,0 +1,94 @@
+In the spirit of full disclosure, security 'expert' needs his own backdoor
+pointed out twice:
+
+
+From drosenberg@vsecurity.com  Sun May 15 01:22:08 2011
+Subject: [PATCH] enforce user ban on setuid transitions
+From: Dan Rosenberg <drosenberg@vsecurity.com>
+To: spender@grsecurity.net
+Date: Sun, 15 May 2011 01:12:36 -0400
+
+Thought this might be a good idea, just for the sake of completeness.
+
+Regards,
+Dan
+
+--- linux-2.6.38.6.orig/grsecurity/gracl.c      2011-05-15 01:04:45.432789405
++-0400
++++ linux-2.6.38.6/grsecurity/gracl.c   2011-05-15 01:05:41.322836533 -0400
+@@ -2291,6 +2291,9 @@ gr_check_user_change(int real, int effec
+        int realok = 0;
+        int effectiveok = 0;
+        int fsok = 0;
++#if defined(CONFIG_GRKERNSEC_KERN_LOCKOUT) || defined(CONFIG_GRKERNSEC_BRUTE)
++       struct user_struct *user;
++#endif
+
+        if (unlikely(!(gr_status & GR_READY)))
+                return 0;
+@@ -2339,6 +2342,20 @@ gr_check_user_change(int real, int effec
+                }
+        }
+
++#if defined(CONFIG_GRKERNSEC_KERN_LOCKOUT) || defined(CONFIG_GRKERNSEC_BRUTE)
++       user = find_user(real);
++
++       if (user && unlikely(user->banned)) {
++               if (user->ban_expires != ~0UL && time_after_eq(get_seconds(),
++user->ban_expires)) {
++                       user->banned = 0;
++                       user->ban_expires = 0;
++                       free_uid(user);
++               } else
++                       realok = 0;
++
++               free_uid(user);
++       }
++#endif
+        if (realok && effectiveok && fsok)
+                return 0;
+        else {
+
+
+From drosenberg@vsecurity.com  Tue May 17 18:10:08 2011
+Subject: Re: [PATCH] enforce user ban on setuid transitions
+From: Dan Rosenberg <drosenberg@vsecurity.com>
+To: Brad Spengler <spender@grsecurity.net>
+Date: Tue, 17 May 2011 18:10:01 -0400
+
+On Tue, 2011-05-17 at 18:04 -0400, Brad Spengler wrote:
+> Thanks, I wrote up a different one with the same idea and included it
+> in the latest patches.  Yours unfortunately did nothing in the
+> RBAC-disabled case, and introduced a local root in the RBAC-enabled
+> case.  Trying to backdoor us? ;)
+>
+
+Good call on the RBAC-disabled case.  If you're referring to the extra
+free_uid() call, that's not a bug.  You deliberately leaked a reference
+when you lock the user out, and then I grab another one with the
+find_user().  Unless I'm missing something?
+
+-Dan
+
+
+From drosenberg@vsecurity.com  Tue May 17 18:14:31 2011
+Subject: Re: [PATCH] enforce user ban on setuid transitions
+From: Dan Rosenberg <drosenberg@vsecurity.com>
+To: Brad Spengler <spender@grsecurity.net>
+Date: Tue, 17 May 2011 18:14:24 -0400
+
+On Tue, 2011-05-17 at 18:10 -0400, Brad Spengler wrote:
+> > Good call on the RBAC-disabled case.  If you're referring to the extra
+> > free_uid() call, that's not a bug.  You deliberately leaked a reference
+> > when you lock the user out, and then I grab another one with the
+> > find_user().  Unless I'm missing something?
+>
+> You are mising something ;)  What happens if the user isn't banned?
+>
+
+Good catch, totally missed that. *facepalm*
+
+Thanks for fixing and adding.
+
+-Dan
+

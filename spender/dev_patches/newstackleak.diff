@@ -1,0 +1,125 @@
+diff -urNp linux-2.6.38.4-new/arch/x86/kernel/entry_32.S linux-2.6.38.4-test/arch/x86/kernel/entry_32.S
+--- linux-2.6.38.4-new/arch/x86/kernel/entry_32.S	2011-05-02 19:07:47.000000000 -0400
++++ linux-2.6.38.4-test/arch/x86/kernel/entry_32.S	2011-05-09 21:39:23.000000000 -0400
+@@ -288,10 +288,18 @@ ENTRY(pax_erase_kstack)
+ 	shr $2, %ecx
+ 	repne scasl
+ 	jecxz 2f
+-	sub $16, %ecx
++
++	and $-64, %edi
++	and $-16, %ecx
++
++	sub $128, %ecx
+ 	jc 2f
+ 	mov $16, %ecx
+ 	repe scasl
++	jne 1b
++	sub $(512 - 64), %edi
++	mov $16, %ecx
++	repe scasl
+ 	jecxz 2f
+ 	jne 1b
+ 2:
+diff -urNp linux-2.6.38.4-new/arch/x86/kernel/entry_64.S linux-2.6.38.4-test/arch/x86/kernel/entry_64.S
+--- linux-2.6.38.4-new/arch/x86/kernel/entry_64.S	2011-05-02 19:08:17.000000000 -0400
++++ linux-2.6.38.4-test/arch/x86/kernel/entry_64.S	2011-05-09 21:37:28.000000000 -0400
+@@ -288,10 +288,18 @@ ENTRY(pax_erase_kstack)
+ 	shr $3, %ecx
+ 	repne scasq
+ 	jecxz 2f
+-	sub $8, %ecx
++
++	and $-64, %rdi
++	and $-8, %ecx
++
++	sub $64, %ecx
+ 	jc 2f
+ 	mov $8, %ecx
+ 	repe scasq
++	jne 1b
++	sub $(512 - 64), %rdi
++	mov $8, %ecx
++	repe scasq
+ 	jecxz 2f
+ 	jne 1b
+ 2:
+diff -urNp linux-2.6.38.4-new/fs/select.c linux-2.6.38.4-test/fs/select.c
+--- linux-2.6.38.4-new/fs/select.c	2011-04-28 19:34:15.000000000 -0400
++++ linux-2.6.38.4-test/fs/select.c	2011-05-09 22:39:55.000000000 -0400
+@@ -404,6 +404,13 @@ int do_select(int n, fd_set_bits *fds, s
+ 	int retval, i, timed_out = 0;
+ 	unsigned long slack = 0;
+ 
++#ifdef CONFIG_PAX_MEMORY_STACKLEAK
++	table.inline_entries[0].filp = NULL;
++	table.inline_entries[(sizeof(table.inline_entries)/sizeof(table.inline_entries[0])) / 4].filp = NULL;
++	table.inline_entries[(2 * (sizeof(table.inline_entries)/sizeof(table.inline_entries[0]))) / 4].filp = NULL;
++	table.inline_entries[(3 * (sizeof(table.inline_entries)/sizeof(table.inline_entries[0]))) / 4].filp = NULL;
++#endif
++
+ 	rcu_read_lock();
+ 	retval = max_select_fd(n, fds);
+ 	rcu_read_unlock();
+@@ -841,6 +848,18 @@ int do_sys_poll(struct pollfd __user *uf
+  	struct poll_list *walk = head;
+  	unsigned long todo = nfds;
+ 
++#ifdef CONFIG_PAX_MEMORY_STACKLEAK
++	table.inline_entries[0].filp = NULL;
++	table.inline_entries[(sizeof(table.inline_entries)/sizeof(table.inline_entries[0])) / 4].filp = NULL;
++	table.inline_entries[(2 * (sizeof(table.inline_entries)/sizeof(table.inline_entries[0]))) / 4].filp = NULL;
++	table.inline_entries[(3 * (sizeof(table.inline_entries)/sizeof(table.inline_entries[0]))) / 4].filp = NULL;
++
++	stack_pps[0] = 0;
++	stack_pps[(sizeof(stack_pps)/sizeof(stack_pps[0])) / 4] = 0;
++	stack_pps[(2 * (sizeof(stack_pps)/sizeof(stack_pps[0]))) / 4] = 0;
++	stack_pps[(3 * (sizeof(stack_pps)/sizeof(stack_pps[0]))) / 4] = 0;
++#endif
++
+ 	gr_learn_resource(current, RLIMIT_NOFILE, nfds, 1);
+ 	if (nfds > rlimit(RLIMIT_NOFILE))
+ 		return -EINVAL;
+diff -urNp linux-2.6.38.4-new/grsecurity/grsec_log.c linux-2.6.38.4-test/grsecurity/grsec_log.c
+--- linux-2.6.38.4-new/grsecurity/grsec_log.c	2011-04-28 19:34:15.000000000 -0400
++++ linux-2.6.38.4-test/grsecurity/grsec_log.c	2011-05-09 22:27:30.000000000 -0400
+@@ -129,14 +129,14 @@ void gr_log_varargs(int audit, const cha
+ {
+ 	int logtype;
+ 	char *result = (audit == GR_DO_AUDIT) ? "successful" : "denied";
+-	char *str1, *str2, *str3;
+-	void *voidptr;
+-	int num1, num2;
+-	unsigned long ulong1, ulong2;
+-	struct dentry *dentry;
+-	struct vfsmount *mnt;
+-	struct file *file;
+-	struct task_struct *task;
++	char *str1 = NULL, *str2 = NULL, *str3 = NULL;
++	void *voidptr = NULL;
++	int num1 = 0, num2 = 0;
++	unsigned long ulong1 = 0, ulong2 = 0;
++	struct dentry *dentry = NULL;
++	struct vfsmount *mnt = NULL;
++	struct file *file = NULL;
++	struct task_struct *task = NULL;
+ 	const struct cred *cred, *pcred;
+ 	va_list ap;
+ 
+diff -urNp linux-2.6.38.4-new/ipc/sem.c linux-2.6.38.4-test/ipc/sem.c
+--- linux-2.6.38.4-new/ipc/sem.c	2011-04-28 19:33:06.000000000 -0400
++++ linux-2.6.38.4-test/ipc/sem.c	2011-05-09 22:36:59.000000000 -0400
+@@ -1299,6 +1299,13 @@ SYSCALL_DEFINE4(semtimedop, int, semid, 
+ 	struct ipc_namespace *ns;
+ 	struct list_head tasks;
+ 
++#ifdef CONFIG_PAX_MEMORY_STACKLEAK
++	fast_sops[0].sem_num = 0;
++	fast_sops[(sizeof(fast_sops)/sizeof(fast_sops[0])) / 4].sem_num = 0;	
++	fast_sops[(2 * (sizeof(fast_sops)/sizeof(fast_sops[0]))) / 4].sem_num = 0;	
++	fast_sops[(3 * (sizeof(fast_sops)/sizeof(fast_sops[0]))) / 4].sem_num = 0;	
++#endif
++
+ 	ns = current->nsproxy->ipc_ns;
+ 
+ 	if (nsops < 1 || semid < 0)

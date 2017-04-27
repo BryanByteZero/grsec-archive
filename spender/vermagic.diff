@@ -1,0 +1,95 @@
+diff --git a/Documentation/dontdiff b/Documentation/dontdiff
+index 9aa2627..e289b9b 100644
+--- a/Documentation/dontdiff
++++ b/Documentation/dontdiff
+@@ -227,7 +227,7 @@ r200_reg_safe.h
+ r300_reg_safe.h
+ r420_reg_safe.h
+ r600_reg_safe.h
+-randomize_layout_hash.data
++randomize_layout_hash.h
+ randomize_layout_seed.h
+ realmode.lds
+ realmode.relocs
+diff --git a/Makefile b/Makefile
+index 84ed0df..dc8e4db 100644
+--- a/Makefile
++++ b/Makefile
+@@ -610,8 +610,6 @@ KERNEXEC_PLUGIN_AFLAGS := -DKERNEXEC_PLUGIN
+ endif
+ ifdef CONFIG_GRKERNSEC_RANDSTRUCT
+ RANDSTRUCT_PLUGIN_CFLAGS := -fplugin=$(objtree)/tools/gcc/randomize_layout_plugin.so -DRANDSTRUCT_PLUGIN
+-RANDSTRUCT_HASHED_SEED := $(shell cat "$(objtree)/tools/gcc/randomize_layout_hash.data")
+-RANDSTRUCT_PLUGIN_CFLAGS += -DRANDSTRUCT_HASHED_SEED="\"$(RANDSTRUCT_HASHED_SEED)\""
+ ifdef CONFIG_GRKERNSEC_RANDSTRUCT_PERFORMANCE
+ RANDSTRUCT_PLUGIN_CFLAGS += -fplugin-arg-randomize_layout_plugin-performance-mode
+ endif
+@@ -1130,7 +1128,7 @@ MRPROPER_FILES += .config .config.old .version .old_version $(version_h) \
+ 		  signing_key.priv signing_key.x509 x509.genkey		\
+ 		  extra_certificates signing_key.x509.keyid		\
+ 		  signing_key.x509.signer tools/gcc/size_overflow_hash.h \
+-		  tools/gcc/randomize_layout_seed.h tools/gcc/randomize_layout_hash.data
++		  tools/gcc/randomize_layout_seed.h
+ 
+ # clean - Delete most, but leave enough to build external modules
+ #
+diff --git a/include/linux/vermagic.h b/include/linux/vermagic.h
+index e2a0e61..4efc177 100644
+--- a/include/linux/vermagic.h
++++ b/include/linux/vermagic.h
+@@ -44,6 +44,7 @@
+ #endif
+ 
+ #ifdef RANDSTRUCT_PLUGIN
++#include <generated/randomize_layout_hash.h>
+ #define MODULE_RANDSTRUCT_PLUGIN "RANDSTRUCT_PLUGIN_" RANDSTRUCT_HASHED_SEED
+ #else
+ #define MODULE_RANDSTRUCT_PLUGIN
+diff --git a/tools/gcc/.gitignore b/tools/gcc/.gitignore
+index 54052c3..606a1c5 100644
+--- a/tools/gcc/.gitignore
++++ b/tools/gcc/.gitignore
+@@ -1,3 +1,3 @@
+-size_overflow_hash.h
++randomize_layout_hash.h
+ randomize_layout_seed.h
+-randomize_layout_hash.data
++size_overflow_hash.h
+diff --git a/tools/gcc/Makefile b/tools/gcc/Makefile
+index 51a2ba2..0d1d9d3 100644
+--- a/tools/gcc/Makefile
++++ b/tools/gcc/Makefile
+@@ -37,8 +37,7 @@ structleak_plugin-objs := structleak_plugin.o
+ randomize_layout_plugin-objs := randomize_layout_plugin.o
+ 
+ $(obj)/size_overflow_plugin.o: $(objtree)/$(obj)/size_overflow_hash.h
+-$(obj)/randomize_layout_plugin.o: $(objtree)/$(obj)/randomize_layout_seed.h \
+-	$(objtree)/$(obj)/randomize_layout_hash.data
++$(obj)/randomize_layout_plugin.o: $(objtree)/$(obj)/randomize_layout_seed.h
+ 
+ quiet_cmd_build_size_overflow_hash = GENHASH  $@
+       cmd_build_size_overflow_hash = \
+@@ -48,8 +47,8 @@ $(objtree)/$(obj)/size_overflow_hash.h: $(src)/size_overflow_hash.data FORCE
+ 
+ quiet_cmd_create_randomize_layout_seed = GENSEED  $@
+       cmd_create_randomize_layout_seed = \
+-	$(CONFIG_SHELL) $(srctree)/$(src)/gen-random-seed.sh $@ $(objtree)/$(obj)/randomize_layout_hash.data
+-$(objtree)/$(obj)/randomize_layout_seed.h $(objtree)/$(obj)/randomize_layout_hash.data: FORCE
++	$(CONFIG_SHELL) $(srctree)/$(src)/gen-random-seed.sh $@ $(objtree)/include/generated/randomize_layout_hash.h
++$(objtree)/$(obj)/randomize_layout_seed.h: FORCE
+ 	$(call if_changed,create_randomize_layout_seed)
+ 
+-targets += size_overflow_hash.h randomize_layout_seed.h randomize_layout_hash.data
++targets += size_overflow_hash.h randomize_layout_seed.h randomize_layout_hash.h
+diff --git a/tools/gcc/gen-random-seed.sh b/tools/gcc/gen-random-seed.sh
+index 8030e6e..7514850 100644
+--- a/tools/gcc/gen-random-seed.sh
++++ b/tools/gcc/gen-random-seed.sh
+@@ -3,5 +3,6 @@
+ if [ ! -f "$1" ]; then
+ 	SEED=`od -A n -t x8 -N 32 /dev/urandom | tr -d ' \n'`
+ 	echo "const char *randstruct_seed = \"$SEED\";" > "$1"
+-	echo -n "$SEED" | sha256sum | cut -d" " -f1 | tr -d "\n" > "$2"
++	HASH=`echo -n "$SEED" | sha256sum | cut -d" " -f1 | tr -d ' \n'`
++	echo "#define RANDSTRUCT_HASHED_SEED \"$HASH\"" > "$2"
+ fi

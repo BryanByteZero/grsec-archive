@@ -1,0 +1,264 @@
+2004-02-18 07:49  paxguy1
+
+	* fs/binfmt_elf.c: Fixed compiler warnings.
+
+2004-02-18 07:47  paxguy1
+
+	* Documentation/Configure.help: Removed obsolete help entries.
+
+2004-02-17 16:33  paxguy1
+
+	* fs/exec.c: Fixed typo.
+
+2004-02-06 16:32  paxguy1
+
+	* arch/: alpha/config.in, i386/config.in, ia64/config.in,
+	mips/config-shared.in, parisc/config.in, ppc/config.in,
+	sparc/config.in, sparc64/config.in, sparc64/mm/fault.c,
+	x86_64/config.in: Make PaX option selection more robust.
+
+2004-02-05 18:13  paxguy1
+
+	* arch/mips/config-shared.in: Fixed config menu on non-i386.
+
+2004-02-05 05:58  paxguy1
+
+	* arch/: alpha/config.in, parisc/config.in, ppc/config.in,
+	sparc/config.in, sparc64/config.in, x86_64/config.in: Fixed config
+	menu on non-i386.
+
+2004-02-04 15:37  paxguy1
+
+	* fs/binfmt_elf.c: Removed empty line.
+
+2004-02-04 14:55  paxguy1
+
+	* Documentation/Configure.help, arch/i386/config.in,
+	arch/i386/kernel/process.c, arch/i386/kernel/setup.c,
+	fs/binfmt_elf.c, fs/exec.c, include/linux/elf.h,
+	include/linux/sched.h, include/linux/sysctl.h, kernel/sysctl.c:
+	Added soft mode and PT_PAX_FLAGS support.
+
+2004-02-04 10:37  paxguy1
+
+	* fs/exec.c: Better error reporting for stack mirrors.
+
+2004-02-04 10:32  paxguy1
+
+	* arch/i386/kernel/process.c: Less use of current.
+
+2004-02-04 10:31  paxguy1
+
+	* arch/i386/kernel/process.c: Fixed type and warning.
+
+2004-02-04 10:28  paxguy1
+
+	* arch/i386/vmlinux.lds.S, include/asm-i386/page.h: Simplified some
+	KERNEXEC code.
+
+2004-02-04 10:19  paxguy1
+
+	* include/linux/sched.h: Moved PaX specific field to the end.
+
+2004-01-09 12:35  paxguy1
+
+	* include/: asm-mips/page.h, asm-mips64/page.h: There is no
+	SEGMEXEC on mips/mips64.
+
+2004-01-09 11:53  paxguy1
+
+	* fs/exec.c: This needs only SEGMEXEC.
+
+2004-01-09 11:39  paxguy1
+
+	* fs/exec.c: When MPROTECT is disabled SEGMEXEC mirrors must be
+	setup in advance for all mappings.
+
+2004-01-09 09:59  paxguy1
+
+	* include/linux/mm.h: When MPROTECT is disabled SEGMEXEC mirrors
+	must be setup in advance for all mappings.
+
+2004-01-09 09:50  paxguy1
+
+	* arch/i386/kernel/process.c: And another GDT that should be
+	read-only.
+
+2004-01-08 19:55  paxguy1
+
+	* arch/i386/kernel/process.c: Set accessed bit in advance for
+	KERNEXEC.
+
+2004-01-08 19:53  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Keep the initial page tables for reboot.
+
+2004-01-03 05:03  paxguy1
+
+	* arch/: mips/mm/fault.c, mips64/mm/fault.c: Forgot to add
+	pax_report_insn...
+
+2004-01-02 11:27  paxguy1
+
+	* drivers/char/mem.c: Preserve consistency in vma mirrors when
+	using /dev/zero
+
+2004-01-02 07:17  paxguy1
+
+	* arch/mips/config-shared.in, include/asm-mips/page.h,
+	include/asm-mips64/page.h: Enabled MPROTECT on mips and mips64.
+
+2003-12-31 09:26  paxguy1
+
+	* arch/mips64/kernel/binfmt_elfn32.c,
+	arch/mips64/kernel/binfmt_elfo32.c, include/asm-mips64/elf.h: More
+	randomization for mips64.
+
+2003-12-30 17:21  paxguy1
+
+	* Documentation/Configure.help: New home for PaX.
+
+2003-12-28 17:54  paxguy1
+
+	* arch/mips/config-shared.in, arch/mips/kernel/syscall.c,
+	arch/mips64/kernel/binfmt_elfn32.c,
+	arch/mips64/kernel/binfmt_elfo32.c, arch/mips64/kernel/syscall.c,
+	include/asm-mips/a.out.h, include/asm-mips/elf.h,
+	include/asm-mips64/a.out.h, include/asm-mips64/elf.h: Initial ASLR
+	support for mips and mips64.
+
+2003-12-28 17:44  paxguy1
+
+	* arch/i386/kernel/head.S: Fixed ifdef/CONFIG braindamage.
+
+2003-12-28 03:55  paxguy1
+
+	* arch/ia64/kernel/sys_ia64.c: Apply delta_mmap like on the other
+	archs.
+
+2003-12-28 03:53  paxguy1
+
+	* arch/: alpha/kernel/osf_sys.c, sparc64/kernel/sys_sparc.c:
+	Whitespace.
+
+2003-12-27 07:13  paxguy1
+
+	* arch/x86_64/kernel/sys_x86_64.c: ...and make it compile.
+
+2003-12-27 07:12  paxguy1
+
+	* arch/x86_64/kernel/sys_x86_64.c: Apply delta_mmap like on the
+	other archs.
+
+2003-12-27 06:44  paxguy1
+
+	* arch/ia64/kernel/sys_ia64.c: Apply delta_mmap like on the other
+	archs.
+
+2003-12-13 13:35  paxguy1
+
+	* mm/: filemap.c, mlock.c, mprotect.c: Fixed error reporting cases
+	in vma mirroring.
+
+2003-12-13 12:44  paxguy1
+
+	* arch/i386/: kernel/head.S, kernel/pci-pc.c, mm/init.c: Better fix
+	for the KERNEXEC and PCI BIOS interference.
+
+2003-12-09 08:44  paxguy1
+
+	* include/linux/mm.h: No vma merging under RANDEXEC either.
+
+2003-12-09 07:02  paxguy1
+
+	* Documentation/Configure.help: Whitespace.
+
+2003-12-09 06:59  paxguy1
+
+	* Documentation/Configure.help: Updated URLs and some arch info.
+
+2003-12-09 06:55  paxguy1
+
+	* arch/parisc/: config.in, mm/fault.c: Forgot to enable EMUSIGRT on
+	parisc.
+
+2003-12-09 06:51  paxguy1
+
+	* arch/x86_64/ia32/ia32_binfmt.c, include/asm-x86_64/pgtable.h:
+	Simpler code.
+
+2003-12-06 16:20  paxguy1
+
+	* arch/i386/Makefile, arch/i386/mm/init.c, include/asm-i386/page.h,
+	include/asm-i386/page_offset.h: No need for page_offset.h.
+
+2003-12-02 09:21  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Initial import of PaX.
+
+2003-12-01 18:04  paxguy1
+
+	* Documentation/Configure.help, arch/alpha/config.in,
+	arch/alpha/kernel/osf_sys.c, arch/alpha/mm/fault.c,
+	arch/i386/Makefile, arch/i386/config.in, arch/i386/boot/bootsect.S,
+	arch/i386/boot/setup.S, arch/i386/kernel/apm.c,
+	arch/i386/kernel/entry.S, arch/i386/kernel/head.S,
+	arch/i386/kernel/i386_ksyms.c, arch/i386/kernel/ldt.c,
+	arch/i386/kernel/pci-pc.c, arch/i386/kernel/process.c,
+	arch/i386/kernel/setup.c, arch/i386/kernel/sys_i386.c,
+	arch/i386/kernel/trampoline.S, arch/i386/kernel/traps.c,
+	arch/i386/mm/fault.c, arch/i386/mm/init.c, arch/ia64/config.in,
+	arch/ia64/ia32/binfmt_elf32.c, arch/ia64/ia32/sys_ia32.c,
+	arch/ia64/kernel/sys_ia64.c, arch/ia64/mm/fault.c,
+	arch/parisc/config.in, arch/parisc/kernel/sys_parisc.c,
+	arch/parisc/kernel/sys_parisc32.c, arch/parisc/kernel/traps.c,
+	arch/parisc/mm/fault.c, arch/ppc/config.in,
+	arch/ppc/kernel/head_4xx.S, arch/ppc/kernel/syscalls.c,
+	arch/ppc/mm/fault.c, arch/sparc/config.in,
+	arch/sparc/kernel/sys_sparc.c, arch/sparc/kernel/sys_sunos.c,
+	arch/sparc/mm/fault.c, arch/sparc/mm/init.c, arch/sparc/mm/srmmu.c,
+	arch/sparc64/config.in, arch/sparc64/kernel/itlb_base.S,
+	arch/sparc64/kernel/sys_sparc.c, arch/sparc64/kernel/sys_sparc32.c,
+	arch/sparc64/kernel/sys_sunos32.c, arch/sparc64/mm/fault.c,
+	arch/sparc64/solaris/misc.c, arch/x86_64/config.in,
+	arch/x86_64/ia32/ia32_binfmt.c, arch/x86_64/ia32/sys_ia32.c,
+	arch/x86_64/kernel/setup64.c, arch/x86_64/kernel/sys_x86_64.c,
+	arch/x86_64/mm/fault.c, drivers/char/mem.c, drivers/char/random.c,
+	fs/Makefile, fs/binfmt_aout.c, fs/binfmt_elf.c, fs/exec.c,
+	fs/proc/array.c, include/asm-alpha/a.out.h,
+	include/asm-alpha/elf.h, include/asm-alpha/mman.h,
+	include/asm-alpha/page.h, include/asm-alpha/pgtable.h,
+	include/asm-i386/a.out.h, include/asm-i386/desc.h,
+	include/asm-i386/elf.h, include/asm-i386/hw_irq.h,
+	include/asm-i386/mman.h, include/asm-i386/page.h,
+	include/asm-i386/pgtable.h, include/asm-i386/processor.h,
+	include/asm-i386/system.h, include/asm-ia64/elf.h,
+	include/asm-ia64/ia32.h, include/asm-ia64/mman.h,
+	include/asm-ia64/page.h, include/asm-ia64/pgtable.h,
+	include/asm-ia64/ustack.h, include/asm-parisc/a.out.h,
+	include/asm-parisc/elf.h, include/asm-parisc/mman.h,
+	include/asm-parisc/page.h, include/asm-parisc/pgtable.h,
+	include/asm-ppc/a.out.h, include/asm-ppc/elf.h,
+	include/asm-ppc/mman.h, include/asm-ppc/page.h,
+	include/asm-ppc/pgtable.h, include/asm-sparc/a.out.h,
+	include/asm-sparc/elf.h, include/asm-sparc/mman.h,
+	include/asm-sparc/page.h, include/asm-sparc/pgtable.h,
+	include/asm-sparc/pgtsrmmu.h, include/asm-sparc/uaccess.h,
+	include/asm-sparc64/a.out.h, include/asm-sparc64/elf.h,
+	include/asm-sparc64/mman.h, include/asm-sparc64/page.h,
+	include/asm-sparc64/pgtable.h, include/asm-x86_64/a.out.h,
+	include/asm-x86_64/elf.h, include/asm-x86_64/mman.h,
+	include/asm-x86_64/page.h, include/asm-x86_64/pgtable.h,
+	include/linux/a.out.h, include/linux/binfmts.h,
+	include/linux/elf.h, include/linux/mm.h, include/linux/random.h,
+	include/linux/sched.h, mm/filemap.c, mm/memory.c, mm/mlock.c,
+	mm/mmap.c, mm/mprotect.c, mm/mremap.c: Initial import of PaX.
+
+2003-12-01 18:01  paxguy1
+
+	* include/asm-i386/page_offset.h: The new home for __PAGE_OFFSET.
+
+2003-12-01 18:00  paxguy1
+
+	* arch/i386/vmlinux.lds: Replaced by vmlinux.lds.S.
+

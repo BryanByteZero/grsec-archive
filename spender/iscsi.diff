@@ -1,0 +1,16 @@
+diff --git a/drivers/target/iscsi/iscsi_target_parameters.c b/drivers/target/iscsi/iscsi_target_parameters.c
+index 5b77316..d959f41 100644
+--- a/drivers/target/iscsi/iscsi_target_parameters.c
++++ b/drivers/target/iscsi/iscsi_target_parameters.c
+@@ -713,9 +713,8 @@ static int iscsi_add_notunderstood_response(
+ 	}
+ 	INIT_LIST_HEAD(&extra_response->er_list);
+ 
+-	strncpy(extra_response->key, key, strlen(key) + 1);
+-	strncpy(extra_response->value, NOTUNDERSTOOD,
+-			strlen(NOTUNDERSTOOD) + 1);
++	strlcpy(extra_response->key, key, sizeof(extra_response->key));
++	strlcpy(extra_response->value, NOTUNDERSTOOD, sizeof(extra_response->value));
+ 
+ 	list_add_tail(&extra_response->er_list,
+ 			&param_list->extra_response_list);

@@ -1,0 +1,5753 @@
+commit 6d40319978bcdda2faa227c506df336a44c82e1d
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jan 3 17:36:31 2017 -0500
+
+    Add gradm support for CAN/infiniband/MPLS, as reported by Blub
+
+commit c3983a1f600e7aed795600d366449d9ab4cd5a88
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Aug 13 09:49:50 2016 -0400
+
+    Change type to unsigned long
+
+commit 0df1abe7a129076f13bccd1e4b4f0dcb59c5413d
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Aug 13 08:53:59 2016 -0400
+
+    Compile fix for musl forcing rlim_t to 64-bit regardless of any #defines
+
+commit f838422d0dab5717617bbdf74b0b7c67021a25ee
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Aug 13 08:10:10 2016 -0400
+
+    Add an inherit-no-learn for /etc/cron.daily/apt and document the reason
+
+commit eb89ffc008c8fd2a45ef66756566b8eff0d2cb4b
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Aug 13 07:43:33 2016 -0400
+
+    Add AF_QIPCRTR support
+
+commit d325ee096c79c1d0ff1fffb4422aa919ad96eaf5
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Jul 17 23:08:12 2016 -0400
+
+    Add gradm_pam support for Kerberos, from forum user shogberg:
+    https://forums.grsecurity.net/viewtopic.php?f=1&t=4431
+
+commit c8a3ac5f1b7d1d8d661a2015129a93ca118548eb
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 2 11:50:05 2016 -0400
+
+    Add AF_KCM support
+
+commit 5500ab0023b3bfb0e20f039bb4c8996d5177e91c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jun 22 21:18:22 2016 -0400
+
+    Add one lingering /dev/initctl fix
+
+commit 00cc1522ea34c29fd5e324eb67e100e1493f75ba
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jun 22 20:46:30 2016 -0400
+
+    Fix some default policy warnings on systemd systems, reported by nocs
+
+commit 7e68540d5c7252474346834fa30fc391017aa380
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Mar 15 21:44:49 2016 -0400
+
+    Count up errors instead of exiting immediately
+
+commit ab39cd322e5f028369b00f4c64aeb3015f2cf5d1
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Mar 13 12:57:46 2016 -0400
+
+    Add support for non-inherited nested subjects, reported by salam on
+    the forums.
+
+commit 4adee0c83142b4496b1cdd7e5473119af88d0b84
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Jul 19 16:51:04 2015 -0400
+
+    Fix issue reported by user basegat on the forums:
+    https://forums.grsecurity.net/viewtopic.php?f=3&t=4237
+    which will result in a crash during processing full learning logs
+    in some instances.
+    
+    The correct fix is to use our for_each_removable_list_entry() macro
+    so that we don't try to dereference ->next on the freed entry.
+
+commit d4b4235f801a5e5bcf044447ab11d3b76d373080
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 4 11:13:18 2015 -0400
+
+    Make gradm aware of newer socket families so that auto-learned policies won't
+    end up being generated with incorrect syntax.  Observed with the new ALG sockets
+    in cryptsetup by user grpanik on IRC.
+
+commit 62d850e956fe619eefa81eec35492ff8a405366e
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Jun 8 19:09:04 2015 -0400
+
+    Fix an issue with lexing utf-8 filenames, reported by sakura:
+    https://forums.grsecurity.net/viewtopic.php?f=3&t=4213
+    
+    Also fix documentation, referred to "learn-config" instead of "learn_config"
+    in an error message.
+
+commit 847b2c7a3f51b73933a85b53d96c1f9b5c27be04
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Mar 13 07:35:13 2015 -0400
+
+    Add CAP_AUDIT_READ, as reported by Sverd Johnsen
+
+commit c1a76e1e950cf9cdbe0127ad7cc876096c95265b
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Feb 22 20:47:57 2015 -0500
+
+    Fix up a use of stat to use stat64
+
+commit 7142b52f9e7b002134e190ddfa6f49edcdbcd2df
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Feb 22 20:31:23 2015 -0500
+
+    don't use _FILE_OFFSET_BITS=64 for now, because we don't want to waste 200 bytes per subject on 64bit rlimits that won't be used in practice (and which the kernel won't use anyway on 32bit systems)
+
+commit 097a41a1fc96e9f7dcb13f9c18334f4ac69ce6e3
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Feb 22 11:08:44 2015 -0500
+
+    update copyright year
+
+commit eb6ea9e2176ce182114198ef283ccf15f14b4d2c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Feb 22 09:37:14 2015 -0500
+
+    update copyright dates on applicable files
+
+commit 4c3154121d9ab1033c7f9af2b4c0e59d24bed32b
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Feb 21 23:49:26 2015 -0500
+
+    Use 64-bit inode values internally and bump grsec version to 3.1
+
+commit a055dec172f42e967debd364ba5dc6225a277333
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Feb 20 17:52:54 2015 -0500
+
+    There's no need for RES_NOFILE limiting in gradm -- we'll clamp
+    the values as needed in the kernel based on the current sysctl value
+
+commit 33ff28e77b211d90f60bc0f9e785358c51dd16ee
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Dec 11 08:04:44 2014 -0500
+
+    error on globbing characters in unquoted subject names
+
+commit 66f1ae7335b82bc33b0a2497d4828b11c1ffefe1
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Dec 7 19:13:17 2014 -0500
+
+    prefix learning problems with Error: instead of Warning: to clarify
+    their severity (as they prevent loading)
+    
+    Suggested by tjh on the forums
+
+commit c44950660ffb93142d72f0bca1456df1b2e8a153
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Oct 9 20:50:05 2014 -0400
+
+    provide guidance on the init.d lines of learn_config
+
+commit 55002cd18a9577ea1e46cc96f96c6d432b14f473
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Sep 9 18:54:02 2014 -0400
+
+    compile all gradm-related binaries with PIE
+    only gradm_pam presents a real privilege boundary, so it's only useful there
+    
+    On systems using RBAC, these binaries are automatically restricted to least
+    privilege
+    
+    via: https://build.opensuse.org/package/view_file/home:dsterba:grsecurity/gradm/make-grsec_pam-with-pie.diff?expand=1
+
+commit f71c3f95696a43c43d84b5de451f22486454a732
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Aug 25 08:14:11 2014 -0400
+
+    clean up whitespace
+
+commit 9665a4b4606493e81ff0cf3b2fde2a53c836e322
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Aug 19 17:49:10 2014 -0400
+
+    add support for CAP_BLOCK_SUSPEND
+
+commit 63017cb29510c1ded5308ca0a32b8d33f4c05d7c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jul 22 21:16:08 2014 -0400
+
+    fix broken password authentication caused by recent commit
+    4b923540573b90c0b2274d510e4948aa9c962775
+    
+    It was not possible to authenticate to the RBAC system as I misread
+    the code and didn't notice it was stripping the trailing newline
+
+commit a4dc27c99f7c5089b61790c8fe3f887038d3c36c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jul 16 21:54:09 2014 -0400
+
+    add object for more systemd bikeshedding, reported by Wolfgang Bumiller
+    https://forums.grsecurity.net/viewtopic.php?f=1&t=4009
+
+commit 5c26384385e0b5178d3f562733c0f90e515c668f
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jul 16 20:13:29 2014 -0400
+
+    Rewind var_object pointers to head and perform set operations
+    forward instead of backwards to not flip their contents on each operation
+    
+    Reworked based on a patch from Wolfgang Bumiller <wry.git@bumiller.com>
+    Many thanks!
+
+commit d896facb27f2b0ba8f2af444e8abcdd5423bfaa1
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jul 15 18:54:06 2014 -0400
+
+    clean up whitespace
+
+commit 51f5d6d623872cbe0beed25cd8a4cd5b77905fe1
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jul 15 18:48:20 2014 -0400
+
+    fix the set subtraction operation in gradm variable support -- the first
+    operand was being modified by the operation.  Many thanks to Blub on the
+    forums for the report!
+    https://forums.grsecurity.net/viewtopic.php?f=3&t=4006
+
+commit 0e86547200909dd2ba6b226eba825bc2926e34fb
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Jul 11 20:41:41 2014 -0400
+
+    add the rest needed to support LDAP in gradm_pam, as reported by
+    Maarten Broekman:
+    https://forums.grsecurity.net/viewtopic.php?t=4002&p=14200#p14200
+
+commit 182cd95de6fb627aea14f6b7adcb45ce32fea1cb
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jul 10 18:46:36 2014 -0400
+
+    allow LDAP to be used with gradm_pam, as reported by Maarten Broekman
+    here: https://forums.grsecurity.net/viewtopic.php?f=3&t=4002
+
+commit 13f9ee6faf4e08166f2f17c51e9bc1b02665e84f
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:41:35 2014 -0400
+
+    continue parsing the current file if we happen to include a directory
+    with no policies inside it, otherwise we'll crash on a null deref
+    caught by coverity
+
+commit 8a45f7d4486cd7bf0535d6a59af138cee50ce916
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:37:40 2014 -0400
+
+    silence a coverity warning
+
+commit a9d632a8c452a2c0a8b428e45c11c2c60da893d0
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:33:08 2014 -0400
+
+    add missing break on rare EAGAIN case when trying to communicate
+    with the kernel -- only will result in an extra (wrong) message to
+    be displayed
+    found by coverity
+
+commit e4b6f222ca8c1a8d33282f2758c40792c4244fbb
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:29:59 2014 -0400
+
+    make sure coverity knows gradm_realpath is null terminated by
+    doing it after the call to readlink
+
+commit 4b923540573b90c0b2274d510e4948aa9c962775
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:23:14 2014 -0400
+
+    ensure gradm password is null terminated when created,
+    found by coverity.  Impact is only a potential crash when creating
+    a password 128 characters in length -- not security relevant.
+
+commit c96a718353f5ff0bca8830d5cd9a437e59fa1f57
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:17:16 2014 -0400
+
+    the kernel will never give us a full read buffer, but
+    let's ensure coverity thinks the string is null terminated
+    to silence a warning
+
+commit 7a7c696393390ddeab1fdc5eca8f5609c00c546d
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:05:44 2014 -0400
+
+    initialize dummy variable to silence coverity warning
+
+commit 3a16d6706c115dbcc2b8a6c82689bb57273c6ec2
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jun 19 19:03:00 2014 -0400
+
+    fix bogus sizeof, found by coverity
+
+commit f10cb9459a8bd97ce553c0184d8d285a92cbd92c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed May 28 18:33:12 2014 -0400
+
+    preserve linked list ordering with 'Z' duplicated subject
+    reported on the forums by countermode
+
+commit a2e9307e64b8bd4aa676ff8bdb2a614c77e13509
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Mar 5 18:00:49 2014 -0500
+
+    allow access to /etc/ld.so.nohwcap for gradm
+
+commit 1da5765d8f33133b2f2fa101985ee9d16d213fb7
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Feb 25 17:30:37 2014 -0500
+
+    Update the default policy to fix common sshd breakage
+
+commit b5bc5a64507972c83be37b65ed610fa0bbe72d91
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jan 29 17:56:27 2014 -0500
+
+    Work around a more extreme form of Lennart braindamage, /usr/sbin being
+    a symlink to /usr/bin.  Thanks to Amir Jofreh for the report.
+
+commit 79439320b1ee6e45dea09e7e49c1351f19c23d7f
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jan 28 20:46:20 2014 -0500
+
+    Make sure it's perfectly clear in every single source code file that
+    the license on the software is GPLv2, not that it apparently does anything
+    to prevent multi-billion dollar corporations from stealing this work
+    and selling it to customers who are completely unaware that free software
+    is included in the product because no written offer is included.
+
+commit 93d34388b59df6a1a6b1be5d320cda596132f054
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Jan 27 20:52:09 2014 -0500
+
+    New versions of gradm are licensed under the GPLv2 only.  Companies
+    should contact Brad Spengler at spender@grsecurity.net if they wish
+    to purchase a differently-licensed version of gradm.
+
+commit d751e952cd82c70fe09f526b34b9cd8792f3a909
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jan 23 19:25:32 2014 -0500
+
+    update copyright date displayed on gradm -v
+
+commit a51fee86de5b501cdbd4012fb3b87479840882ab
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jan 23 19:23:37 2014 -0500
+
+    Update copyright date, include a full copy of the GPL v2, standardize
+    a bit
+
+commit 86f5be14d00e226d8396ae52b766257ad5e81bf2
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jan 8 19:33:21 2014 -0500
+
+    Make slashbeast's day:
+    Allow to override previously-specified subjects and objects in policy with a new
+    subject/object flag: Z
+    
+    This can be used for including general policies within a role/subject and
+    then overriding subsets of them for particular instances
+
+commit ea392296caf4b1f0bd7a195a935cb3b85da00112
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jan 4 14:02:54 2014 -0500
+
+    handle /usr relocation
+
+commit 6703f5650d3212f09fb910ba85d0eefa59ae69c3
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jan 2 19:51:55 2014 -0500
+
+    fix typo
+
+commit 33a22101b492cb726f0da85844e8f483018adf61
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jan 2 19:49:23 2014 -0500
+
+    Change symlink warnings into something more sane:
+    if the symlink owner doesn't match its target or if the
+    mode of the symlink object doesn't match the mode of the target's
+    matching object, then warn.  This resolves, for instance, the
+    useless warning about /etc/localtime not having an exact matching object
+    when there existed a /usr/share/timezone object with the same permissions.
+
+commit dbb0b113bd754a63717bbdf636869e37b761f69d
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Nov 24 14:42:33 2013 -0500
+
+    Finish up new handling of mountpoints, create a hash table of mountpoints to perform
+    lookups in since we can't depend on any properties of inode numbers at the mount root
+
+commit 0b80215d141d05c1fadd20ad24cc0b88bed6ec19
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Nov 24 13:21:34 2013 -0500
+
+    Solve the long-running problem of readdir against a directory containing
+    mountpoints returning visible mountpoints despite an 'h' object mode
+    on the mountpoints.  We do this by determining the canonical inode/dev
+    pair for the mountpoint to be the inode/dev of the directory on the parent
+    filesystem holding the mount.  Normal backward walks will eventually hit
+    this inode/dev and readdir will see the correct inode.
+    
+    Therefore it's no longer necessary to resolve this inconsistency with
+    globbed objects.
+
+commit 0272e42ef7872b34dabfd5f5b724d43a1c398586
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Nov 22 20:16:20 2013 -0500
+
+    Bump version up to 3.0, default to using the new reload mechanism
+    Old reload mechanism is still possible with gradm -r or gradm --oldreload
+
+commit 82075190fb3a1fffd3a3489f135c94ae3e0f456a
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Sep 8 14:04:07 2013 -0400
+
+    add /sys to protected-path rule in learn_config so we don't generate policies
+    that allow writing to it in default subjects (which we detect already and
+    prevent to load)
+
+commit f05995f951429661918fb50f7752edd4e8b795dd
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Aug 12 12:28:18 2013 -0400
+
+    add char * casts to trailing NULL arg in execl, for some non-gcc compilers
+    reported by segoon
+
+commit d1468892d8844eb0eddffe6be5a1c16f2b345403
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Aug 9 16:10:36 2013 -0400
+
+    Fix line number reported during error when in a file included
+    from a directory in policy
+    
+    Thanks to slashbeast for the report
+
+commit 8af1efee26697e676fe97c7e42eb7aa30a1375a9
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Aug 2 17:30:01 2013 -0400
+
+    Fix some issues with learning on inheriting subjects
+    Also document network policies not supporting policy inheritance
+    Add warning for cases where we believe the admin assumed network policy inheritance was occurring
+
+commit cb82a83cc0ad1a40823bf3490bd14522c2d9b808
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Aug 2 15:22:13 2013 -0400
+
+    insert globbed objects when performing per-subject learning generation
+
+commit 74d946066cdf063d62123d5b713134da336ff7eb
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Aug 2 13:03:41 2013 -0400
+
+    display proper netmask in debug mode
+
+commit 894ddca33739d4112513e5404f9d01da8e6546d1
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jul 30 19:29:53 2013 -0400
+
+    choose default arch when building gradm now that 32bit binaries can
+    load a policy into a 64bit kernel
+
+commit 7a46cf5760f3ffe7bd28c30f3d819f26c1cd0321
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jul 30 19:24:01 2013 -0400
+
+    Ignore nonexistent user/group names, emit warning upon loading policy
+    instead of failing the policy load
+    Ignored roles will not be copied to the kernel policy
+    
+    Requested by a sponsor
+
+commit 15dfd2902e10b38148c796fc400593467d52a7fb
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Apr 6 17:17:10 2013 -0400
+
+    Allow gradm to be compiled with c++ compilers
+
+commit 10ce6725edb5d6ef8ea74ff99cf265325f2fd82c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Apr 3 09:16:43 2013 -0400
+
+    prevent crash in learning verification when debugging is enabled, don't
+    perform checks if there are no file objects for a given subject
+
+commit 696cbe64febef40c8272e9ca79d9c9d27dcde88f
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Apr 3 08:45:43 2013 -0400
+
+    Fix clang warning, harmless since the string involved is const
+
+commit 3d1062b66e089d53d9d438949dd5b86fdfaf3791
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jan 3 18:25:16 2013 -0500
+
+    Remove outdated/unnecessary GR_NESTED flag -- nested subjects have
+    been attached to the objects that can execute them for some time now.
+    
+    Fix expansion of nested subjects as reported by slashbeast from #grsecurity.
+    When iterating over the subject list and setting up socket families automatically
+    depending on the socket policies, we did not account for nested subjects.
+    Iterate over a separate list and handle the socket families there.
+
+commit 35a4b241e2b86d570528d3a31c757a1dc2d4ae02
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Dec 1 11:45:18 2012 -0500
+
+    Using -O <dir> is only valid for full learning.
+
+commit 8fa5a423b396eabdaa419176b15ea5d6c016ad25
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Oct 30 19:19:13 2012 -0400
+
+    Thanks to Yao Zhao (yao.zhao@windriver.com) for the following patch
+    contribution:
+    
+    fix dependency issue when parallel compiling.
+    
+    when parallel compiling, it may fail like this:
+    ./gradm_fulllearn_pass1.l:3:33: fatal error: fulllearn_pass1.tab.h: No
+    such file or directory
+    ./gradm_fulllearn_pass3.l:3:33: fatal error: fulllearn_pass3.tab.h: No
+    such file or directory
+    
+    add dependency to make sure tab.h is generated before compiling .c to .o
+    
+    add xxx_tab_c_h_wrapper target, to avoid parallel make problem that
+    multiple targets will be run multiple times.
+    
+    Signed-off-by: Yao Zhao <yao.zhao@windriver.com>
+
+commit a1c2aee02eb4a9a1839e3837f7000ae631152fbc
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Oct 13 23:39:05 2012 -0400
+
+    Add policy analysis for policies on non-canonical paths where the
+    symlinked directory is permitted by policy to be modified
+
+commit 88bfa54f8a57e3059cdbc047f2a7a680500cd90a
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Oct 11 19:36:03 2012 -0400
+
+    Use stderr to display password prompt instead of stdout, suggested by
+    slashbeast on irc
+
+commit 62c3978c666b61b3672a5c5735d864f90abd6047
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Sep 9 19:14:16 2012 -0400
+
+    Update copyright year
+
+commit ce5831f07368e1e35e33cef57d610a09d3e4a258
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jul 26 06:56:31 2012 -0400
+
+    Remove now-duplicated lex cases
+
+commit da77927c5f64954a215cc07d2dd4c1eb81d1bebe
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Jul 25 20:53:38 2012 -0400
+
+    Add connect/bind support to 'define' rules as suggested by a sponsor
+    Additionally add support for capabilities to 'define' rules
+
+commit 4f7c7f386f1a30d1e2d1f59604996ea889871317
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Jul 20 15:40:15 2012 -0400
+
+    Allocate buffer for learn log buffering
+
+commit f34bbab890379b50b07b961e83f5d2c8d0fcca9c
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Jul 20 15:36:07 2012 -0400
+
+    Fix error message
+
+commit 10faed2a626f466dff476e3c5bae2bc1ab4753cc
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Jul 20 15:34:11 2012 -0400
+
+    Use 16MB buffer for handling of learning logs
+
+commit 62f2b987808403b53913f750b416c21404fe4e9a
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 7 18:15:56 2012 -0400
+
+    Remove duplication in error messages
+
+commit 92afe8608f0984cb79a08cedacf7e65b3ee7e7e5
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 7 18:15:13 2012 -0400
+
+    Fix typo
+
+commit 512d04013bf08c5d4e7725ba062e92c62e2e8114
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 7 18:12:36 2012 -0400
+
+    Only compare objects with the same anchor
+
+commit 19195273076aa5cb50fad0bc91fd8a1aa4e37bf8
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 7 18:03:07 2012 -0400
+
+    Log subject name
+
+commit 218681a6ace61d6e6ac39280d20a68c0bc5dd2f4
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jul 7 18:00:43 2012 -0400
+
+    Check for bad globbed objects, further eliminates user error
+
+commit 4efb875f40db25b026be3ffc6d38fedc19ae68c9
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Jun 19 17:29:05 2012 -0400
+
+    Prevent users from just 'touch'ing /etc/grsec/grlearn_config to avoid
+    a fatal error, inform them of the consequence and offer a simple solution
+
+commit 6e5ac7f0c297df875720ab3500b46ce6d4a17a19
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jun 9 18:37:38 2012 -0400
+
+    add X32 support
+
+commit 8baf906573d7d5c56641bac8bda07de9ef7b12df
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sat Jun 9 13:09:39 2012 -0400
+
+    Fix kernel version checking, bump version to 2.9.1
+
+commit dc1c781a08b395881ccac498a3ad2347b7726b6e
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Jun 4 20:36:39 2012 -0400
+
+    Disallow GR_LEARN and GR_INHERITLEARN being used together on a subject,
+    otherwise inheritance-based learning won't happen
+    Reported by GOBBLES Security
+
+commit 9f71ef8ad53ecfcc3d7051e3709f5d737184370e
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Mar 22 17:15:30 2012 -0400
+
+    Fix compiler warnings
+
+commit 79a97c058dd23b0cb50a0f3670d7dfd10096c95a
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Feb 23 18:19:47 2012 -0500
+
+    Update documentation based on kernel changes
+
+commit f9637a0b749cd7c27393525a8eb5c1ed12f562ab
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Feb 23 18:14:12 2012 -0500
+
+    Make default umask 0, we'll OR any umask with the user's provided
+    umask to create the intersection
+
+commit 3ed8ff119786abe9ae768b2c950e8e32507a6a53
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Feb 23 17:12:37 2012 -0500
+
+    Compilation fix from split_roles support
+    Make umask unsigned short
+
+commit 04dfcecfb968cfcec87a5d781773e00f08fe932b
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Feb 22 19:09:04 2012 -0500
+
+    Add per-role umask enforcement, requested by a sponsor
+
+commit a381aa3106a47d52f05f9aa8ee6330726a073588
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Feb 20 19:56:55 2012 -0500
+
+    Wipe out any existing policy if we're using -O with -F
+    Previously we were appending to the policy, which is never what we want
+    for full system learning
+
+commit a451f4166b3079b7365b31e3991fbc062129aee1
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Mon Feb 20 19:54:10 2012 -0500
+
+    Add support for "split-roles" in learn_config
+    Example use with split-roles enabled:
+    gradm -F -L /etc/grsec/learning.logs -O /etc/grsec
+    
+    This will wipe out any existing policy and replace it with one generated
+    from full system learning.  /etc/grsec/users and /etc/grsec/groups will
+    be created when necessary, and each file in such directories will
+    contain either a full user role or a full group role
+
+commit 58f410812b0e20db6c4d33bc0db0713746834773
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Tue Feb 14 09:11:14 2012 -0500
+
+    Add /run/initctl to the shutdown role, protect /run by default in RBAC
+    and automatically generate policies that protect it
+
+commit f9e9fa37cedb2df3f6552c51f91a498f5a0f3532
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Fri Jan 13 09:14:57 2012 -0500
+
+    update learn_config documentation, from lavish
+
+commit c79f6a6609c77f5b4e23fc06dd354307b776bf9d
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Nov 30 20:44:09 2011 -0500
+
+    add note about admin role to policy file (git test 2/RBAC learning)
+
+commit 7ae19ebcf194e51a5d738146ad13a7ded6521dd5
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Wed Nov 30 20:34:32 2011 -0500
+
+    Update date (git test)
+
+commit 1aef284bceeb8dffca4e5e11a837761907f16a8c
+Author: spender <spender>
+Date:   Sun Nov 27 18:23:41 2011 +0000
+
+    handle auto-adding of objects for symlinked subjects properly
+
+commit 69c3ebc640cee48a88a7372592625390799e594d
+Author: spender <spender>
+Date:   Tue Nov 1 02:30:35 2011 +0000
+
+    fix policy analysis
+
+commit 87958cf696e223fbfae102f2c4fdb04a2fbde38a
+Author: spender <spender>
+Date:   Thu Oct 20 04:52:11 2011 +0000
+
+    add CAP_WAKE_ALARM
+
+commit 207268db13cdbd034826fee58588d21ee914f573
+Author: spender <spender>
+Date:   Wed Oct 19 11:30:11 2011 +0000
+
+    add explanation for /lib
+
+commit 80563809d5a07a7d8471b25ffd4875067cda14cc
+Author: spender <spender>
+Date:   Wed Oct 19 11:19:47 2011 +0000
+
+    add /lib subject to policy
+
+commit fd2c81b2b381b6388f21d3ce448c5f6788ada2b7
+Author: spender <spender>
+Date:   Wed Oct 19 11:04:06 2011 +0000
+
+    add /proc/self exemption
+
+commit 297851aade285a1ffbdde5dae1402c49010387d7
+Author: spender <spender>
+Date:   Wed Oct 19 00:16:53 2011 +0000
+
+    add subjects to policy to demonstrate preventing breaking out of subjects with /lib rx by executing ld.so
+
+commit e050a0992c89a8204b86eb263d4622daeacbe42f
+Author: spender <spender>
+Date:   Tue Oct 18 23:53:34 2011 +0000
+
+    add lib32/lib64 to shutdown role
+
+commit 96b0dbfdbd2353d2ad9c3f9315f20d9d64064280
+Author: spender <spender>
+Date:   Tue Oct 18 11:51:59 2011 +0000
+
+    introduce new symlink and globbing behavior: No longer require the anchor for a glob to appear prior to the globbed object. No longer follow symlink objects in policy, but instead warn if there doesn't exist an exact object matching the target of a symlink in the policy.  This removes the ordering issues that previously existed with symlinks in policy.  Enforce base security on /lib32, /lib32/modules, and /usr/lib32.  Enforce removal of CAP_SYSLOG in policy.
+
+commit 912bc5c55cf53fb52ece37f1f480bad51406b5d7
+Author: spender <spender>
+Date:   Mon Oct 17 14:00:43 2011 +0000
+
+    dupecheck domain members against other roles and domains, reported by lavish
+
+commit c9e07fdc3ecea6699b6ad38fa88ef8eccd2d2573
+Author: spender <spender>
+Date:   Mon Oct 17 12:05:41 2011 +0000
+
+    extract get_matching_object function
+
+commit 8716a90fb019b699f335582af8ed50ac05f60057
+Author: spender <spender>
+Date:   Mon Oct 17 03:19:09 2011 +0000
+
+    add space
+
+commit bc2f8fc88aa4e352963ae25795427a41cf8402c6
+Author: spender <spender>
+Date:   Mon Oct 17 03:18:14 2011 +0000
+
+    output role name as comment prior to subject in learn policies, suggestion by tjh on the forums
+
+commit 4ef2e0d9cef26f7831ab22c14753b14e4101f3c7
+Author: spender <spender>
+Date:   Thu Oct 6 01:23:37 2011 +0000
+
+    add permissions needed for gradm_pam on SLES11 SP1, from nt1277 on the forums
+
+commit 6fb4bd09a182ac44b74ddca89992663f6608461b
+Author: spender <spender>
+Date:   Wed Oct 5 09:16:29 2011 +0000
+
+    compilation fix with debugging enabled, from Zbyniu Krzystolik
+
+commit c1c4932793a84643825bbd230998500be2d90154
+Author: spender <spender>
+Date:   Wed Sep 28 07:53:25 2011 +0000
+
+    when checking permissions, look up by ino/dev in addition to name, as duplicate names for the same inode/dev pair won't be allowed
+
+commit e5de2e5f8e1158badc1abb2b3c46ffa8bbfb9ed8
+Author: spender <spender>
+Date:   Tue Sep 27 13:26:03 2011 +0000
+
+    fix other bit testing errors
+
+commit 92fc002be40aa1d33e5d656ca567119c7471b3f9
+Author: spender <spender>
+Date:   Tue Sep 27 13:22:04 2011 +0000
+
+    fix bit checking, causes false positive persistent role error during analysis, reported on forums
+
+commit 7b11859b0c03fbc4a491b40dca97b0732fa45b61
+Author: spender <spender>
+Date:   Sat Sep 24 13:56:17 2011 +0000
+
+    don't display warnings on object duplicates when the modes are the same, fixes annoying warnings on some systems with /lib64 symlinked to /lib
+
+commit ce3201065c9b6c03ccf3d283b3ba820819c78ea0
+Author: spender <spender>
+Date:   Thu Sep 15 03:28:56 2011 +0000
+
+    enforce protection for /lib64/modules which exists on some distros
+
+commit f0408626a2f0293bd68182c5210fbc0a2ab05994
+Author: spender <spender>
+Date:   Mon Aug 15 00:17:51 2011 +0000
+
+    fix parsing of allowed/denied users/groups, users listed after uid 1 would be ignored, groups listed after gid 2 would be ignored (variable name confusion), reported by tr
+
+commit 37f6a138dc6b8c85580843cc1eb60b8136199f69
+Author: spender <spender>
+Date:   Thu Jul 21 22:08:46 2011 +0000
+
+    display the duplicate variable name instead of crashing, thanks to Marcin from the forums for reporting
+
+commit 19f996d5b35b035bcdd48eb4033636d2afd8a90e
+Author: spender <spender>
+Date:   Sat Jun 11 20:17:51 2011 +0000
+
+    add new subject mode to allow executable shared memory
+
+commit 6e386fa8a3d468ae972a8f43a8c16eb6f6347bbd
+Author: spender <spender>
+Date:   Mon Jun 6 03:14:53 2011 +0000
+
+    add shutdown role to full system learning, ignore symlink dupes if the object modes match
+
+commit 8f432bc846d65422b875dc4c23133a7ca6ece9fb
+Author: spender <spender>
+Date:   Mon Jun 6 02:35:10 2011 +0000
+
+    add globbing support for read-protected-path, protected-path, and high-protected-path
+
+commit c4297175659db5ecaf573926bc40d33ca3a77bae
+Author: spender <spender>
+Date:   Mon Jun 6 01:56:56 2011 +0000
+
+    add read-protected-path to lex/yacc
+
+commit 7f157afb7a2811bc488810a5f93aff8ce9b5912f
+Author: spender <spender>
+Date:   Mon Jun 6 01:50:41 2011 +0000
+
+    add read-protected-path to learn_config, populate with default values
+
+commit 97d4ff22faeea775dc11c8423e4672fb788cf2b9
+Author: spender <spender>
+Date:   Sat Mar 26 21:06:47 2011 +0000
+
+    update policy
+
+commit d8a76ea242e0205b3218a6ec1226d18d27fff953
+Author: spender <spender>
+Date:   Sat Mar 26 21:03:48 2011 +0000
+
+    auto-add gradm subject to shutdown role
+
+commit 11136b1eb56e942934523e56119e2d3f58f42cbe
+Author: spender <spender>
+Date:   Sat Mar 26 20:40:24 2011 +0000
+
+    update documentation and flag
+
+commit c9936184e2ffe4b0a0668f9cb404b6b6cc302761
+Author: spender <spender>
+Date:   Sat Mar 26 20:31:42 2011 +0000
+
+    add init transfer flag
+
+commit 7d2d1741fc91b95ccee5b4bc4b66b250176b2f9e
+Author: spender <spender>
+Date:   Sat Mar 26 20:06:40 2011 +0000
+
+    update documentation about transfer of privilege through signals
+
+commit cdd5b4c0848473e832a620fe94afd10dae0bbd1f
+Author: spender <spender>
+Date:   Sat Mar 26 18:53:02 2011 +0000
+
+    make shutdown role persistent
+
+commit 0700a23c894a06538523fcd79d048328b28993da
+Author: spender <spender>
+Date:   Sat Mar 26 18:50:34 2011 +0000
+
+    add transition
+
+commit 09921f05c44629c62d9c340b906659116dffccf5
+Author: spender <spender>
+Date:   Sat Mar 26 18:48:57 2011 +0000
+
+    fix typos
+
+commit e77541423f4749bb3a92e7906a37326939d76156
+Author: spender <spender>
+Date:   Sat Mar 26 18:48:17 2011 +0000
+
+    remove dupes
+
+commit 74e3524baa0e52677220b7e9feb7147b41fc3887
+Author: spender <spender>
+Date:   Sat Mar 26 18:47:24 2011 +0000
+
+    remove dupes
+
+commit ef7ff56de7d31b4db1604f0a10fc2c5541a1bff7
+Author: spender <spender>
+Date:   Sat Mar 26 18:46:14 2011 +0000
+
+    compilation fix for some amd64 systems
+
+commit 5a0ab68b8ff7952a8a76d42281ad90a08a51bb18
+Author: spender <spender>
+Date:   Sat Mar 26 18:44:19 2011 +0000
+
+    fix typo
+
+commit a9787bc384b251efc015b0384a47bd516a65bced
+Author: spender <spender>
+Date:   Sat Mar 26 18:35:11 2011 +0000
+
+    update documentation
+
+commit bb9b738b3fdac9ddf7dfa63f4f0af4d5bfcd9a11
+Author: spender <spender>
+Date:   Sat Mar 26 18:26:52 2011 +0000
+
+    introduce persistent special roles
+
+commit 7ca67a5d7faa22193c17a6f6d231d521985c4841
+Author: spender <spender>
+Date:   Sat Mar 26 17:03:07 2011 +0000
+
+    move check
+
+commit e94e861e3455ae473bb9f87229c78d10e3675063
+Author: spender <spender>
+Date:   Sat Mar 26 17:01:23 2011 +0000
+
+    don't silently ignore non-option arguments
+
+commit 24936223b21771e1740e86bc11ed1b6928b69455
+Author: spender <spender>
+Date:   Thu Mar 24 22:09:52 2011 +0000
+
+    check fgets return, loop on prompt
+
+commit 694a1215f3a670dac48d2b7602a46a08fda8b4a7
+Author: spender <spender>
+Date:   Tue Mar 22 00:25:27 2011 +0000
+
+    add CAP_SYSLOG
+
+commit 699d1c0dc2741794aa6e29958cfdaaaef0cd62fd
+Author: spender <spender>
+Date:   Fri Mar 11 23:48:44 2011 +0000
+
+    protect /sys more, in line with new config option
+
+commit 44ced44ba24e44a63de565f8602cb195bea5012c
+Author: spender <spender>
+Date:   Mon Dec 27 13:55:00 2010 +0000
+
+    add additional socket defines for systems with old headers
+
+commit adeca02079d06a925e4ea48019a70e7a7e1b12a2
+Author: spender <spender>
+Date:   Sat Dec 11 00:46:46 2010 +0000
+
+    AF_LOCAL is the same as AF_UNIX
+
+commit 920e2aa79e62802bc6bdca52d366abbfc893e060
+Author: spender <spender>
+Date:   Fri Dec 10 03:42:39 2010 +0000
+
+    switch ordering of checks around
+
+commit 43484f32050863894dc0e81f517fe56903c9d4c9
+Author: spender <spender>
+Date:   Fri Dec 10 03:02:00 2010 +0000
+
+    fix T mode checking
+
+commit e4de4acc4c04e14cbe06f3b6ed053177805b142d
+Author: spender <spender>
+Date:   Fri Dec 10 01:52:18 2010 +0000
+
+    fix socket family learning, reported by zakalwe
+
+commit 722a056dc4cc7bebb936c26c762da3891c8948b8
+Author: spender <spender>
+Date:   Fri Dec 10 01:31:24 2010 +0000
+
+    add unspec
+
+commit aa229def47ee470ec8dad81ebc8983a68764fa2c
+Author: spender <spender>
+Date:   Thu Dec 9 04:09:36 2010 +0000
+
+    add new consistency check when debugging is enabled to check the enforcement of high-protected-path
+
+commit cc67637dd1188db427b4dc393cbd661b3890949a
+Author: spender <spender>
+Date:   Thu Dec 9 03:17:08 2010 +0000
+
+    fix compilation
+
+commit 534689c0e99d50d08654255d1da072e843b13fed
+Author: spender <spender>
+Date:   Thu Dec 9 03:16:02 2010 +0000
+
+    fix learned policy corruption with new rewrite, update linked list sort to mergesort, add numerous consistency checks when GRADM_DEBUG is enabled
+
+commit ee2b3b7bbfcd1901698e5fc9aab4c06ca7814d6d
+Author: spender <spender>
+Date:   Sun Dec 5 17:41:31 2010 +0000
+
+    add kerberos/ldap directories to learn_config
+
+commit 68bd5150610fe0efffd041d9015bc5e3a1245f41
+Author: spender <spender>
+Date:   Sun Dec 5 17:40:43 2010 +0000
+
+    rewrite/cleanup learning code, add comments, add sorting of subjects/objects, to be optimized later
+
+commit b3b6f6a536ceb4ac6021001a0ce5549a79ad425d
+Author: spender <spender>
+Date:   Sat Dec 4 06:14:13 2010 +0000
+
+    update default learn_config based on feedback
+
+commit 4c750a8f2c8976e6fb1a46f27283e3e893357e22
+Author: spender <spender>
+Date:   Sat Dec 4 03:24:01 2010 +0000
+
+    allow multiple families
+
+commit beb3ebea130108df9d9116fb58a9cde90114c2a8
+Author: spender <spender>
+Date:   Sat Dec 4 03:04:44 2010 +0000
+
+    don't output any sock_allow_family if we saw no families learned
+
+commit 9a8aababd7b0e2a80e0ddf7f36f3e99b7ab033b1
+Author: spender <spender>
+Date:   Sat Dec 4 02:36:53 2010 +0000
+
+    don't output sock_allow_family if it's covered by connect/bind rules
+
+commit de170a3952a06bef82323806dff8d0b6aae62969
+Author: spender <spender>
+Date:   Sat Dec 4 02:27:12 2010 +0000
+
+    sock_family -> sock_allow_family
+
+commit 7d43e785e343d0d4923f9ba74dfc1ef3be8b8988
+Author: spender <spender>
+Date:   Sat Nov 27 16:30:20 2010 +0000
+
+    current_subject -> subject
+
+commit ef180d2f4be1fb8e1f5a946f42a1d99ef8ba54a0
+Author: spender <spender>
+Date:   Sat Nov 27 13:41:26 2010 +0000
+
+    attach families to subject, not current_subject
+
+commit 9f0b23d901526cc7e9732a044d2007c905800124
+Author: spender <spender>
+Date:   Wed Nov 24 14:22:08 2010 +0000
+
+    add extra warning, fix struct size, fix warning
+
+commit 962e6bb4a3583f0b23898e3319aceb907cf70aa7
+Author: spender <spender>
+Date:   Sun Nov 21 02:53:46 2010 +0000
+
+    add the caif family, from 2.6.36
+
+commit 392127782b9a402637e63ffaa2a1ba3a35190760
+Author: spender <spender>
+Date:   Sun Nov 21 02:50:42 2010 +0000
+
+    add sock_family policy and learning/full learning for sock_family policy
+
+commit f31bfff2682ca92d6aeea12cc2c05e19be66b541
+Author: spender <spender>
+Date:   Sat Nov 20 20:08:48 2010 +0000
+
+    update documentation
+
+commit 80494c07738a9517c4ba7f0b5f22ca5288720da6
+Author: spender <spender>
+Date:   Sat Nov 20 20:04:06 2010 +0000
+
+    increment gradm version
+
+commit bf59c26226c9d3b6ce7b122646d1e4739bc80f87
+Author: spender <spender>
+Date:   Sat Nov 20 20:02:20 2010 +0000
+
+    add AT_SECURE support
+
+commit 22440980fe2675db00a95b888e3bb86cf0a409eb
+Author: spender <spender>
+Date:   Sat Nov 20 19:43:08 2010 +0000
+
+    enforce SETFCAP removal
+
+commit 933eea158f50be6646b12b2d6aa95990d7a03310
+Author: spender <spender>
+Date:   Sat Nov 20 19:36:32 2010 +0000
+
+    remove SETFCAP
+
+commit 5519745c8d6d77f5dd692e44100c50ca9908cf53
+Author: spender <spender>
+Date:   Sat Nov 20 01:43:42 2010 +0000
+
+    allow not-yet-existent user/group roles, cleanup the parsing of IDs from role names
+
+commit de7fd690091480cc16cd5849e4f2a1c2506030b8
+Author: spender <spender>
+Date:   Sat Nov 20 00:46:30 2010 +0000
+
+    add Xorg and xauth subjects
+
+commit c0071690399dd74351a6716f20e26064f715ca31
+Author: spender <spender>
+Date:   Sat Nov 20 00:40:29 2010 +0000
+
+    add rsyslogd subject
+
+commit 84a3054628185ebbd15c29874b0f5bf4771f3ac2
+Author: spender <spender>
+Date:   Fri Nov 19 22:36:19 2010 +0000
+
+    add su and sudo
+
+commit f9dfc102dee554b1da4d1f8e89717b6876cdd542
+Author: spender <spender>
+Date:   Fri Nov 19 22:33:27 2010 +0000
+
+    add comment
+
+commit 48e56755926174d99e554747fec47c2a1a7853b5
+Author: spender <spender>
+Date:   Fri Nov 19 22:32:03 2010 +0000
+
+    demonstrate defines in the sample policy, from Zbyniu Krzystolik
+
+commit 2f481c830a642b3499ee7350f594759b4301849e
+Author: spender <spender>
+Date:   Fri Nov 19 22:06:13 2010 +0000
+
+    update sshd policy
+
+commit b04d2ee09d76889d333c07ae83ba74613137cbf4
+Author: spender <spender>
+Date:   Fri Nov 19 21:59:33 2010 +0000
+
+    add .nscd_socket to sshd
+
+commit dd14232d7d1b31f341ab8eafc1091fd16559d58e
+Author: spender <spender>
+Date:   Fri Nov 19 21:56:08 2010 +0000
+
+    add /var/run/utmpx to sshd
+
+commit 2bfec0221ca3aca56b8584bf2e82220baf667a22
+Author: spender <spender>
+Date:   Fri Nov 19 21:51:09 2010 +0000
+
+    fix up sshd policy
+
+commit 77092c0e3905513fd30cca036bfe37b04e9ba9cc
+Author: spender <spender>
+Date:   Fri Nov 19 21:46:01 2010 +0000
+
+    remove typo
+
+commit a8c034b21fbf9efabab3c50a933d84135139e996
+Author: spender <spender>
+Date:   Fri Nov 19 21:36:58 2010 +0000
+
+    add crond subject
+
+commit c7515b14ecddabd8d030f19ddb13786c7748b18a
+Author: spender <spender>
+Date:   Fri Nov 19 21:35:11 2010 +0000
+
+    add postgres and exim subjects
+
+commit 612c2466a06da9b5842993629e7888fbb79b95e3
+Author: spender <spender>
+Date:   Fri Nov 19 21:27:35 2010 +0000
+
+    add CAP_AUDIT_WRITE to sshd
+
+commit dd42626f9e55f94783c9518fbb69e6fc5d82f29b
+Author: spender <spender>
+Date:   Fri Nov 19 21:22:14 2010 +0000
+
+    add 64bit library paths
+
+commit ef1b170c98cb56359421efe88050bf83bc5e9081
+Author: spender <spender>
+Date:   Fri Nov 5 01:53:35 2010 +0000
+
+    don't follow symlinks if the owner of the target is different than the owner of the symlink, also don't add rules for targets of dangling symlinks
+
+commit 2cf4a3aae054a06621d322a244dd41c08e76b7b7
+Author: spender <spender>
+Date:   Sun Oct 31 16:29:21 2010 +0000
+
+    add dont-learn-allowed-ips option to learn_config
+
+commit 51c08f7bc9b030ccc08cc63fe7e7526f323615c6
+Author: spender <spender>
+Date:   Sat Oct 30 22:26:31 2010 +0000
+
+    add more permissions for gradm_pam, from Zbyniu Krzystolik
+
+commit a550dc53f415ecc25755c4cd317452f9254e9ed9
+Author: spender <spender>
+Date:   Fri Sep 3 00:46:52 2010 +0000
+
+    turn on echo
+
+commit 6eed381547cdb8f13f8f282acce5b9ed1dfc65cc
+Author: spender <spender>
+Date:   Fri Sep 3 00:42:54 2010 +0000
+
+    add ctrl+c handler during password prompt
+
+commit 22245fb5d7ba4d56923ba516eacf847505f6cfea
+Author: spender <spender>
+Date:   Thu Aug 26 21:02:06 2010 +0000
+
+    reset link count if no deleted file or symlink found, from Ilya Novikov
+
+commit e7808207c64a1b6fb86ad268d614339eb472ec28
+Author: spender <spender>
+Date:   Wed Aug 11 01:15:20 2010 +0000
+
+    change quote order for aesthetics
+
+commit 61ef2385b2b160dac3443bed4be893fe1c85b5ba
+Author: spender <spender>
+Date:   Wed Aug 11 01:11:26 2010 +0000
+
+    add checking for empty roles
+
+commit 8a85ca44b3bd1864545b55ef96cc1d1ae7be3f23
+Author: spender <spender>
+Date:   Fri Jul 23 03:03:31 2010 +0000
+
+    don't open before we have a writer
+
+commit 97ff2f60e8076f61918bd0d7c235041f76c38758
+Author: spender <spender>
+Date:   Fri Jul 23 02:56:59 2010 +0000
+
+    don't rely on hardcoded fd, use named pipe
+
+commit 7b94bafa053c0f040d93d553d367b10263e14f11
+Author: spender <spender>
+Date:   Sat Jul 3 00:22:39 2010 +0000
+
+    update learn_config to match default policy requirements
+
+commit 3b14e98e3b7ed90f7e41f5532490bfb2f1b346d5
+Author: spender <spender>
+Date:   Sun Jun 20 00:58:42 2010 +0000
+
+    add capability auditing and suppression from Zbyniu Krzystolik
+
+commit 0d38e4581cbc141327035984e5aca4ef20a794cc
+Author: spender <spender>
+Date:   Tue May 4 14:03:43 2010 +0000
+
+    fix syntax
+
+commit 6be03015c5c5be7f8cd85d726e8d37bd89fc0fcb
+Author: spender <spender>
+Date:   Tue May 4 14:01:49 2010 +0000
+
+    update udev rule
+
+commit a34a0102174f94deea7fbc83f6dcd6403a5bb02b
+Author: spender <spender>
+Date:   Tue May 4 13:41:11 2010 +0000
+
+    add udev support
+
+commit 4df01b9c7c8dd1fcd986b196567f255ecdaa32b7
+Author: spender <spender>
+Date:   Tue Apr 6 21:45:01 2010 +0000
+
+    fix status check on non-grsec kernels
+
+commit 2fcae51fd9e1a71c5b316e0e57d7c6e1764eeda1
+Author: spender <spender>
+Date:   Wed Oct 7 23:16:49 2009 +0000
+
+    allow more modes for domains
+
+commit 3809daef850335cb9790b98a6e02289cc2651f72
+Author: spender <spender>
+Date:   Wed Oct 7 01:14:12 2009 +0000
+
+    -R can't be used with -V
+
+commit 865b7727fca088e8fe481de31c148db87ffa9721
+Author: spender <spender>
+Date:   Wed Oct 7 00:00:12 2009 +0000
+
+    fix uid based roles
+
+commit d3bef579f69611e3e6699f7402a71572017e112a
+Author: spender <spender>
+Date:   Tue Oct 6 23:40:25 2009 +0000
+
+    fix compile
+
+commit 3031f4fefaa0e9a413eee825864c90782baad716
+Author: spender <spender>
+Date:   Tue Oct 6 23:38:12 2009 +0000
+
+    fix makefile
+
+commit ff5f48656e4188038b1b577d6fc6b79e4875e87d
+Author: spender <spender>
+Date:   Tue Oct 6 23:37:29 2009 +0000
+
+    fix compile warnings, force bison
+
+commit 39d1370e3537bd965879d7d7b05216f62a673dbf
+Author: spender <spender>
+Date:   Tue Oct 6 23:35:19 2009 +0000
+
+    force bison, thanks to ubuntu
+
+commit 3b7a9919f7aa1a832a9d4d73329c263dc04c9802
+Author: spender <spender>
+Date:   Tue Oct 6 22:57:12 2009 +0000
+
+    check return values
+
+commit 6fabe70dfd118905fe086ae7c151e776d434333e
+Author: spender <spender>
+Date:   Tue Oct 6 22:51:31 2009 +0000
+
+    fix format string
+
+commit 252de61bcd131105363f1f4a607862c4902ff7d6
+Author: spender <spender>
+Date:   Tue Oct 6 22:46:57 2009 +0000
+
+    check getcwd error
+
+commit 7c128d6353b64548ef71fe1b19499353940ab4b8
+Author: spender <spender>
+Date:   Tue Oct 6 22:45:13 2009 +0000
+
+    add limits header
+
+commit d879ace38989897bf930c2f137e421fe0c9318d8
+Author: spender <spender>
+Date:   Fri Oct 2 21:35:55 2009 +0000
+
+    allow policy debugging with -C
+
+commit ec150fa0e8d393427622241d4e83257a0da5bc38
+Author: spender <spender>
+Date:   Fri Oct 2 20:39:25 2009 +0000
+
+    limit symlink depth, from Zbyniu Krzystolik
+
+commit e0c055129d9efc5421afe3e24deead32eea46155
+Author: spender <spender>
+Date:   Fri Oct 2 20:34:28 2009 +0000
+
+    user/group transition debugging, from Zbyniu Krzystolik
+
+commit 15c74a86d3fd8ea6cef4bef7b21684d7b339322d
+Author: spender <spender>
+Date:   Fri Oct 2 20:26:56 2009 +0000
+
+    allow numerical uids/gids in policy -- modified from Zbyniu Krzystolik
+
+commit 3f3ae6c82606d044dd8ff4e19d2baf1e34368f01
+Author: spender <spender>
+Date:   Fri Oct 2 18:26:16 2009 +0000
+
+    update default policy
+
+commit a9c97a710c573d048ee2eb925135f824eedf9d2a
+Author: spender <spender>
+Date:   Fri Oct 2 18:25:35 2009 +0000
+
+    add kallsyms to enforced protection
+
+commit 94a2261313e6d2e10a2ea0d60f157489a42b0c84
+Author: spender <spender>
+Date:   Fri Oct 2 18:10:06 2009 +0000
+
+    allow verbose stats with -C
+
+commit a32bc2574f14f42803b9081112f2b97cde0bdbc7
+Author: spender <spender>
+Date:   Fri Oct 2 18:05:48 2009 +0000
+
+    fix formatting
+
+commit 17062e8376418911bb0715fcb507b19c0ff994c0
+Author: spender <spender>
+Date:   Fri Oct 2 18:02:16 2009 +0000
+
+    add replace rule and -C option to check policy
+
+commit f1af9a360f2ea9794efd75f33c476b37cc40d5da
+Author: spender <spender>
+Date:   Thu Sep 24 02:06:22 2009 +0000
+
+    update initial deleted file inode
+
+commit 6fddc6abd2546c25e4fe38d6e0a60bb074610fc0
+Author: spender <spender>
+Date:   Thu Sep 17 00:21:00 2009 +0000
+
+    don't allow a bind rule without a connect rule, and vice-versa
+
+commit 3d5ecadd9bbcbba2630eaa74b1b308be4565b47c
+Author: spender <spender>
+Date:   Wed Sep 16 13:27:50 2009 +0000
+
+    fix missing paren
+
+commit 722745b84812720de288c58a150cad07849a7267
+Author: spender <spender>
+Date:   Wed Sep 16 13:22:29 2009 +0000
+
+    fix special roles, they aren't required to have the G flag
+
+commit e1c4e78075802d37a9cf4b27e268acd339e8d6b8
+Author: spender <spender>
+Date:   Tue Sep 15 01:53:57 2009 +0000
+
+    don't allow role_transitions unless the role has the G flag
+
+commit 28061cb37ee6d26cbdf068b2cbbdcee4730f36a3
+Author: spender <spender>
+Date:   Sun Sep 13 23:15:12 2009 +0000
+
+    reject improper paths
+
+commit 95ec9160cfbb77d166865858de8f72871cd2040e
+Author: spender <spender>
+Date:   Mon Sep 7 02:29:21 2009 +0000
+
+    enforce /proc/modules protection
+
+commit fc69700dc872c0b2132cd2802b7d548e1d8e5bfc
+Author: spender <spender>
+Date:   Wed Aug 26 20:25:10 2009 +0000
+
+    only require enforcement if it exists
+
+commit 191d5c88b4dd830c949be6686cc0739a93a44985
+Author: spender <spender>
+Date:   Tue Aug 25 03:00:31 2009 +0000
+
+    add module protection
+
+commit 808f4872f24e26892fb17dce7be7be040abe93d9
+Author: spender <spender>
+Date:   Wed Jul 29 03:49:29 2009 +0000
+
+    update warning for CAP_SYS_BOOT enforcement
+
+commit eae9d421735964a8a7b65ef124bd6de393f1d232
+Author: spender <spender>
+Date:   Mon Jul 6 20:52:55 2009 +0000
+
+    update documentation on restarting sshd
+
+commit 61c94d317d4a045a182107c1c8bd6b072e07c07e
+Author: spender <spender>
+Date:   Fri May 15 23:13:03 2009 +0000
+
+    add /var/backups to high-protected-path in learn_config, since it can contain backups of the /etc/shadow file
+
+commit 227acdcbcb1280c854389e2a829882441739dad5
+Author: spender <spender>
+Date:   Wed May 13 19:34:56 2009 +0000
+
+    add resource learning
+
+commit d2070ca6d1432dda459f83213f041d15a88749f1
+Author: spender <spender>
+Date:   Sat Apr 25 00:18:27 2009 +0000
+
+    move gr_enable up earlier
+
+commit ff320953f1dfdf95cbf5196be6d733544058af52
+Author: spender <spender>
+Date:   Sat Apr 25 00:09:20 2009 +0000
+
+    warn if enabling RBAC system with non-standard gradm binary
+
+commit dd4693fadcd6ba1720a57eb9cc045150a057bcd4
+Author: spender <spender>
+Date:   Fri Apr 24 23:35:33 2009 +0000
+
+    fix RES_CRASH crash
+
+commit 3810b430323d7f7ea7e9c6bebf205fd63bb84dae
+Author: spender <spender>
+Date:   Fri Apr 24 03:24:25 2009 +0000
+
+    update copyright
+
+commit 6c4caff2f6aa850c845bda60545f8c219072b839
+Author: spender <spender>
+Date:   Tue Apr 21 20:02:36 2009 +0000
+
+    update copyright
+
+commit f4ce004f28e3cce5a4c71fc691dc01e4fae66704
+Author: spender <spender>
+Date:   Tue Apr 14 17:56:26 2009 +0000
+
+    fix learning crash on NULL node subject
+
+commit bd8bfa04de58159fa4255163b4777a23f30fb9a5
+Author: spender <spender>
+Date:   Sat Apr 11 00:33:23 2009 +0000
+
+    update learn_config to protect /proc/slabinfo
+
+commit bae6f78413defce4a7fb34c6828f96afdde93645
+Author: spender <spender>
+Date:   Sat Apr 11 00:27:16 2009 +0000
+
+    enforce non-readable /proc/slabinfo
+
+commit 206a4541d436c789f36ca1d22ef7adf9b072a4b7
+Author: spender <spender>
+Date:   Sat Apr 11 00:05:22 2009 +0000
+
+    enforce protection of kernel images
+
+commit 61d390b05a2f840fd6ee7c571a6baed897b365b6
+Author: spender <spender>
+Date:   Sat Mar 28 17:11:47 2009 +0000
+
+    change resource array size, add support for new resources, increment version
+
+commit 030df7acd32b1f50c711f8d0ab9340ccb7942b11
+Author: spender <spender>
+Date:   Tue Feb 24 02:50:26 2009 +0000
+
+    ignore CVS, .svn directories and and *~ files, adapted from Zbyniu Krzystolik
+
+commit 048fc3db5b5cb9160628feeeccc52354246f0c06
+Author: spender <spender>
+Date:   Tue Feb 24 02:35:17 2009 +0000
+
+    64bit capability support with GRADM_DEBUG, from Zbyniu Krzystolik
+
+commit 8ea59ca227625bac64c4ade919ec48a1b6699636
+Author: spender <spender>
+Date:   Sat Feb 21 17:15:32 2009 +0000
+
+    add INADDR_ANY overriding
+
+commit 46c56d37219e4f4c1de45cb7b9c1cf42befc99b2
+Author: spender <spender>
+Date:   Sun Jan 25 19:08:44 2009 +0000
+
+    fix unlimited RES_NOFILE limit
+
+commit 3fb2769972168bc90efb537565d62af7519cee88
+Author: spender <spender>
+Date:   Wed Jun 25 22:56:39 2008 +0000
+
+    update documentation per zakalwe's suggestion
+
+commit 93fcb5f6efa2c978a2711762bb6cf2e7a40bcf49
+Author: spender <spender>
+Date:   Wed Jun 25 22:52:48 2008 +0000
+
+    update documentation per zakalwe's suggestion
+
+commit 0ae230d2ee56028fd2fb6d1b1e8f9f458cedaf2f
+Author: spender <spender>
+Date:   Tue Jun 24 04:09:02 2008 +0000
+
+    update mode for default subject
+
+commit b5c29c4d88676dc37188b1db5fedab42d09565ec
+Author: spender <spender>
+Date:   Tue Jun 24 04:07:16 2008 +0000
+
+    fix mode for default subject
+
+commit 91befc7239e65442a5b7f1e3a6974a621aad8b29
+Author: spender <spender>
+Date:   Sun May 18 14:40:41 2008 +0000
+
+    add prototypes
+
+commit c3d8794865bc0ea07cecff1f99d281c2c72bd980
+Author: spender <spender>
+Date:   Sun May 18 06:59:29 2008 +0000
+
+    add 64bit capability support, add new capabilities
+
+commit 8707e091113c180ed463aae30d820ac4f35e25cb
+Author: spender <spender>
+Date:   Tue Apr 15 00:54:53 2008 +0000
+
+    add support for CAP_SETFCAP
+
+commit b7e457e1c0c62bf2b99ed4ca245af5bc17a56946
+Author: spender <spender>
+Date:   Fri Apr 4 20:05:26 2008 +0000
+
+    extend username limits
+
+commit ad1c5e2f899b76ad43eb57f228f5b931c0ff4b7a
+Author: spender <spender>
+Date:   Fri Mar 28 01:25:00 2008 +0000
+
+    always reduce portage
+
+commit 25cb53869ca8c93669b82a9306c25b58d17518ac
+Author: spender <spender>
+Date:   Mon Mar 17 21:43:13 2008 +0000
+
+    fix error checking when not done per-role
+
+commit 21a20f4f5338f785e10cb8196fc483424f01b0ae
+Author: spender <spender>
+Date:   Mon Mar 17 21:38:17 2008 +0000
+
+    always check for default subjects/objects
+
+commit 405f22aefd542be12e3b12b4400e54e25ef49790
+Author: spender <spender>
+Date:   Fri Mar 14 01:01:39 2008 +0000
+
+    support policies on files > 2gb
+
+commit f4d2d015ce56f432ec27779b0288a4f189b52d39
+Author: spender <spender>
+Date:   Mon Mar 10 22:07:00 2008 +0000
+
+    fix open learning config
+
+commit 341e6be2f0e4d5636a89f702b188cf0f2a627a78
+Author: spender <spender>
+Date:   Mon Mar 10 21:50:49 2008 +0000
+
+    don't leak fd
+
+commit 430202a642f4a1faab70d379a6f0303f37feda0e
+Author: spender <spender>
+Date:   Mon Mar 10 21:45:50 2008 +0000
+
+    replace racy signal handling with pipe
+
+commit eeba54552126d64599dfb73f535fa5d140408b23
+Author: spender <spender>
+Date:   Sun Feb 24 21:14:20 2008 +0000
+
+    error on invalid port numbers
+
+commit d41ea1ebb0a94cb226a136fb16a8971cfc548087
+Author: spender <spender>
+Date:   Mon Nov 26 23:05:35 2007 +0000
+
+    show_policy fixes from Zbyniu Krzystolik
+
+commit 7aa5e67653299376e502b9869ead7a3facb40242
+Author: spender <spender>
+Date:   Wed Aug 1 20:30:35 2007 +0000
+
+    add support for new capabilities, increment version, from Zbyniu Krzystolik
+
+commit e5fd5d0f5fa5c1b369c34f5767d196614f903c6c
+Author: spender <spender>
+Date:   Mon Jul 23 22:04:52 2007 +0000
+
+    don't duplicate union members
+
+commit 6dccd256c8ee886f73345b48764d100364b5a17d
+Author: spender <spender>
+Date:   Tue May 29 20:38:16 2007 +0000
+
+    kernel image protection
+
+commit be86b197040055a9fc86603289c6b308462b588a
+Author: spender <spender>
+Date:   Sat Feb 10 14:28:32 2007 +0000
+
+    update default policy
+
+commit 1587e0dedbead02f6a1052b4498be55a7fc39fa6
+Author: spender <spender>
+Date:   Sat Feb 10 14:13:01 2007 +0000
+
+    code cleanups
+
+commit 1e4ffdc73014a8ef97aa77a2de74001af56f81f3
+Author: spender <spender>
+Date:   Fri Feb 9 22:44:40 2007 +0000
+
+    allow coredumps if GRADM_DEBUG is added to makefile
+
+commit 86056d5b7cfd60160342bfc5885fe34634b1ce7f
+Author: spender <spender>
+Date:   Fri Jan 12 23:50:01 2007 +0000
+
+    add admin role to full learning
+
+commit f0c31f3b0fb948d0ebf3a9b3e7457dca7b1edc32
+Author: spender <spender>
+Date:   Sat Dec 30 03:47:03 2006 +0000
+
+    update pax flags and gradm version
+
+commit 5f71aed69c243868f7dd0397c2ccc395f0c13a73
+Author: spender <spender>
+Date:   Mon Oct 9 14:13:18 2006 +0000
+
+    fix full learning
+
+commit 0b2871f7f6762080b354e33cf7eddd1a1b051efd
+Author: spender <spender>
+Date:   Sat Sep 23 12:53:02 2006 +0000
+
+    bug fix
+
+commit 2f91752dac52f09d124c9f16b9329714fe6838c2
+Author: spender <spender>
+Date:   Sat Sep 23 02:09:34 2006 +0000
+
+    make sure learning is actually being used if enabled on any subject or role
+
+commit a7a7113aa2670fa6ba3acb58b64665eb11df0f88
+Author: spender <spender>
+Date:   Thu Aug 24 22:55:42 2006 +0000
+
+    update policy
+
+commit 3c704d486e0c73a2c7b109a6f3853782c90aa522
+Author: spender <spender>
+Date:   Sat Jul 15 01:26:49 2006 +0000
+
+    update documentation
+
+commit 7a19f04464701fbd080ab749dcb29701004b440c
+Author: spender <spender>
+Date:   Mon Mar 13 23:07:49 2006 +0000
+
+    fix ordering of define objects
+
+commit 9b50e72381887e5e4eb50ea841354f8dae48545a
+Author: spender <spender>
+Date:   Sun Mar 5 00:35:52 2006 +0000
+
+    skip admin roles in T subject flag
+
+commit 57ba05dc35762654ab51035a6874888e047f563a
+Author: spender <spender>
+Date:   Tue Feb 14 23:46:26 2006 +0000
+
+    update to 2.1.9
+
+commit 601598ece4483e7c92776b75fe5a7af97b02c80b
+Author: spender <spender>
+Date:   Wed Feb 8 00:42:51 2006 +0000
+
+    add to ptr listing
+
+commit 64c3e4cc5984d62553e0e9887d11ca1525a3fa5e
+Author: spender <spender>
+Date:   Mon Feb 6 23:27:16 2006 +0000
+
+    fix interface bug
+
+commit f4514515394bd7b38c7498ea732549426e3abd78
+Author: spender <spender>
+Date:   Sun Feb 5 22:51:05 2006 +0000
+
+    fix symlink issue on gradm_pam
+
+commit 0f9357ddb42f2734173a40266c9c423ac48fff0d
+Author: spender <spender>
+Date:   Sun Jan 22 04:40:42 2006 +0000
+
+    fix error on noauth+G
+
+commit 553f69d0ef916c6720ccdab2c5093066d2ee17bd
+Author: spender <spender>
+Date:   Sun Jan 22 04:26:56 2006 +0000
+
+    fix typo
+
+commit bc345f1b68318dd139d5d9ba48d4fbd8672d21c9
+Author: spender <spender>
+Date:   Sun Jan 8 17:45:37 2006 +0000
+
+    add additional analysis
+
+commit cc8cf46fae64708255a438532873f0973728cdcf
+Author: spender <spender>
+Date:   Sat Jan 7 00:16:50 2006 +0000
+
+    fix false dupe for good
+
+commit 05fc60491025941615c2c83490273d6e0047cad3
+Author: spender <spender>
+Date:   Mon Jan 2 01:44:39 2006 +0000
+
+    add limit on virtual interfaces
+
+commit 5037f06f90b0b7853dfe6fc238798aa8698c29e1
+Author: spender <spender>
+Date:   Mon Jan 2 01:37:36 2006 +0000
+
+    update interface support, add virtual interface support
+
+commit 5368988a22309d1963a8e07c4d8028d17e061752
+Author: spender <spender>
+Date:   Thu Dec 22 16:36:08 2005 +0000
+
+    update version
+
+commit c9a714856732857878893ad9af900dcae008e884
+Author: spender <spender>
+Date:   Thu Dec 22 14:06:11 2005 +0000
+
+    better handling of invalid characters, report instead of ignoring
+
+commit 3bb44d92f1d8b14f79aa9179c301be9795367912
+Author: spender <spender>
+Date:   Thu Dec 22 13:44:30 2005 +0000
+
+    compile fix
+
+commit ab3f1ee4620d775dc7330b7ef480e071b1983fa8
+Author: spender <spender>
+Date:   Thu Dec 22 13:42:38 2005 +0000
+
+    error on invalid role mode
+
+commit 10d5bfdf5c951067b1ca3b5b97fb20b5dc8cea40
+Author: spender <spender>
+Date:   Sun Dec 18 00:56:48 2005 +0000
+
+    update documentation
+
+commit ec3952cde70a4f6799f449c192ff3baf949ae089
+Author: spender <spender>
+Date:   Sun Dec 18 00:24:06 2005 +0000
+
+    add new pax flags implementation
+
+commit 88e2e39fb18c5f7e85cfff24dd8244d77de5a716
+Author: spender <spender>
+Date:   Wed Dec 7 02:14:48 2005 +0000
+
+    inform the user if they have a special role that is inaccessible from any role, due to lacking role transitions
+
+commit 0cd68452279f26a8103e367db11a2dc4cd05157f
+Author: spender <spender>
+Date:   Wed Dec 7 00:18:29 2005 +0000
+
+    fix lib64 symlinking problem, better error reporting for internal full learning policy, byacc bugfix
+
+commit cf5cdb477b80ad583f42e427626c11239ad9afef
+Author: spender <spender>
+Date:   Wed Dec 7 00:15:18 2005 +0000
+
+    fix lib64 symlinking problem
+
+commit 5fa75bb8bedad1e2722b1e75131506ab8663dc38
+Author: spender <spender>
+Date:   Tue Nov 15 02:04:52 2005 +0000
+
+    add userspace component of interface support
+
+commit 41bd23d4bc8dcf9fc2f4934c6f20838c3c227df1
+Author: spender <spender>
+Date:   Tue Nov 1 03:45:19 2005 +0000
+
+    have gradm use /dev/urandom instead of /dev/random for salt generation, since the salt is large and essentially secret
+
+commit 0596b302b199b02557a2fc1352134c7b19fd3ad8
+Author: spender <spender>
+Date:   Mon Sep 19 00:51:06 2005 +0000
+
+    fix x incompatibility
+
+commit 3364c8c737a0b64bb0c35516795ebeb863f97431
+Author: spender <spender>
+Date:   Sat Sep 10 20:46:45 2005 +0000
+
+    fix gcc4 warnings
+
+commit da6562f2e423db84a806d6292cae53cefd8ff9f0
+Author: spender <spender>
+Date:   Sat Sep 10 20:41:13 2005 +0000
+
+    add reporting of duplicate names, and verbosity for duplicates due to symlinking/hardlinking
+
+commit ad316beb2d6111b2a2acb61d7cfd7bdb3ebf5e10
+Author: spender <spender>
+Date:   Sat Sep 10 20:34:55 2005 +0000
+
+    fix /sys duplicate error
+
+commit a0069b81c6c9e5a0303a00e11a554db529f4f026
+Author: spender <spender>
+Date:   Sat Sep 10 20:10:34 2005 +0000
+
+    fix cpu time limits
+
+commit 3d8af501a62458e2401407706edb26c16ed52ae9
+Author: spender <spender>
+Date:   Sat Aug 20 20:50:23 2005 +0000
+
+    update version
+
+commit ef7321fa4d9077b7f68ed7aa4a338d73fae586f2
+Author: spender <spender>
+Date:   Sat Aug 20 20:19:14 2005 +0000
+
+    change device number
+
+commit f22864dae38d798a520432bf217a119ee1ba7150
+Author: spender <spender>
+Date:   Thu Aug 4 23:49:17 2005 +0000
+
+    fix gcc4 warnings
+
+commit 1c1aaeb375336f72645cbcc3419f7b7bc2c44b21
+Author: spender <spender>
+Date:   Thu Aug 4 23:30:07 2005 +0000
+
+    fix regex conflict
+
+commit 7ab19f23a482253335a90e1c0e41a962629ae15d
+Author: spender <spender>
+Date:   Thu Aug 4 23:22:52 2005 +0000
+
+    update role lex
+
+commit 9d30f1ca998d01a17a01f7af539ee631ee9ef30f
+Author: spender <spender>
+Date:   Thu Aug 4 23:20:11 2005 +0000
+
+    update role lex
+
+commit 78721cd46e6edbe8467bb5ed73a9be53897840be
+Author: spender <spender>
+Date:   Mon Jul 18 23:51:12 2005 +0000
+
+    import fix from julien tinnes
+
+commit 39730cb13d5220c449334e0adb0c9a3c75663679
+Author: spender <spender>
+Date:   Sat Jul 2 12:29:24 2005 +0000
+
+    make /tmp,/var/tmp always reduce
+
+commit 0a88a8554159f756615eca1f7ed5dbadbb117a5e
+Author: spender <spender>
+Date:   Mon Jun 13 16:45:53 2005 +0000
+
+    fix pausing
+
+commit 7f6eeac4468aa9844aeecae12aa2273d47e68680
+Author: spender <spender>
+Date:   Mon Jun 13 16:21:49 2005 +0000
+
+    add a flag to subjects
+
+commit 6fe9952d77e8e14c90755ab7c2c9e09d516220fa
+Author: spender <spender>
+Date:   Mon Jun 13 13:59:46 2005 +0000
+
+    fix
+
+commit f7037fb1a50249b052566e8efb9762bb06d769f5
+Author: spender <spender>
+Date:   Sun Jun 12 23:42:58 2005 +0000
+
+    remove unused variables
+
+commit a6b2bc254acd9b4ab86951c65b626ab2d67d5484
+Author: spender <spender>
+Date:   Sun Jun 12 23:39:56 2005 +0000
+
+    fix null pointer deref
+
+commit 18ca992e0f47ec922767b65e2999fa46f61c5ef1
+Author: spender <spender>
+Date:   Sun Jun 12 18:57:34 2005 +0000
+
+    update learn_config
+
+commit b4be40e5f92f8337d320dd6cb9b79af65225aeed
+Author: spender <spender>
+Date:   Sun Jun 12 18:43:08 2005 +0000
+
+    fixes
+
+commit 02ebed6e7f04c5d970ce3bf1c6a3689b8d757d8a
+Author: spender <spender>
+Date:   Sun Jun 12 18:34:01 2005 +0000
+
+    compile fix
+
+commit 927db72edaf356cb522eed622412da279d5a16ab
+Author: spender <spender>
+Date:   Sun Jun 12 18:32:08 2005 +0000
+
+    fix improper role reduction
+
+commit ddcc83da4814a2da0d23285af211cb02829513d4
+Author: spender <spender>
+Date:   Fri Jun 10 17:02:49 2005 +0000
+
+    fix ip mode
+
+commit e8acfa3955adf7c4fe4c5ae3a6efb6accc8101d2
+Author: spender <spender>
+Date:   Fri Jun 10 16:49:52 2005 +0000
+
+    add signal handler
+
+commit 45dadeb11b94dda6bceb101c17f97bf05ae84452
+Author: spender <spender>
+Date:   Fri Jun 10 11:17:48 2005 +0000
+
+    compile fix
+
+commit ec5e08d6fb55cf7c4110ef37447c859c1276d7c1
+Author: spender <spender>
+Date:   Thu Jun 9 12:08:32 2005 +0000
+
+    fix compile with bison
+
+commit a5ca006cf6fc46a78c981ce48f3e50fa43acf7ea
+Author: spender <spender>
+Date:   Thu Jun 9 12:02:13 2005 +0000
+
+    add fixes from peter s mazinger
+
+commit 2a914c73bc1837c296b84dd8ac77cdbb764dd940
+Author: spender <spender>
+Date:   Wed Jun 8 13:44:13 2005 +0000
+
+    update version
+
+commit 888ddf3c4dc197a66a495756e61b094291ba54ff
+Author: spender <spender>
+Date:   Wed May 18 02:17:35 2005 +0000
+
+    remove deleted_objects
+
+commit 851ffb31422161793aca809eb4d5c2ffa320162d
+Author: spender <spender>
+Date:   Wed May 18 02:04:42 2005 +0000
+
+    remove mode flag, add counter
+
+commit d1a918afb80f4bce120158d67d1d3718b90d4987
+Author: spender <spender>
+Date:   Wed May 18 01:58:53 2005 +0000
+
+    add hasdeleted subject flag
+
+commit c4c84f76adc325d68aaab3953589c39ef6e4b886
+Author: spender <spender>
+Date:   Sun May 15 20:04:14 2005 +0000
+
+    revert last change
+
+commit 08db0a3bf0b5d11a08be87b1f9851cd5d9870f60
+Author: spender <spender>
+Date:   Sun May 15 19:49:33 2005 +0000
+
+    update enforce check
+
+commit 15e81bb8dbf541c321bbe73adb60982f8ea0aeb2
+Author: spender <spender>
+Date:   Sat May 14 19:17:15 2005 +0000
+
+    have grlearn interpret always-reduce-path
+
+commit 066651fea9600e69d21b12fa1ad3ed8b14662a4e
+Author: spender <spender>
+Date:   Sat May 14 19:10:34 2005 +0000
+
+    have grlearn interpret always-reduce-path
+
+commit f66f6f3c48ff5ce77d4c1f3bda64c914c097c815
+Author: spender <spender>
+Date:   Thu May 12 19:09:05 2005 +0000
+
+    update default sshd policy
+
+commit 4c24f8e871aa9259afcb6f5d18f237ccb16b75b2
+Author: spender <spender>
+Date:   Tue May 10 21:51:25 2005 +0000
+
+    fix role dupe checking
+
+commit 77303a77b69a897ba43b935d2164544f48d92bbf
+Author: spender <spender>
+Date:   Thu May 5 16:58:32 2005 +0000
+
+    code cleanup
+
+commit 11a9b8ce2b6fd6f2b67eecacf909b84ff80f5001
+Author: spender <spender>
+Date:   Thu May 5 16:53:18 2005 +0000
+
+    free possibly allocated passwords
+
+commit aa73941a762a86ceb1d080961fd1867f14046577
+Author: spender <spender>
+Date:   Thu May 5 16:49:21 2005 +0000
+
+    code cleanups
+
+commit 2f076b662a23214341edaea2396f9980bc2d5747
+Author: spender <spender>
+Date:   Thu May 5 02:15:58 2005 +0000
+
+    update makefile
+
+commit bc86c93fa0b2bf8033b661443c12f5800a781633
+Author: spender <spender>
+Date:   Thu May 5 02:05:07 2005 +0000
+
+    make gradm_pam suid root
+
+commit 6e3b926e37b3a56ca72ddae1c03fcd4fedcc1086
+Author: spender <spender>
+Date:   Thu May 5 01:25:00 2005 +0000
+
+    move rule
+
+commit 513b8ae9b1f6b3db86021db488e41c99bf8e7558
+Author: spender <spender>
+Date:   Thu May 5 01:24:23 2005 +0000
+
+    remove dupe
+
+commit 8b4cf548b7eb20c9169a79c9d45aaf856315dd88
+Author: spender <spender>
+Date:   Thu May 5 01:23:44 2005 +0000
+
+    update gradm_pam rules
+
+commit c2653360a31a310984e3554adda21c2fda0429ff
+Author: spender <spender>
+Date:   Thu May 5 01:20:51 2005 +0000
+
+    update gradm_pam rules
+
+commit 86b9ab243aed0a129fe52b079ced4a10f7858591
+Author: spender <spender>
+Date:   Thu May 5 01:17:57 2005 +0000
+
+    update gradm_pam rules
+
+commit 6be02587fa528f21ed276bd5a4783833c8028ac3
+Author: spender <spender>
+Date:   Thu May 5 01:17:03 2005 +0000
+
+    add rules for gradm_pam
+
+commit ca46467a216fdecd1121eeceedce84634dd98fd3
+Author: spender <spender>
+Date:   Thu May 5 01:14:59 2005 +0000
+
+    set arg
+
+commit fe203a678a6ebac15c042282b869c95bd66a339c
+Author: spender <spender>
+Date:   Thu May 5 01:13:36 2005 +0000
+
+    add new entry mode
+
+commit 205b1020f1ffce45dcab154226cb2475e2a6d9e9
+Author: spender <spender>
+Date:   Thu May 5 01:10:38 2005 +0000
+
+    add gradm_pam to gradm accesses
+
+commit 79ac6845182d7b7f0531ce19c11a611219c6fe43
+Author: spender <spender>
+Date:   Thu May 5 00:32:50 2005 +0000
+
+    update
+
+commit 50515d32a024acf441bfebc4cdd3a2cc5f11a0a1
+Author: spender <spender>
+Date:   Thu May 5 00:28:24 2005 +0000
+
+    add pam authentication support, new subject flag
+
+commit bbe885b0b4af9cbfee76ee8bf76ed53df42ebb65
+Author: spender <spender>
+Date:   Wed May 4 17:50:53 2005 +0000
+
+    add check for /dev/grsec
+
+commit 2d2acfe8c635b2f9f2ccd7d641aaa742ac63069c
+Author: spender <spender>
+Date:   Wed May 4 16:44:36 2005 +0000
+
+    reverse macros
+
+commit ac3497b401c3b183f0bb0b1741b2fb10308c9572
+Author: spender <spender>
+Date:   Wed May 4 15:46:46 2005 +0000
+
+    allow gradm to work on both 2.4/2.6 kernels with the same binary
+
+commit 3020c86515e4c99f6a23129640f56c6d1841f034
+Author: spender <spender>
+Date:   Wed May 4 00:03:23 2005 +0000
+
+    update documentation
+
+commit f697826460026f8f64a4730c15f6af41e0f6a3fe
+Author: spender <spender>
+Date:   Tue May 3 23:43:53 2005 +0000
+
+    add inverted socket policies
+
+commit faa0b3220466eadc7db13ef60ff07f0c774f2eed
+Author: spender <spender>
+Date:   Thu Apr 21 20:03:06 2005 +0000
+
+    fix crash on include
+
+commit fc6506a14b96f10f8ee4634622f7ef0bc9920fac
+Author: spender <spender>
+Date:   Thu Apr 21 18:11:52 2005 +0000
+
+    remove unused variable
+
+commit afcc39f9dcb70ac33e9e26cd5de25c9c6954c764
+Author: spender <spender>
+Date:   Thu Apr 21 17:58:38 2005 +0000
+
+    add redhat init.d support
+
+commit 394c6eff42933359cceb9faf654064818871d4c4
+Author: spender <spender>
+Date:   Thu Apr 21 17:56:02 2005 +0000
+
+    add init.d to inherit-learn
+
+commit dae5a2abdfe9573efab455d0a0ec6ab97da85a4a
+Author: spender <spender>
+Date:   Thu Apr 21 16:12:46 2005 +0000
+
+    add more always-reduce-path entries
+
+commit 7960645c658184dbe52a16f54d849c7ded83c322
+Author: spender <spender>
+Date:   Thu Apr 21 16:09:47 2005 +0000
+
+    add high-protected-path entries
+
+commit 5d65c1c56ba8e773cd0b35de762f186a883d9d2e
+Author: spender <spender>
+Date:   Thu Apr 21 16:07:35 2005 +0000
+
+    protect /sys
+
+commit 0265a708113f83c6ff456e28602ae6401ba26ea9
+Author: spender <spender>
+Date:   Thu Apr 21 16:03:05 2005 +0000
+
+    add inherit-learn entry
+
+commit 4024a227080e1c0bde757d60437bf60f572b8c6c
+Author: spender <spender>
+Date:   Thu Apr 21 16:00:57 2005 +0000
+
+    code cleanup
+
+commit a718288f61438e381f44e681e4050f853c9ae749
+Author: spender <spender>
+Date:   Thu Apr 21 13:28:28 2005 +0000
+
+    set key
+
+commit cf4cae05cd5c7b0211956e99c5080f9a6a7a50d3
+Author: spender <spender>
+Date:   Thu Apr 21 13:22:32 2005 +0000
+
+    use key, not index
+
+commit 4ec830896d88e17197ba11515984bee82cb34a40
+Author: spender <spender>
+Date:   Thu Apr 21 13:14:27 2005 +0000
+
+    add key to hash entry to avoid string comparisons if possible
+
+commit 807964d02afc4c454ea02140ddb5b494b24c5025
+Author: spender <spender>
+Date:   Thu Apr 21 02:19:19 2005 +0000
+
+    add always-reduce-path entries
+
+commit add438984150ae05b4d06bff702f30a2d31e201a
+Author: spender <spender>
+Date:   Thu Apr 21 01:50:54 2005 +0000
+
+    remove debugging
+
+commit bea52368e0800733255c3866ec8077a99798132f
+Author: spender <spender>
+Date:   Thu Apr 21 01:49:41 2005 +0000
+
+    fix include code
+
+commit ac25c4bdeb8321d7eb48733bb422fc5e04648b3d
+Author: spender <spender>
+Date:   Tue Apr 19 02:14:37 2005 +0000
+
+    allow stdin as a learning log file
+
+commit 18ca325bc5f6350ba02ee3a1d21f7bdf61fac800
+Author: spender <spender>
+Date:   Fri Apr 8 15:15:54 2005 +0000
+
+    compile fix
+
+commit 057c5a06cc30575c4936d061aecc3dbddcdf1762
+Author: spender <spender>
+Date:   Fri Apr 8 15:04:26 2005 +0000
+
+    update resource name outputs
+
+commit 467f1b6aae0032a08986481284b866f2774be9be
+Author: spender <spender>
+Date:   Thu Apr 7 00:38:10 2005 +0000
+
+    no need to strip (deleted)
+
+commit 4fe156243979da167ec624410dd6ba5e71461b30
+Author: spender <spender>
+Date:   Wed Apr 6 13:33:11 2005 +0000
+
+    update learn_config
+
+commit 3b237c75e62ac08c165df5d629b37ba8ce1d2b95
+Author: spender <spender>
+Date:   Mon Apr 4 22:19:39 2005 +0000
+
+    fix /dev/pts warning
+
+commit 08618b3d7eee57076697aa5dea3f799b1dcc371b
+Author: spender <spender>
+Date:   Mon Apr 4 22:13:44 2005 +0000
+
+    update documentation, update directive names
+
+commit c9cc8f4eac5e7f5ff94a92218be8d078e1d1f6ff
+Author: spender <spender>
+Date:   Mon Apr 4 22:10:11 2005 +0000
+
+    update documentation
+
+commit 113060576a05c7505826891e98b1ef1baae88e3d
+Author: spender <spender>
+Date:   Mon Apr 4 21:42:32 2005 +0000
+
+    update version
+
+commit ec257de5ca7ca7656a188c36eed60141e669b8fa
+Author: spender <spender>
+Date:   Mon Apr 4 21:28:24 2005 +0000
+
+    add always-reduce
+
+commit f85fc6ae600c1e712a7487639f8e9d6a530211af
+Author: spender <spender>
+Date:   Sun Apr 3 23:05:35 2005 +0000
+
+    error on /dev/pts/* objects
+
+commit 010df0c7e7b58880a9eac5de2b3fbb4c5359365a
+Author: spender <spender>
+Date:   Sun Apr 3 22:59:32 2005 +0000
+
+    add always-reduce directive
+
+commit 3a0d8df6f19ae2797f60fc381a1741ca35910ade
+Author: spender <spender>
+Date:   Sun Apr 3 21:22:20 2005 +0000
+
+    fix resource names on archs that define their own rlimit order
+
+commit 1fe5a713439940aca3fdfd2347ed9b015ad6f5f1
+Author: spender <spender>
+Date:   Tue Mar 29 12:52:58 2005 +0000
+
+    fix full learn crashing
+
+commit 4b48e6dc271362e7511762b9455a8f44bc5a953f
+Author: spender <spender>
+Date:   Tue Mar 22 15:15:49 2005 +0000
+
+    fix override
+
+commit a913f57e06ae0c24b7f2848692b6ccdbb7f691a3
+Author: spender <spender>
+Date:   Tue Mar 22 15:09:24 2005 +0000
+
+    fix override mode for learning
+
+commit bbaf4162852579616f3da17b938c571a12bafbbd
+Author: spender <spender>
+Date:   Mon Mar 21 23:45:06 2005 +0000
+
+    update version
+
+commit c431984838990e6de1a8b8fe9589864b34d4f77d
+Author: spender <spender>
+Date:   Sun Mar 20 14:45:34 2005 +0000
+
+    fix ip add
+
+commit 5b69db5f92530ecf43457715a780d870b53ff147
+Author: spender <spender>
+Date:   Sun Mar 20 12:56:47 2005 +0000
+
+    rewrite /dev/pts entries
+
+commit 6f73a69740a4ebfb85d32b6152bc274494c4626d
+Author: spender <spender>
+Date:   Mon Mar 7 14:15:41 2005 +0000
+
+    don't go interactive if compiling for distro
+
+commit bad42d54a5a985702e46294913f20c7f5bde986f
+Author: spender <spender>
+Date:   Mon Mar 7 03:47:48 2005 +0000
+
+    fix /SYSV000000 accesses
+
+commit dd41f398e6836738677962c648dd8fbbfc38a13c
+Author: spender <spender>
+Date:   Mon Mar 7 03:34:13 2005 +0000
+
+    add t subject flag
+
+commit c71c14629095ce7088cff1327e1b00ddac0f03b6
+Author: spender <spender>
+Date:   Mon Mar 7 03:00:25 2005 +0000
+
+    remove comment
+
+commit 6ce180400cbf70d180dff11054600ade7c68d458
+Author: spender <spender>
+Date:   Mon Mar 7 02:59:48 2005 +0000
+
+    add GR_PROCFIND flag, update version
+
+commit 535e943b32c8d372d09e10644f6b3677512c6dc6
+Author: spender <spender>
+Date:   Fri Mar 4 00:24:49 2005 +0000
+
+    remove randexec support
+
+commit 6d73232137c11cf163dde1cba73f7db2502b16f8
+Author: spender <spender>
+Date:   Thu Feb 24 15:39:48 2005 +0000
+
+    update lexer
+
+commit cf8aba00cbf1accb6291a690bfd21587792f7bd0
+Author: spender <spender>
+Date:   Thu Feb 24 15:33:07 2005 +0000
+
+    add hostname support
+
+commit 8016f40bf17b28822c5dd9479ce645451fcb464b
+Author: spender <spender>
+Date:   Mon Feb 21 22:17:00 2005 +0000
+
+    fix install
+
+commit 57e50ca07fe2f04b61b994809701066e27611703
+Author: spender <spender>
+Date:   Fri Feb 18 20:33:23 2005 +0000
+
+    update version
+
+commit 865e496fcaec69c680e57c97c0ac7c23af672443
+Author: spender <spender>
+Date:   Thu Feb 17 01:41:41 2005 +0000
+
+    cachednode -> cachedlen
+
+commit ce0348b63f7d755eec30c3fefad9d7518f0295b3
+Author: spender <spender>
+Date:   Sun Jan 30 18:44:24 2005 +0000
+
+    update copyright
+
+commit f95c129013e8edc10242d2fdc734f2536b31bc30
+Author: spender <spender>
+Date:   Tue Jan 25 04:02:59 2005 +0000
+
+    update makefile, from Peter S. Mazinger
+
+commit 8c266710956525659e868a8a0409c732af8aeecf
+Author: spender <spender>
+Date:   Sun Jan 23 04:13:44 2005 +0000
+
+    fix including crash
+
+commit 97b621581515fc4534105061529f2e095b047117
+Author: spender <spender>
+Date:   Sun Jan 23 02:33:20 2005 +0000
+
+    fix learning crash
+
+commit c56087055795cd9db1974691f8f0147aa425bb57
+Author: spender <spender>
+Date:   Sun Jan 23 02:25:58 2005 +0000
+
+    fix crash with certain learning logs
+
+commit 638f34c7b623b6395a595868d68c1dabc5f9eecb
+Author: spender <spender>
+Date:   Sat Jan 22 18:04:39 2005 +0000
+
+    update makefile to build 64bit x86-64 binaries
+
+commit 0c5706a1f2085dd5fb90e173f9eb7947f8f46ace
+Author: spender <spender>
+Date:   Fri Jan 21 15:23:21 2005 +0000
+
+    update kernel role
+
+commit 04447de2e8d57b690abd5f8c3bdd5c38beb87b36
+Author: spender <spender>
+Date:   Tue Jan 18 01:16:05 2005 +0000
+
+    update policy
+
+commit 80914ae926702c9dbca750905f1286fdd5348c6c
+Author: spender <spender>
+Date:   Tue Jan 18 01:14:58 2005 +0000
+
+    update policy
+
+commit 8d40c636640a9f24806a31fb62083c89f31c5f5d
+Author: spender <spender>
+Date:   Mon Jan 17 20:41:31 2005 +0000
+
+    update documentation
+
+commit 0637763e7b509efd7b379f71810b098d1eeb3229
+Author: spender <spender>
+Date:   Sat Jan 15 18:22:54 2005 +0000
+
+    update high reduce paths
+
+commit 67d28250764d1a36a6d9688edd3abe5d2413cd2b
+Author: spender <spender>
+Date:   Sat Jan 15 18:09:12 2005 +0000
+
+    update weights
+
+commit 0f343bbea45aada00737327d5d10cd25de0b5842
+Author: spender <spender>
+Date:   Sat Jan 15 17:51:33 2005 +0000
+
+    update weight
+
+commit 58f6ade14b18430fd559eae8cb149a7828f24110
+Author: spender <spender>
+Date:   Sat Jan 15 17:29:02 2005 +0000
+
+    compile fix
+
+commit a73a8a81f579fd6e4ea2c52687c0fe533257ac45
+Author: spender <spender>
+Date:   Sat Jan 15 17:27:58 2005 +0000
+
+    remove debugging
+
+commit 129c28203efafea98fc6ce33a7b959de2bababd5
+Author: spender <spender>
+Date:   Sat Jan 15 17:26:12 2005 +0000
+
+    update reduction
+
+commit a5453565de95b7d3d09f3e58a91afe51f7561c7f
+Author: spender <spender>
+Date:   Sat Jan 15 17:14:04 2005 +0000
+
+    update mode reduction
+
+commit 404791caa8815fc46b3bd77714d77ebac0baa256
+Author: spender <spender>
+Date:   Sat Jan 15 16:53:01 2005 +0000
+
+    update weights
+
+commit ddc40956600dd08bc7d7a96584c99c98fc65df3e
+Author: spender <spender>
+Date:   Sat Jan 15 16:36:53 2005 +0000
+
+    update mode reduction
+
+commit 97b925d8de0705581229fa4f09f3922d0839e3a9
+Author: spender <spender>
+Date:   Sat Jan 15 16:30:26 2005 +0000
+
+    don't reduce /home
+
+commit 55f3f15befb03f8f685585bea454c29fa8db1bdc
+Author: spender <spender>
+Date:   Sat Jan 15 16:26:23 2005 +0000
+
+    update high reduction paths
+
+commit 81e53f11ce60c9f2d1da41f397413e95686b4b01
+Author: spender <spender>
+Date:   Sat Jan 15 16:15:47 2005 +0000
+
+    /tmp rewriting
+
+commit 45b8a3fafe2ebe226071a4cf4b3f67c9e918e382
+Author: spender <spender>
+Date:   Fri Jan 14 18:21:19 2005 +0000
+
+    fix makefile
+
+commit c2362b555c2de5a4a6cb4021e534bfb6cb142a73
+Author: spender <spender>
+Date:   Fri Jan 14 17:20:59 2005 +0000
+
+    update message
+
+commit d23fa34081d122fb4ab15ad8680f7c11bf1084ee
+Author: spender <spender>
+Date:   Fri Jan 14 17:18:00 2005 +0000
+
+    update sniffing message
+
+commit 361e491786fe37023e650216d578689c70e8259b
+Author: spender <spender>
+Date:   Fri Jan 14 15:01:26 2005 +0000
+
+    makefile update
+
+commit ddb187a98f043812dbf3a4bc83154ac299d69dba
+Author: spender <spender>
+Date:   Thu Jan 13 22:36:02 2005 +0000
+
+    update documentation
+
+commit da2c0b0192d1cdce97f30f5298d72f532de76b94
+Author: spender <spender>
+Date:   Thu Jan 13 03:17:31 2005 +0000
+
+    fix $HOME
+
+commit 4a083a6e96ad2f67855e1f1fe737feb6b17a8e57
+Author: spender <spender>
+Date:   Thu Jan 13 03:16:02 2005 +0000
+
+    fix $HOME
+
+commit faaa7de04f42dc1f34d19a23d499c5a628b4181b
+Author: spender <spender>
+Date:   Thu Jan 13 03:06:08 2005 +0000
+
+    can't use /home/spender for domains
+
+commit 3edba658bd5cd117dfe348eccaeba3828a7924c7
+Author: spender <spender>
+Date:   Thu Jan 13 03:00:26 2005 +0000
+
+    update info
+
+commit b14983791efd4104b5e3a8932fbc43a102d59324
+Author: spender <spender>
+Date:   Thu Jan 13 02:53:37 2005 +0000
+
+    fix warning
+
+commit 8be5c3dee09bffbb66c52f5fb81d504fcba9e5d5
+Author: spender <spender>
+Date:   Thu Jan 13 02:52:34 2005 +0000
+
+    domain dupe checking
+
+commit c1ce54e4cf3b425a74f120129313cb3487a39674
+Author: spender <spender>
+Date:   Thu Jan 13 02:46:45 2005 +0000
+
+    add multiple line support for domains
+
+commit af0dd7b668d086cbb693435857e8e074b692e03c
+Author: spender <spender>
+Date:   Thu Jan 13 01:00:23 2005 +0000
+
+    fix typo
+
+commit 39ba78d3ed240932d8dc4052491c0258e0fd7e6f
+Author: spender <spender>
+Date:   Thu Jan 13 00:59:39 2005 +0000
+
+    fix typos
+
+commit b1c9d4da959066bc80cf88526ab2284d65b4f8f3
+Author: spender <spender>
+Date:   Thu Jan 13 00:58:57 2005 +0000
+
+    ignore kernel role
+
+commit 8d726807bd87321ac0658d98cb075903a65b88cc
+Author: spender <spender>
+Date:   Thu Jan 13 00:56:16 2005 +0000
+
+    add more information
+
+commit 8bed3b093389de7ae838f4d9a58b483c40e16eb2
+Author: spender <spender>
+Date:   Thu Jan 13 00:51:24 2005 +0000
+
+    fix symbol usage
+
+commit 384f6b1e18b4a92c1fb76483ab81050342960603
+Author: spender <spender>
+Date:   Thu Jan 13 00:32:27 2005 +0000
+
+    include updates
+
+commit 022ffdd203ade8a87347ee623157cbafbd5086bd
+Author: spender <spender>
+Date:   Wed Jan 12 22:38:54 2005 +0000
+
+    start grlearn later
+
+commit 6e3218322c50c0f00050d99782a1e361c80cc572
+Author: spender <spender>
+Date:   Wed Jan 12 18:13:22 2005 +0000
+
+    update learn buffer size
+
+commit 900ace4bfae0449e7d0bb2a316cda16fdf82cddc
+Author: spender <spender>
+Date:   Wed Jan 12 17:36:24 2005 +0000
+
+    fix /home/spender
+
+commit 4815990979269d43ecf2c5bde2599f912a1b4daa
+Author: spender <spender>
+Date:   Wed Jan 12 01:49:16 2005 +0000
+
+    fix deleted flag
+
+commit e0d49c4f18fdbefa67aacfe797ac481eb66676f0
+Author: spender <spender>
+Date:   Tue Jan 11 20:07:53 2005 +0000
+
+    update error
+
+commit dafeda4f5f5213b07f0c0c0ea995473e88332137
+Author: spender <spender>
+Date:   Tue Jan 11 19:31:11 2005 +0000
+
+    pass right version
+
+commit d9241a7eed1adcd1513273b95529c86c2489584c
+Author: spender <spender>
+Date:   Tue Jan 11 19:13:42 2005 +0000
+
+    better error message when handling 2.4/2.6 gradm
+
+commit 77bc2cee2a3d1cb103e61ac1b0619c51aa041670
+Author: spender <spender>
+Date:   Tue Jan 11 06:42:04 2005 +0000
+
+    update policy
+
+commit 7db2036fd10da746af12cbd2c6080b5ca19d4df4
+Author: spender <spender>
+Date:   Sun Jan 9 05:49:06 2005 +0000
+
+    update version
+
+commit 9b72a20b70d6ce0ece889b929139a74bf7c7477d
+Author: spender <spender>
+Date:   Sun Jan 9 02:31:26 2005 +0000
+
+    add automatic tty sniffing detection
+
+commit 81c16769d9f2fba5b98013e61243a39cda51fa0e
+Author: spender <spender>
+Date:   Sat Jan 8 17:10:13 2005 +0000
+
+    add admin to role transitions
+
+commit 3dac3355781e7a719973fa05ac046efe04621f2d
+Author: spender <spender>
+Date:   Sat Jan 8 17:01:43 2005 +0000
+
+    fix typos
+
+commit ecb789b04318c1b506ee86a1be0680ea21d3baaf
+Author: spender <spender>
+Date:   Sat Jan 8 16:59:45 2005 +0000
+
+    add do-anything admin role for full learning
+
+commit 9b768961f21a593a9ff431d45b64f565a3838356
+Author: spender <spender>
+Date:   Sat Jan 8 16:45:41 2005 +0000
+
+    parse learning config both when enabling full learning and when parsing learning logs
+
+commit a04f96195e5a7915a24aa0a934c047789e62c8a5
+Author: spender <spender>
+Date:   Sat Jan 8 16:16:51 2005 +0000
+
+    check for null
+
+commit 480497d6834eb93abcba22e13d81a20dd494a420
+Author: spender <spender>
+Date:   Sat Jan 8 16:03:10 2005 +0000
+
+    make learning heuristics much more configurable
+
+commit 9bb07f410f3623042f3cc92e1b6e29d8b60b4b26
+Author: spender <spender>
+Date:   Sat Jan 8 15:42:45 2005 +0000
+
+    fix unsprole error msg
+
+commit fe78312851ec2f709c9a5b418447a431141e0319
+Author: spender <spender>
+Date:   Sat Jan 8 00:28:42 2005 +0000
+
+    fix old bison compile
+
+commit bde66b7f6720e7d2a8563bc576d87714f9ff49a4
+Author: spender <spender>
+Date:   Mon Jan 3 14:26:02 2005 +0000
+
+    fix typo
+
+commit 0ff857efef7b21f80c5da9457df378bae39f40b8
+Author: spender <spender>
+Date:   Mon Jan 3 14:24:52 2005 +0000
+
+    add GR_LINK, GR_AUDIT_LINK
+
+commit d8f526e5c1aa4a4fdb2cb5f2d64378f11345c1b0
+Author: spender <spender>
+Date:   Sun Jan 2 22:54:09 2005 +0000
+
+    kick version up to 2.1.0, many important changes
+
+commit 05bd094ff1069776a18988b8e18ef46d53df682e
+Author: spender <spender>
+Date:   Sun Jan 2 17:15:47 2005 +0000
+
+    update policy
+
+commit 41d2cbfb66f5736225166f0378a7427c1c7d1c28
+Author: spender <spender>
+Date:   Sun Jan 2 17:14:18 2005 +0000
+
+    update policy
+
+commit 5da250ab090531d002b10fd98cdf3e81393981ef
+Author: spender <spender>
+Date:   Fri Dec 31 21:50:55 2004 +0000
+
+    gr_dyn_alloc for initial allocation
+
+commit 3532b4d6bac60129782831cc2832c4a177478098
+Author: spender <spender>
+Date:   Wed Dec 29 17:48:47 2004 +0000
+
+    resolve relative paths in PATH envvar
+
+commit 2ebc2bda380802478422ac8a9dc1e72358ad01d5
+Author: spender <spender>
+Date:   Mon Dec 27 14:34:48 2004 +0000
+
+    add declaration
+
+commit 0bc6b2c8dc0ad9c0824817ca779dece45a7975c5
+Author: spender <spender>
+Date:   Mon Dec 27 14:07:21 2004 +0000
+
+    fix double frees, exit on strdup failure
+
+commit b4fb95a2cd2d354ed05d58fb1d4744a81e911a58
+Author: spender <spender>
+Date:   Mon Dec 27 13:55:40 2004 +0000
+
+    calloc memory if NULL passed to gr_dyn_realloc
+
+commit 805fd4a4dd55fb91508046c8a08b875eb70f436b
+Author: spender <spender>
+Date:   Thu Dec 23 13:35:37 2004 +0000
+
+    fix crash, from barry schwartz
+
+commit 22afe9c8e60c196fd6c93509ae301a83668caec0
+Author: spender <spender>
+Date:   Wed Dec 22 01:14:13 2004 +0000
+
+    don't include kernel role
+
+commit f08ac3bc8b23bd8b94456d8f2035dcbbff4ccf6d
+Author: spender <spender>
+Date:   Wed Dec 22 01:09:10 2004 +0000
+
+    shorten line
+
+commit f68010107ef629c8ccaad2eff062233ad59c0e27
+Author: spender <spender>
+Date:   Wed Dec 22 01:08:04 2004 +0000
+
+    extend line
+
+commit b14491c9f6174a4017757b2ff7ef20bc3223b7fc
+Author: spender <spender>
+Date:   Wed Dec 22 01:06:32 2004 +0000
+
+    change stats
+
+commit 07331e17ae00c71b56b877ab5b76c402a275019e
+Author: spender <spender>
+Date:   Wed Dec 22 01:01:28 2004 +0000
+
+    better formatting
+
+commit e53c443b5acb8de53d1908a183bc5926884ea311
+Author: spender <spender>
+Date:   Wed Dec 22 00:59:50 2004 +0000
+
+    remove newline
+
+commit e732566fa6519d783f0e8c3f0011a053d639964b
+Author: spender <spender>
+Date:   Wed Dec 22 00:57:33 2004 +0000
+
+    non-admin
+
+commit 103e4f40a4392f53f723ab2a3aacaaddccfd4224
+Author: spender <spender>
+Date:   Wed Dec 22 00:55:27 2004 +0000
+
+    fix typo
+
+commit c1e0ded158e7b5229ba8338f69198d992b4b7c74
+Author: spender <spender>
+Date:   Wed Dec 22 00:54:05 2004 +0000
+
+    add policy statistics
+
+commit bd3aff4bed4a4ba07479a3599ea696cb1edd88cc
+Author: spender <spender>
+Date:   Tue Dec 21 20:37:45 2004 +0000
+
+    move pid writer
+
+commit 4af7c67418c7f3f74be133c450bc4460e056c4e7
+Author: spender <spender>
+Date:   Tue Dec 21 19:23:29 2004 +0000
+
+    update kill, print to stdout
+
+commit c2439cf132a24a44be6d1478b69748c4bcfd4c71
+Author: spender <spender>
+Date:   Tue Dec 21 19:17:04 2004 +0000
+
+    remove debugging
+
+commit 71228c72345e584a9f417e4440e891548fdb7b8d
+Author: spender <spender>
+Date:   Tue Dec 21 02:54:36 2004 +0000
+
+    update documentation
+
+commit 40f77de0941a4a0db112c67bc980a0b9f1cfad70
+Author: spender <spender>
+Date:   Sun Dec 19 23:10:14 2004 +0000
+
+    rewrite pipe/socket entries to /proc, free them appropriately, free strings on non-full-learning, add id transition support to non-full-learning
+
+commit 90e846f2566dc5246f5e8ea53132748f5da2b65b
+Author: spender <spender>
+Date:   Sun Dec 19 17:55:17 2004 +0000
+
+    remove unused var
+
+commit d17f88d97da6aaa1d1b2effcc75cb0fd8246a1bb
+Author: spender <spender>
+Date:   Sun Dec 19 17:54:16 2004 +0000
+
+    add signal handler to flush buffer when grlearn is stopped
+
+commit de51af4c1af5a5f4db988949519fb7694ed11225
+Author: spender <spender>
+Date:   Sun Dec 19 17:39:11 2004 +0000
+
+    speed up caching, reduce context switches by buffering writes
+
+commit f5c16099ea8f51e2fc1fc5bfc517c2155c0bf40c
+Author: spender <spender>
+Date:   Sat Dec 18 18:49:24 2004 +0000
+
+    fix sock type
+
+commit 3a771e58f281a84b2d69423869ced403ee324583
+Author: spender <spender>
+Date:   Sat Dec 18 18:48:15 2004 +0000
+
+    add more debugging
+
+commit d3e04e4a5abe4d67dd0af1099ce8a3fc0af7125c
+Author: spender <spender>
+Date:   Sat Dec 18 14:51:12 2004 +0000
+
+    allow gradm to be installed on an nfs mounted root
+
+commit 62d9b8d9b1b349abf112a2ffd6e2716992e9c7b1
+Author: spender <spender>
+Date:   Fri Dec 17 19:38:54 2004 +0000
+
+    fix -Wall warning
+
+commit bbe835d646c3db6cb85f3f685d909037881d9954
+Author: spender <spender>
+Date:   Fri Dec 17 18:39:14 2004 +0000
+
+    tweak reduction weights
+
+commit f254a94d07e7bfafb3d6a0e454a0463305a9b3d2
+Author: spender <spender>
+Date:   Fri Dec 17 17:57:39 2004 +0000
+
+    fix compile error
+
+commit 8ef2f3a04a81e8f2484efd27a7933c035059db4c
+Author: spender <spender>
+Date:   Fri Dec 17 17:56:42 2004 +0000
+
+    fix typo
+
+commit c99fdc532170a7fe8275b6976b006ca2f620201a
+Author: spender <spender>
+Date:   Fri Dec 17 17:55:09 2004 +0000
+
+    only add id transitions when CAP_SETUID/CAP_SETGID is present
+
+commit be90f043bdf1fab41ddfbc99ae4ebc78e72fa1a3
+Author: spender <spender>
+Date:   Fri Dec 17 17:19:24 2004 +0000
+
+    fix free
+
+commit 51ec2fe4393dd35a5f94204d672fa6b669b246d9
+Author: spender <spender>
+Date:   Fri Dec 17 17:15:47 2004 +0000
+
+    fix id insert
+
+commit 5d3198fbaede5cf2bec71b2dfa0eeecb902814f7
+Author: spender <spender>
+Date:   Fri Dec 17 17:11:32 2004 +0000
+
+    don't make id changes cause a subject creation, CAP_SET*ID will already create them
+
+commit ce8f2c0aea249f5eacbdf84980934a10f831a52b
+Author: spender <spender>
+Date:   Fri Dec 17 17:03:46 2004 +0000
+
+    free subject ids, clean up reduction
+
+commit 9802ccc6741439c8410d0021dcd19cafad6e16fb
+Author: spender <spender>
+Date:   Fri Dec 17 16:51:36 2004 +0000
+
+    fix display
+
+commit ae5dd0ad1167a7ceb749a80e7df2a66c0163070a
+Author: spender <spender>
+Date:   Fri Dec 17 15:45:10 2004 +0000
+
+    check if list != null
+
+commit b5a98c226827f81fb86b5b27c880d6115da2479b
+Author: spender <spender>
+Date:   Fri Dec 17 15:40:51 2004 +0000
+
+    update license
+
+commit 6585a46bf276e57408bbfa6e6a25c174c8e1b8e9
+Author: spender <spender>
+Date:   Fri Dec 17 14:49:11 2004 +0000
+
+    fix typo
+
+commit 8f955284e8d3d2a55954644b958764ee1aec906d
+Author: spender <spender>
+Date:   Fri Dec 17 14:48:28 2004 +0000
+
+    add displaying of id transitions
+
+commit c7dde1d334fff7c70308fb91f2fe9bf2699e287b
+Author: spender <spender>
+Date:   Fri Dec 17 14:39:27 2004 +0000
+
+    add id transition reduction
+
+commit 8a4fc76f69c35567129746dfeda4a718716dcb0f
+Author: spender <spender>
+Date:   Fri Dec 17 14:30:46 2004 +0000
+
+    add id transition learning function
+
+commit 2f1b8c04ea4cd5135102a265ad3d99c757a23b1e
+Author: spender <spender>
+Date:   Fri Dec 17 14:02:05 2004 +0000
+
+    add insert_learn_id_transition prototype
+
+commit 65faa2804810163ad05adeff23b5897516ea10e4
+Author: spender <spender>
+Date:   Fri Dec 17 13:43:44 2004 +0000
+
+    free filename, not $9
+
+commit 86f2e0592b17fa6ea3d0a10905c889891181d7b4
+Author: spender <spender>
+Date:   Fri Dec 17 13:36:53 2004 +0000
+
+    more lex/yacc for user/group transitions
+
+commit ce7afa517ca742bf796165c5b27cb2a794024fd4
+Author: spender <spender>
+Date:   Fri Dec 17 06:37:13 2004 +0000
+
+    first bit of userspace parsing of new id change learning
+
+commit a0f1a4e1ea94b202957a924c573e9b549120c0db
+Author: spender <spender>
+Date:   Wed Dec 15 23:16:25 2004 +0000
+
+    add /var and /opt to irreducible dirs
+
+commit 2d79827ba96550606027c6a6765743ee9f8d88e3
+Author: spender <spender>
+Date:   Wed Dec 15 23:08:55 2004 +0000
+
+    fix learn config
+
+commit b9ce291ad59b18b6f314b39ac1fff9b7c68d5363
+Author: spender <spender>
+Date:   Wed Dec 15 23:01:55 2004 +0000
+
+    fix learn config
+
+commit 9db7bc4ba8e3e37d958a86900f05f680a9a6ea80
+Author: spender <spender>
+Date:   Wed Dec 15 22:48:02 2004 +0000
+
+    fix cron names
+
+commit 5242df762809f44388aecb522e53dc1d7957f4af
+Author: spender <spender>
+Date:   Wed Dec 15 21:21:50 2004 +0000
+
+    fix up types, no longer include any kernel headers
+
+commit df75f7e58011f78868db310ad25ebde2f332c78d
+Author: spender <spender>
+Date:   Wed Dec 15 20:52:53 2004 +0000
+
+    clean up makefile
+
+commit 03e0401bc5bbbb340b406dfe3865ae0c8b4b3d77
+Author: spender <spender>
+Date:   Wed Dec 15 13:24:10 2004 +0000
+
+    update version
+
+commit 0cba810c15e7c76202f1905bed99ac2cb86aa164
+Author: spender <spender>
+Date:   Mon Dec 13 22:25:09 2004 +0000
+
+    remove comment
+
+commit 4ef300701d7ee70a52b503719d28afbf5749833b
+Author: spender <spender>
+Date:   Mon Dec 13 22:24:08 2004 +0000
+
+    full learning update
+
+commit 404dcedbee11577c6c5cbde28ceff5f2be18e6d4
+Author: spender <spender>
+Date:   Mon Dec 13 22:23:26 2004 +0000
+
+    full learning updates
+
+commit b7537d0d4baf22d7ac3549a7b9b4630985e1bd02
+Author: spender <spender>
+Date:   Mon Dec 13 21:04:33 2004 +0000
+
+    acl -> policy
+
+commit 8dbaccf3273f70438413fde9b1585291a1806ed4
+Author: spender <spender>
+Date:   Mon Dec 13 20:08:12 2004 +0000
+
+    fix typo
+
+commit 8dbddfba2cea306587514be81ae66aff51a35284
+Author: spender <spender>
+Date:   Mon Dec 13 20:07:36 2004 +0000
+
+    cleanup return value
+
+commit 5a61767d5f498cf6c499adc45d12ac63781770a5
+Author: spender <spender>
+Date:   Mon Dec 13 19:46:15 2004 +0000
+
+    update reduction policy
+
+commit feaebd7f5c8bef5a22d5688fa9efeea7a7714305
+Author: spender <spender>
+Date:   Mon Dec 13 18:56:48 2004 +0000
+
+    add documentation
+
+commit 629bfd3a8d81f3c6f65235f509c86e2ba48dbab1
+Author: spender <spender>
+Date:   Mon Dec 13 18:40:10 2004 +0000
+
+    integrate learning config
+
+commit e846229c17753bb5a94f8d06e4ba028ae658779c
+Author: spender <spender>
+Date:   Mon Dec 13 04:02:25 2004 +0000
+
+    add define
+
+commit 48287143cd3cd15f8d71734dd2faf2f58fe9f57d
+Author: spender <spender>
+Date:   Mon Dec 13 03:58:46 2004 +0000
+
+    learning config updates
+
+commit f37ebea04cdf36c4c281322e0281a49a316a2e78
+Author: spender <spender>
+Date:   Sun Dec 12 14:35:39 2004 +0000
+
+    add basic learn config parser
+
+commit 5413f9e1e072310d7480bfb7f2ad2d28e376dabf
+Author: spender <spender>
+Date:   Sun Dec 12 14:05:57 2004 +0000
+
+    add inheritance-based learning
+
+commit 160fb5ce20a1def9307b3f1e7ee6e2238a4cdb88
+Author: spender <spender>
+Date:   Fri Dec 10 22:15:54 2004 +0000
+
+    strip off deleted
+
+commit a467acd4b0665c231f8ab313f2c662ecafadd2f0
+Author: spender <spender>
+Date:   Tue Dec 7 18:47:12 2004 +0000
+
+    update define
+
+commit 2bbb5eb520b54a1fbfa059d205708fec4f1f6f0d
+Author: spender <spender>
+Date:   Tue Dec 7 18:28:37 2004 +0000
+
+    fix glibc 2.3.3 problem
+
+commit 0397e65e2a5aef32d8c24f25199d1e3ed17a03b2
+Author: spender <spender>
+Date:   Mon Dec 6 17:44:09 2004 +0000
+
+    more cleanup
+
+commit 28bea10f65ac26baeed15b5c04bd234f6508ec1d
+Author: spender <spender>
+Date:   Mon Dec 6 17:44:08 2004 +0000
+
+    more cleanup
+
+commit 1d7be3bed022ec69c45e84707d4a75b5e2ec13be
+Author: spender <spender>
+Date:   Mon Dec 6 17:42:32 2004 +0000
+
+    more cleanup
+
+commit 4d502656222dce48dfdc7292da35701d30154c9a
+Author: spender <spender>
+Date:   Mon Dec 6 17:39:21 2004 +0000
+
+    more cleanup
+
+commit adc03477be1167eaf0518e7b733b9e115e0c9f4e
+Author: spender <spender>
+Date:   Mon Dec 6 17:37:42 2004 +0000
+
+    more cleanup
+
+commit bcfb62e5ca14e66f1567a953ec57ceda4d88673c
+Author: spender <spender>
+Date:   Mon Dec 6 17:31:18 2004 +0000
+
+    clean up allocations
+
+commit 7a09fdf190a42f8a8e2294146428cbb8e332d2f4
+Author: spender <spender>
+Date:   Mon Dec 6 17:28:34 2004 +0000
+
+    fewer allocations
+
+commit c6f2568df1c1bb80b934f151bc82a7168824ff23
+Author: spender <spender>
+Date:   Mon Dec 6 15:44:05 2004 +0000
+
+    simplify kern version
+
+commit 03be9e54797fb3f3c940bb3342efa4312c901c57
+Author: spender <spender>
+Date:   Wed Nov 24 14:04:16 2004 +0000
+
+    update copyright date
+
+commit 7a60706ebd7b9b5fe21080a3797cdd1b9a9d43e8
+Author: spender <spender>
+Date:   Tue Nov 23 15:34:13 2004 +0000
+
+    fix bison error
+
+commit 36573bada4186aad1eb4ad75d99d1a1cb6a0ffc3
+Author: spender <spender>
+Date:   Tue Nov 23 15:33:40 2004 +0000
+
+    fix bison error
+
+commit f34bad1846bb435ebfad08e9b523eb8b2e40beb1
+Author: spender <spender>
+Date:   Tue Nov 23 15:32:46 2004 +0000
+
+    fix bison error
+
+commit 8fb039af6f9f72203f22c9ec0ad67ab12b98cc3b
+Author: spender <spender>
+Date:   Tue Nov 23 12:05:30 2004 +0000
+
+    compile fix
+
+commit b315dfbc7b4f0c25e5592a0d75fdedbc73bd05ff
+Author: spender <spender>
+Date:   Fri Nov 19 23:39:35 2004 +0000
+
+    free ->users
+
+commit cb70c09316771308f778c58ba73c917177caf58e
+Author: spender <spender>
+Date:   Fri Nov 19 23:31:21 2004 +0000
+
+    dramatically improve memory footprint and running time of full learning analysis
+
+commit efa48907927b0b0f74e07a8dcf1bdfeb1c823d90
+Author: spender <spender>
+Date:   Thu Nov 18 01:11:01 2004 +0000
+
+    don't require /dev/grsec for full learning analysis
+
+commit 678be436b8f3ac368605717a511b354e62d493a1
+Author: spender <spender>
+Date:   Wed Nov 17 14:27:32 2004 +0000
+
+    fix define
+
+commit 47548b406addeb20b8e6cd4079b81a8a4dece561
+Author: spender <spender>
+Date:   Fri Nov 5 13:16:58 2004 +0000
+
+    don't bother restricting kernel threads, they have all capabilities enabled
+
+commit 85be645fcb724215973db0c7c74114d8d7f56098
+Author: spender <spender>
+Date:   Fri Oct 29 00:03:43 2004 +0000
+
+    fixes from barry schwartz
+
+commit 33aef5bf0ec53c118ec8649ec91f96646fab5238
+Author: spender <spender>
+Date:   Thu Oct 14 16:01:59 2004 +0000
+
+    add to kernel role
+
+commit ddf769e366140d2050fb3b10826875be45d3a5f1
+Author: spender <spender>
+Date:   Thu Sep 23 14:17:20 2004 +0000
+
+    add missing parenthesis
+
+commit 6dcd3c46a73c1ec3c5e26adda84a179bf8ed9f8d
+Author: spender <spender>
+Date:   Tue Sep 21 12:40:12 2004 +0000
+
+    remove hardcoding of /etc/grsec
+
+commit 1aaa532368b94f22e803c474605c0a3197be20ab
+Author: spender <spender>
+Date:   Tue Sep 21 12:34:35 2004 +0000
+
+    fix typo
+
+commit 77695c87c7dcf8682863766cd2fa37fe58c2fe8a
+Author: spender <spender>
+Date:   Tue Sep 21 01:44:01 2004 +0000
+
+    fix index, thanks to barry schwartz
+
+commit 750d65d108e4b1ca848324408333113dcfa3f7b3
+Author: spender <spender>
+Date:   Mon Sep 20 13:17:06 2004 +0000
+
+    allow RES_NOFILE ulimited
+
+commit 423953291579b1e27305801738d5cf8ff60dc2c2
+Author: spender <spender>
+Date:   Thu Sep 16 19:38:52 2004 +0000
+
+    allow rw to /proc/bus/usb by kernel modules
+
+commit 2661b9085535a514855e556f55d4ff5dc42a7345
+Author: spender <spender>
+Date:   Tue Sep 7 13:26:39 2004 +0000
+
+    update mode numbers
+
+commit d667f638bc474953675178f13662f4c4b712c794
+Author: spender <spender>
+Date:   Tue Aug 10 18:02:00 2004 +0000
+
+    fix error, thanks to vinceh
+
+commit 0f44ed4f35983165a2bc8b681f4045e92de01be4
+Author: spender <spender>
+Date:   Wed Aug 4 23:59:20 2004 +0000
+
+    match most specific globbed rule first
+
+commit 8c45c638c2e8477409d86581169fc82d9705fe1c
+Author: spender <spender>
+Date:   Wed Jul 28 21:54:16 2004 +0000
+
+    fix null dereference
+
+commit a36c91df74a1795e01ecf514033a2b1fdc733da6
+Author: spender <spender>
+Date:   Fri Jul 23 01:57:59 2004 +0000
+
+    bugfix
+
+commit ce55ff444f563b06d33018afe3436a1f3ce8ee19
+Author: spender <spender>
+Date:   Fri Jul 23 01:08:00 2004 +0000
+
+    fix typo
+
+commit ecc89d5ee4fbdb7a11fea179f86a30cb88ecfea9
+Author: spender <spender>
+Date:   Fri Jul 23 00:57:29 2004 +0000
+
+    zero
+
+commit e3f9f47cf85df129c606747966912f52b49e65c6
+Author: spender <spender>
+Date:   Fri Jul 23 00:56:39 2004 +0000
+
+    null out name
+
+commit ea3bfe6049b4b492cbbfef17e15f76247524e1e2
+Author: spender <spender>
+Date:   Fri Jul 23 00:47:51 2004 +0000
+
+    remove comment
+
+commit e9595c6d5b9d27a775ee7527eeaa09f1e0849b15
+Author: spender <spender>
+Date:   Fri Jul 23 00:42:38 2004 +0000
+
+    bugfix
+
+commit dab5a417d3b60085691d24d7f2e601dc990fe834
+Author: spender <spender>
+Date:   Fri Jul 23 00:36:49 2004 +0000
+
+    Fix directory including
+
+commit 00769980c99c7c6d5068640b325bdcea8cb55ddd
+Author: spender <spender>
+Date:   Fri Jul 9 18:43:37 2004 +0000
+
+    automatically detect if being compiled on sparc64 and modify compiler flags accordingly
+
+commit 5e6cb5aec8fc9e110e76454b91993d8bccd1be7b
+Author: spender <spender>
+Date:   Fri Jul 9 18:36:28 2004 +0000
+
+    remove whitespace
+
+commit 43cfe78a62581a09f61006cc384eb8c1939baa86
+Author: spender <spender>
+Date:   Fri Jul 9 18:21:57 2004 +0000
+
+    automatic conversion to /etc/grsec/policy
+
+commit b76d0504f7160e1f8ab3ff8acd8adef09e9aa717
+Author: spender <spender>
+Date:   Fri Jul 9 15:27:20 2004 +0000
+
+    fix directory including
+
+commit e0d473193b78a8e8f6deee8cf496ff3b1f1b5907
+Author: spender <spender>
+Date:   Fri Jul 9 13:34:10 2004 +0000
+
+    add more documentation to policy
+
+commit a177c2b5dfb4fd513831577fc1a3dc583f43c3b5
+Author: spender <spender>
+Date:   Fri Jul 9 12:58:37 2004 +0000
+
+    update policy
+
+commit 271c16ae5f809c44232a81da77240f304468d516
+Author: spender <spender>
+Date:   Fri Jul 9 12:23:49 2004 +0000
+
+    update policy
+
+commit 4ee9611abc37a1b2854d454a522af45b8bbd0c80
+Author: spender <spender>
+Date:   Fri Jul 9 12:20:37 2004 +0000
+
+    update policy
+
+commit a3da1a98af3f50bc7c6778489b27ca3a87a4bcd3
+Author: spender <spender>
+Date:   Fri Jul 9 12:19:34 2004 +0000
+
+    update policy
+
+commit 6e3963cec15baaf6e6d06ac821c695a3735c93b5
+Author: spender <spender>
+Date:   Fri Jul 9 12:18:00 2004 +0000
+
+    update policy
+
+commit b426cec9aba46e3f5241e151f0f1af00759bc68d
+Author: spender <spender>
+Date:   Thu Jul 8 13:58:46 2004 +0000
+
+    add back including of directories
+
+commit b511bbf740c5eaaab5417012d00696e4f3ca245d
+Author: spender <spender>
+Date:   Wed Jul 7 00:55:49 2004 +0000
+
+    add /etc/ld.so.preload r
+
+commit 1ca711d78b82d263c0f2b5164126c9f743e2fa9c
+Author: spender <spender>
+Date:   Tue Jul 6 21:54:15 2004 +0000
+
+    add /dev/null rw
+
+commit d44369660a46a8c6825039b6507eaab609e7e36e
+Author: spender <spender>
+Date:   Tue Jul 6 13:45:16 2004 +0000
+
+    allow /dev/tty rw
+
+commit 390a1bed1498a31c4201d49a4a7610996d10989a
+Author: spender <spender>
+Date:   Tue Jul 6 13:20:17 2004 +0000
+
+    allow domain learning
+
+commit df15aa8bc556fd4fb39128d9d53287a1ea88c8c0
+Author: spender <spender>
+Date:   Mon Jul 5 19:02:09 2004 +0000
+
+    add domain info
+
+commit 58c0fac457d6702d98fd7a744884b2b3174bb70e
+Author: spender <spender>
+Date:   Mon Jul 5 18:47:31 2004 +0000
+
+    add domain support, naming convention changes, bugfixes
+
+commit 129255180399cca384acfaee4d23431187c9e3c8
+Author: spender <spender>
+Date:   Mon Jul 5 15:31:23 2004 +0000
+
+    fix allocation
+
+commit 0c4c4cb6774b3b59a223e05afb5505f943b673f6
+Author: spender <spender>
+Date:   Mon Jul 5 15:30:35 2004 +0000
+
+    revert last change
+
+commit 8864f26aa7edfefba915d6098060fb8f6399942c
+Author: spender <spender>
+Date:   Mon Jul 5 15:26:25 2004 +0000
+
+    fix allocation
+
+commit 2c11ea4ff5518498590445e9136fc405b587b0bd
+Author: spender <spender>
+Date:   Wed Jun 30 16:51:10 2004 +0000
+
+    update minor number
+
+commit 8f733a91dd1551278fedb5d071b0dd1e33165cac
+Author: spender <spender>
+Date:   Wed Jun 30 16:48:06 2004 +0000
+
+    change minor number
+
+commit 70fbe527e8988696be74eedc4d4b2dd9265a2618
+Author: spender <spender>
+Date:   Tue Jun 29 16:19:08 2004 +0000
+
+    allow new regex matching
+
+commit 81e52f484750ceba1f624291bc0ff9695c4cb0da
+Author: spender <spender>
+Date:   Fri Jun 25 17:04:25 2004 +0000
+
+    update version
+
+commit cdb369c6b8fcebd28c9e1ddb5fce4b8454cb57a2
+Author: spender <spender>
+Date:   Wed Jun 23 21:19:53 2004 +0000
+
+    return nonzero exit code on failure
+
+commit aadd1c2a20fc30e666a5e061da0722b9a4c54430
+Author: spender <spender>
+Date:   Wed Jun 23 20:55:46 2004 +0000
+
+    use glibc elf headers
+
+commit 6a62c122321e932767ae7d8508f0bae9a2e0b82e
+Author: spender <spender>
+Date:   Fri Jun 18 02:50:52 2004 +0000
+
+    remove debugging
+
+commit b5e322c0d76176e076b26e96f3becfa1aade5bd8
+Author: spender <spender>
+Date:   Fri Jun 18 02:50:20 2004 +0000
+
+    fix learning analysis crash
+
+commit 56debf5a242d54a3a28957ccb08e2bbd5db3877b
+Author: spender <spender>
+Date:   Fri Jun 18 01:51:29 2004 +0000
+
+    remove debugging
+
+commit d346af43fda4d3209a6d3cf7a6b7de638d0a623d
+Author: spender <spender>
+Date:   Fri Jun 18 01:50:57 2004 +0000
+
+    fix crash with nested subjects
+
+commit 35148042e57622072439c6281bc9b597939bec05
+Author: spender <spender>
+Date:   Wed Jun 16 10:02:54 2004 +0000
+
+    don't insert nested subjects into main hash
+
+commit 831291831a537a12e5a7e4b7ade08f6c55f0e829
+Author: spender <spender>
+Date:   Mon Jun 14 07:09:48 2004 +0000
+
+    fix crash
+
+commit db0b52902f6141780001cfc1aeb1ddec9956032a
+Author: spender <spender>
+Date:   Sun Jun 13 04:12:04 2004 +0000
+
+    compile fix
+
+commit bf24fd9d270437c1cd4eda68a9b70555aa4e74a3
+Author: spender <spender>
+Date:   Sat Jun 12 09:04:36 2004 +0000
+
+    pass only a pointer to the kernel during interaction
+
+commit 74a37f3e5690a2db9bc946e878055978d48bd22a
+Author: spender <spender>
+Date:   Sat Jun 12 08:31:04 2004 +0000
+
+    don\'t require password for role deauthentication
+
+commit fc3ebb927dada39c27c495f60657ca4700b44b91
+Author: spender <spender>
+Date:   Sat Jun 12 08:21:07 2004 +0000
+
+    fix segfault in lex/yacc due to buggy gcc
+
+commit 72828f941f1b797a459ae62f4fa70d74555c01e2
+Author: spender <spender>
+Date:   Mon May 31 15:03:56 2004 +0000
+
+    add check for default role
+
+commit 901ed614febc76522935d8e42da006126b295546
+Author: spender <spender>
+Date:   Sat May 8 19:26:47 2004 +0000
+
+    reduce complexity of finding subject to inherit from
+
+commit 2f64fb531654707cf0b11e7dc541eec49d2bd8ac
+Author: spender <spender>
+Date:   Tue Apr 6 19:09:33 2004 +0000
+
+    add mode
+
+commit 55d4e419fdf1e02f0d847d466f26f5ef44c90149
+Author: spender <spender>
+Date:   Tue Apr 6 19:05:48 2004 +0000
+
+    much better reduction of directories with multiple modes
+
+commit 7c4c5391b0a48ca656449031e79f797b346d460a
+Author: spender <spender>
+Date:   Tue Apr 6 03:10:05 2004 +0000
+
+    comment out object rewriting until it can be handled properly in the reduction code
+
+commit 3adcb661b4985308db2676a247ec1ae0461f7163
+Author: spender <spender>
+Date:   Tue Apr 6 02:08:01 2004 +0000
+
+    revert last change
+
+commit a3c17ab01a664edb8c52b7ec10e6cda67bcab31b
+Author: spender <spender>
+Date:   Tue Apr 6 02:03:58 2004 +0000
+
+    don't reduce /proc/*/blah to /proc/*
+
+commit bc3db07655115af95a51d1166d3a75cb4570243c
+Author: spender <spender>
+Date:   Tue Apr 6 00:12:55 2004 +0000
+
+    return the orig string
+
+commit cf934893c0b2c458fca9a9b70c2b57774836842d
+Author: spender <spender>
+Date:   Tue Apr 6 00:06:41 2004 +0000
+
+    fix crash
+
+commit 6a95a7eb7743a04cf8ad98dc7749053079a6ae4d
+Author: spender <spender>
+Date:   Tue Apr 6 00:01:47 2004 +0000
+
+    fix typo
+
+commit fa621a5a62a80e077b2250b80cc971eed89fb400
+Author: spender <spender>
+Date:   Mon Apr 5 23:59:52 2004 +0000
+
+    optimizations and pre-disk /proc/<pid> rewriting
+
+commit 447d6985531e7fd532118ffc4482022aceeda812
+Author: spender <spender>
+Date:   Sun Apr 4 05:19:40 2004 +0000
+
+    fix 2.4/2.6 support
+
+commit 24b293b7d5bddb700c2bd98b6741d307ac2b3c5b
+Author: spender <spender>
+Date:   Sat Apr 3 17:18:11 2004 +0000
+
+    move function, fix typo
+
+commit eec71fc1f3247aac09b6de5c776ca0181c339611
+Author: spender <spender>
+Date:   Sat Apr 3 17:17:04 2004 +0000
+
+    fix typo
+
+commit 8e25f5b0917f41c33bdf5048535a37ded05cbbe5
+Author: spender <spender>
+Date:   Sat Apr 3 17:13:04 2004 +0000
+
+    compile fix
+
+commit f92decd8727fbca6a9eaf4f029452ec390848b5f
+Author: spender <spender>
+Date:   Sat Apr 3 17:11:59 2004 +0000
+
+    revert last change
+
+commit 7d38064b22fd499122995bf723b0de702aa7f3d7
+Author: spender <spender>
+Date:   Sat Apr 3 17:11:28 2004 +0000
+
+    include header
+
+commit c9f321102965f1a816d04255f36fc98496d1c8e8
+Author: spender <spender>
+Date:   Sat Apr 3 16:22:57 2004 +0000
+
+    support both 2.4 and 2.6
+
+commit ad12aa9f636b1bf5dad5e9d97e93f728441a5d55
+Author: spender <spender>
+Date:   Sat Apr 3 16:03:57 2004 +0000
+
+    remove t
+
+commit b7d4b311562f821402572fc1664567aa077bbde2
+Author: spender <spender>
+Date:   Sat Apr 3 16:03:42 2004 +0000
+
+    remove t
+
+commit 7dfe1181660ac5f06da449e2f7a01ccb018d8067
+Author: spender <spender>
+Date:   Sat Apr 3 16:03:13 2004 +0000
+
+    make the no ptrace flag an object mode
+
+commit cfa5a0468bb7765d9fbc1140ef6a868401467083
+Author: spender <spender>
+Date:   Sat Apr 3 15:48:26 2004 +0000
+
+    add /home/spender support to user roles
+
+commit 18214624c2a94e4ba8d25ff1dca0477832360365
+Author: spender <spender>
+Date:   Wed Mar 31 01:20:18 2004 +0000
+
+    warning fixes from peter s mazinger
+
+commit c9b621c61237ac628dc73af77c6d400af043eed1
+Author: spender <spender>
+Date:   Thu Mar 25 01:26:03 2004 +0000
+
+    update last change
+
+commit 30d8d5fbcbe449709ecafc1cd3b12bdbf7e145a7
+Author: spender <spender>
+Date:   Thu Mar 25 01:21:18 2004 +0000
+
+    don't read in pwfile on unauth
+
+commit 42fcafb7ed3e231fa16194b4d703d0ff08ffc751
+Author: spender <spender>
+Date:   Thu Mar 25 01:20:26 2004 +0000
+
+    fix unauth problem
+
+commit ec93a364aacd7fbcd29baeb376581cd4f066d994
+Author: spender <spender>
+Date:   Fri Mar 12 11:16:44 2004 +0000
+
+    add /dev/urandom access for propoliced systems
+
+commit 3ee2e1524b745780ca5f7469bd5285a4b49b9b75
+Author: spender <spender>
+Date:   Wed Mar 10 02:54:44 2004 +0000
+
+    better structure packing
+
+commit 3296b4f6028b7678481d4526688c4f4614e69a6a
+Author: spender <spender>
+Date:   Wed Mar 10 01:45:17 2004 +0000
+
+    ACL -> RBAC
+
+commit fcc4cdb1bf79fe7a8f91b07768644388b503d163
+Author: spender <spender>
+Date:   Mon Mar 8 02:45:36 2004 +0000
+
+    update docs
+
+commit 6160b92dd2ad38c42308ec12a4c60a5c51c70137
+Author: spender <spender>
+Date:   Mon Mar 8 00:30:02 2004 +0000
+
+    compile fixes
+
+commit 014e9d22a8a9784777d8f9085b638ab1dc103d98
+Author: spender <spender>
+Date:   Mon Mar 8 00:22:09 2004 +0000
+
+    implement user and group transition checking and enforcement
+
+commit 967d48e138b7e9829b2c8417795df50730a4635c
+Author: spender <spender>
+Date:   Thu Mar 4 05:30:05 2004 +0000
+
+    update progress
+
+commit daff6095c28b4e5345c5d8dc2cdad035ee70f24e
+Author: spender <spender>
+Date:   Thu Mar 4 05:27:57 2004 +0000
+
+    update progress
+
+commit 75b776ae826d1e0a96a93e54f323e496ec20cb68
+Author: spender <spender>
+Date:   Thu Mar 4 05:20:26 2004 +0000
+
+    flush buffers
+
+commit 38243804ff67167683e04f79ef097b602861e7ab
+Author: spender <spender>
+Date:   Thu Mar 4 05:18:07 2004 +0000
+
+    update progress
+
+commit 5913417dad391465b4e1e1aab6c9d6250a2ee355
+Author: spender <spender>
+Date:   Thu Mar 4 05:13:08 2004 +0000
+
+    add more progress
+
+commit 966d2ed70991d264db5754cc7129cd17e3c2db8f
+Author: spender <spender>
+Date:   Thu Mar 4 05:09:57 2004 +0000
+
+    fix typo
+
+commit 8a4f36f957639416f3c70bcac0d93a6e22b0e3ca
+Author: spender <spender>
+Date:   Thu Mar 4 05:09:20 2004 +0000
+
+    add progress
+
+commit 03b2674b2a2810162fa063da356bfa96877102ad
+Author: spender <spender>
+Date:   Thu Mar 4 04:27:56 2004 +0000
+
+    fix hash
+
+commit 447327b4d94a33751047ce46db7b323ab204f059
+Author: spender <spender>
+Date:   Thu Mar 4 04:21:39 2004 +0000
+
+    fix null
+
+commit de739afe7b6fc67c258c8550d22cd8f63eea5041
+Author: spender <spender>
+Date:   Thu Mar 4 04:17:04 2004 +0000
+
+    fix typos
+
+commit 1015e891281fe6ea5403077e25569efc8af04502
+Author: spender <spender>
+Date:   Thu Mar 4 04:15:36 2004 +0000
+
+    compile fix
+
+commit 0c830f35fd2611cca914400f06fecd5bb2261b43
+Author: spender <spender>
+Date:   Thu Mar 4 04:14:06 2004 +0000
+
+    compile fixes
+
+commit 6201f6481de043d97c86fa42baf43a79432ebb9b
+Author: spender <spender>
+Date:   Thu Mar 4 04:11:59 2004 +0000
+
+    compile fixes
+
+commit 350e774e0f0296b35031a594ad1fb8fd538b1577
+Author: spender <spender>
+Date:   Thu Mar 4 04:05:42 2004 +0000
+
+    first attempt at learning optimizations
+
+commit 37a6409f2886abf272c7890705a882617a77fe19
+Author: spender <spender>
+Date:   Thu Mar 4 01:59:42 2004 +0000
+
+    update frees
+
+commit 98bc4220e387a3791cee62f515e6f74c309a67cf
+Author: spender <spender>
+Date:   Wed Mar 3 19:18:11 2004 +0000
+
+    remove frees
+
+commit 9292434ac7fea0d03f5ffe89fda611c6253c66be
+Author: spender <spender>
+Date:   Wed Mar 3 19:15:35 2004 +0000
+
+    mimic realloc behavior
+
+commit d17a5db694a3368b1d5a75483a83af48a172e4ea
+Author: spender <spender>
+Date:   Wed Mar 3 18:48:33 2004 +0000
+
+    fix parsing
+
+commit 71c167b0c10f80df525673594dfcce51e26ec2ce
+Author: spender <spender>
+Date:   Wed Mar 3 18:44:26 2004 +0000
+
+    update gradm acl
+
+commit 00a8f89d29973cdb60f52bfe9578703ac4b4f4e0
+Author: spender <spender>
+Date:   Wed Mar 3 18:41:13 2004 +0000
+
+    more flexible include
+
+commit 5ec055dddb2c4ab0284780104cc2e8a845d5fb8e
+Author: spender <spender>
+Date:   Tue Mar 2 20:57:15 2004 +0000
+
+    update docs
+
+commit 1608f077fd1834e3e8a18fdaebf425a36ff31bf4
+Author: spender <spender>
+Date:   Tue Mar 2 20:42:31 2004 +0000
+
+    implement new capability inheritance system
+
+commit 537d4af81412e325c0f1e7122badada3db8dcc21
+Author: spender <spender>
+Date:   Tue Mar 2 19:13:40 2004 +0000
+
+    use new learning log system that can store more logs
+
+commit d664848fd31e70ad19ae11ed8f193e0cb7199ef3
+Author: spender <spender>
+Date:   Sun Feb 29 15:55:35 2004 +0000
+
+    force subjects to have hash table
+
+commit f66cd38d752c517894065628ac71b5d924bb6ada
+Author: spender <spender>
+Date:   Sun Feb 29 15:49:28 2004 +0000
+
+    copy over linked list
+
+commit 8feebf07b97fd02eb023c9e4f268f2e52e0dd507
+Author: spender <spender>
+Date:   Sun Feb 29 15:36:03 2004 +0000
+
+    fix typo
+
+commit da09f4f83779689fd31d274050aacdd9453c38f8
+Author: spender <spender>
+Date:   Sun Feb 29 15:31:25 2004 +0000
+
+    fix function calls
+
+commit 7cfc6893ed17f834bb7c1701522169f132ad3829
+Author: spender <spender>
+Date:   Sun Feb 29 15:23:22 2004 +0000
+
+    fix lookups
+
+commit 6a87bd24baad08587e02b4fc18e356b6a7dcad11
+Author: spender <spender>
+Date:   Sun Feb 29 15:05:11 2004 +0000
+
+    convert userspace lookup functions to O(1)
+
+commit 99823ee67d4a0e3b52100a1d513fa8289b490205
+Author: spender <spender>
+Date:   Wed Feb 25 03:11:02 2004 +0000
+
+    use new anticipatory memory allocator and resizer
+
+commit 2412906aa315766e65e49cd83346dba5e216978d
+Author: spender <spender>
+Date:   Sun Feb 22 15:12:20 2004 +0000
+
+    implement userspace code for two new subject flags
+
+commit b174f9e224952728a25ea73f3f6c06e8acf3646e
+Author: spender <spender>
+Date:   Sat Feb 21 18:54:00 2004 +0000
+
+    compile fix
+
+commit e612c9d67b7100b6ee922305a164febc41f8698d
+Author: spender <spender>
+Date:   Sat Feb 21 18:38:09 2004 +0000
+
+    kernel interpretation of globbing
+
+commit 7460edeb4b97a23301e5a0b0dbee981bfe50eddd
+Author: spender <spender>
+Date:   Thu Feb 19 01:34:39 2004 +0000
+
+    version update
+
+commit 7c46f51ed8d2539cd0c890425a3daaedd8c07850
+Author: spender <spender>
+Date:   Wed Feb 18 14:37:17 2004 +0000
+
+    merge kernel inheritance code
+
+commit 7ba90b09d7498abb8b0bb824cff77fb044437535
+Author: spender <spender>
+Date:   Fri Jan 30 02:46:25 2004 +0000
+
+    update factor
+
+commit 735a72adf534196121db69f4de07650b81e890d4
+Author: spender <spender>
+Date:   Fri Jan 30 02:42:15 2004 +0000
+
+    add anticipatory allocator and resizer, allocator is 70 percent faster than malloc, resizer is 700 percent faster than realloc
+
+commit 207110526141571c29d90898a63446e8f5f5bb92
+Author: spender <spender>
+Date:   Mon Dec 15 14:01:16 2003 +0000
+
+    revert change
+
+commit a509593e1d926e226e6fa73684626dc9b509ddcf
+Author: spender <spender>
+Date:   Mon Dec 15 13:53:25 2003 +0000
+
+    add header
+
+commit db79e1559c69fdb8ff56a6c89af5d95551ec9d37
+Author: spender <spender>
+Date:   Mon Dec 15 13:51:50 2003 +0000
+
+    set exclusive bit on terminal
+
+commit d00e8e2269603bb7134ec85702202138a71ba625
+Author: spender <spender>
+Date:   Mon Dec 15 02:58:58 2003 +0000
+
+    only set the nested pointer on executable objects
+
+commit 75e066ed35753af5781d4b4dfd1027516891befb
+Author: spender <spender>
+Date:   Sun Dec 14 00:22:06 2003 +0000
+
+    allow nested subjects on directories
+
+commit 7f88713c4ea6e63cd39dd6a180b83acf1a4e93c8
+Author: spender <spender>
+Date:   Sat Dec 13 23:48:29 2003 +0000
+
+    cleanups
+
+commit 8dcf00de5b16ba4c8e2393ce7ca7059993603089
+Author: spender <spender>
+Date:   Tue Dec 2 02:30:42 2003 +0000
+
+    allow 64-bit libraries
+
+commit b70264ffcdc8cd17f3c898b409d50454eab0636e
+Author: spender <spender>
+Date:   Sun Nov 30 21:20:23 2003 +0000
+
+    update analysis/enforcement
+
+commit 77ca2e46ab39865c38ebc1fc728def1cbe6970ed
+Author: spender <spender>
+Date:   Sun Nov 30 21:13:31 2003 +0000
+
+    update acl
+
+commit 56e2352e5f2546d25bd1aca83de9c6d74f9d20cb
+Author: spender <spender>
+Date:   Tue Nov 18 17:55:22 2003 +0000
+
+    update header
+
+commit eb1a77052066d8d55d911ec00b89c367983b5ee4
+Author: spender <spender>
+Date:   Tue Nov 18 17:52:18 2003 +0000
+
+    update version
+
+commit 0c6d1a66209c689fffb2bbbfbcc9bd6e2b53f7d7
+Author: spender <spender>
+Date:   Tue Nov 18 17:51:56 2003 +0000
+
+    can't be static any longer, due to LDAP and such
+
+commit bb019cb69ccc0920d5909742203be4c2c8d59248
+Author: spender <spender>
+Date:   Tue Nov 18 01:06:40 2003 +0000
+
+    update defines
+
+commit 8cbda5c03017aea0cbb517b5dde1f125a9847c46
+Author: spender <spender>
+Date:   Mon Nov 3 02:09:55 2003 +0000
+
+    update lexer
+
+commit 0281f0eb038659bf8c1a4a2584cd2c06b08fef13
+Author: spender <spender>
+Date:   Wed Aug 20 11:33:45 2003 +0000
+
+    add un-admin mode
+
+commit 3452f2ffeccd0ca3a2077b90bbf43ba5e5d13e73
+Author: spender <spender>
+Date:   Thu Aug 14 18:15:11 2003 +0000
+
+    update default acl
+
+commit d59ce9d5d0085a460c84073a009c97f3d796fafa
+Author: spender <spender>
+Date:   Tue Aug 12 16:58:36 2003 +0000
+
+    actually fix it
+
+commit b4891cdbb553993038451c79ee9c28b8a62b7e08
+Author: spender <spender>
+Date:   Tue Aug 12 16:51:00 2003 +0000
+
+    fix stupid typos
+
+commit bfed7bc2c8e64d7e6e353dd4df7ac971f33b9cfc
+Author: spender <spender>
+Date:   Tue Aug 12 16:39:25 2003 +0000
+
+    fix
+
+commit 81ef43cf759a5b11acf8f314297cf3e12acf179b
+Author: spender <spender>
+Date:   Tue Aug 12 16:26:58 2003 +0000
+
+    fix logic
+
+commit b3ca4a1c3c32c0d3ef0e4b6258d249ed459f762d
+Author: spender <spender>
+Date:   Tue Aug 12 16:18:45 2003 +0000
+
+    resolve full path for learning
+
+commit 8f643c439dd4d4b4c758fc61849f53b15bfb4f80
+Author: spender <spender>
+Date:   Tue Aug 12 14:05:11 2003 +0000
+
+    update
+
+commit 2b2506c381da1d6013b5509e717776e82bee31e4
+Author: spender <spender>
+Date:   Tue Aug 12 13:57:21 2003 +0000
+
+    revert last change
+
+commit 3d770590666df574c6591ed64c55e8032dde390f
+Author: spender <spender>
+Date:   Tue Aug 12 13:41:27 2003 +0000
+
+    initialize
+
+commit 1b5bdcd557c4a9b7713a152298b09997c1d8d94f
+Author: spender <spender>
+Date:   Tue Aug 12 13:00:01 2003 +0000
+
+    better error reporting when including directory
+
+commit 34f7bd9142d3ba97473c3a9e5898f19744101c57
+Author: spender <spender>
+Date:   Thu Aug 7 18:44:15 2003 +0000
+
+    fix
+
+commit fab7bb41427b3cf0154bc8057959dc4807b9a0d0
+Author: spender <spender>
+Date:   Thu Aug 7 18:42:20 2003 +0000
+
+    still looking for the right numbers
+
+commit cc5f664ed5d9842adc5d7566be03655f7deffe15
+Author: spender <spender>
+Date:   Thu Aug 7 18:39:25 2003 +0000
+
+    update
+
+commit 166e3f39f8a5ac02ad1afed2d059731150a24548
+Author: spender <spender>
+Date:   Thu Aug 7 18:36:49 2003 +0000
+
+    updates
+
+commit c8322f8d2211da851b329bb2b92657213bf6a418
+Author: spender <spender>
+Date:   Thu Aug 7 18:35:25 2003 +0000
+
+    update
+
+commit 0e525afd926c1ef0665063b76afae8b2d332273a
+Author: spender <spender>
+Date:   Thu Aug 7 18:33:48 2003 +0000
+
+    some more
+
+commit ded4464d46afb82201b1b4fe4c29f695abc09c78
+Author: spender <spender>
+Date:   Thu Aug 7 18:32:55 2003 +0000
+
+    more changes
+
+commit 5dce0983e58ffb77f771dbc146b0dac681b02f70
+Author: spender <spender>
+Date:   Thu Aug 7 18:31:07 2003 +0000
+
+    more updates
+
+commit fd31d9524e62c97f94119f56ac5227ae636b09d2
+Author: spender <spender>
+Date:   Thu Aug 7 18:28:36 2003 +0000
+
+    updates
+
+commit 2a07e7ae88bba05b23640e2868e0d81782d0dd79
+Author: spender <spender>
+Date:   Thu Aug 7 18:27:03 2003 +0000
+
+    updates
+
+commit 357cb9b3f689190dc200d1ec028bcdcc694cc2db
+Author: spender <spender>
+Date:   Thu Aug 7 18:22:05 2003 +0000
+
+    updates
+
+commit 8f9c2b7f4087a97d2ca6a2294865416e4ad2dd7b
+Author: spender <spender>
+Date:   Thu Aug 7 18:19:29 2003 +0000
+
+    more of a gradient
+
+commit 7bfc2c752a76468d92ca8afa28b2a542cc810496
+Author: spender <spender>
+Date:   Thu Aug 7 18:16:09 2003 +0000
+
+    use tabbing gradient
+
+commit f3ae79e29b145af828b13d7df563ccb2abcfac19
+Author: spender <spender>
+Date:   Thu Aug 7 18:12:37 2003 +0000
+
+    use tabs
+
+commit 03de1159f247b514de06ff6fb2849eaf51be392c
+Author: spender <spender>
+Date:   Thu Aug 7 18:01:37 2003 +0000
+
+    fix header
+
+commit a61369cb65fb1590a6cc41d4f12abb748611eec8
+Author: spender <spender>
+Date:   Thu Aug 7 18:00:39 2003 +0000
+
+    fix up headers
+
+commit 0ac6c38610c9e63cd43a55311f3991c82a1c0d19
+Author: spender <spender>
+Date:   Wed Aug 6 13:36:16 2003 +0000
+
+    add userspace code for TPE in the rbac system
+
+commit a1e2a2f39f5dfd42cc66c1429a8699eaf3653379
+Author: spender <spender>
+Date:   Wed Aug 6 13:26:02 2003 +0000
+
+    don't kill other stuff accidentally
+
+commit 47d153c7fba47b3de891e751cf4c546adeebe116
+Author: spender <spender>
+Date:   Tue Jul 29 18:52:36 2003 +0000
+
+    don't memset the entire buffer on each read
+
+commit 74a7de56b59da655d44c1079651c6734ac76645d
+Author: spender <spender>
+Date:   Tue Jul 29 00:37:36 2003 +0000
+
+    don't reduce /usr, i've seen it in a couple of my acls, not nice
+
+commit 3eb8ca01f5daa92187d5f8142f19762ce882df5d
+Author: spender <spender>
+Date:   Tue Jul 29 00:35:19 2003 +0000
+
+    update protected paths
+
+commit 034576c90086752342fc30673fb9463eb6254780
+Author: spender <spender>
+Date:   Thu Jul 24 19:05:21 2003 +0000
+
+    update sizes
+
+commit 720116faed5cd6058fe8bd92c8f1cd886e48c9cb
+Author: spender <spender>
+Date:   Wed Jul 23 23:16:54 2003 +0000
+
+    fix reload
+
+commit c2fa69796fdbf312a1fa5bbd23d434a6dfcf15a1
+Author: spender <spender>
+Date:   Wed Jul 23 16:44:42 2003 +0000
+
+    update for kernel changes
+
+commit d35952d2bb916be686bf7bf2c09973d4e474de84
+Author: spender <spender>
+Date:   Tue Jul 15 19:22:13 2003 +0000
+
+    update documentation
+
+commit 6fa5ac80d7c9d5784c827507fe532d4d0303968f
+Author: spender <spender>
+Date:   Tue Jul 15 19:10:17 2003 +0000
+
+    fix
+
+commit de342e14e78da588f37e14a865caa0374b560e09
+Author: spender <spender>
+Date:   Tue Jul 15 19:07:34 2003 +0000
+
+    cleanup
+
+commit eba82bfabe80046cdf782640564139acddace808
+Author: spender <spender>
+Date:   Tue Jul 15 19:05:52 2003 +0000
+
+    cleanup
+
+commit 877bbd5cc22e1271db303686bde1f83768c14216
+Author: spender <spender>
+Date:   Tue Jul 15 19:03:01 2003 +0000
+
+    cleanup
+
+commit 46590d075647078c4e3bcae5c922b6ad4a6fb417
+Author: spender <spender>
+Date:   Tue Jul 15 18:56:39 2003 +0000
+
+    fix learning bug
+
+commit 38a9621e2f75cef20597c3028347ec663c50db0f
+Author: spender <spender>
+Date:   Tue Jul 15 18:52:15 2003 +0000
+
+    fix extraction
+
+commit c8fee1dd34a62b2e7560b3bf845002dbfda4fc0d
+Author: spender <spender>
+Date:   Tue Jul 15 18:36:47 2003 +0000
+
+    fix initializer
+
+commit 60aaa3bd4a0d79305096a0deadef3ca13064b0a8
+Author: spender <spender>
+Date:   Tue Jul 15 18:29:08 2003 +0000
+
+    cleanups
+
+commit 211526b99bbbd60f24b6bf011c42f2028544b364
+Author: spender <spender>
+Date:   Tue Jul 15 18:06:19 2003 +0000
+
+    no need for ntohl
+
+commit a9371da47c30c94766ae1f8587e5f565823e559b
+Author: spender <spender>
+Date:   Mon Jul 14 23:38:55 2003 +0000
+
+    fix endianness bugs
+
+commit cc27d348a279f6cfb8ddaab424625992b5a4e76a
+Author: spender <spender>
+Date:   Mon Jul 14 20:41:43 2003 +0000
+
+    put it back
+
+commit 0c7df87f5a8c141f51cc1b00b69ea81c15764099
+Author: spender <spender>
+Date:   Mon Jul 14 18:07:43 2003 +0000
+
+    cosmetic fix
+
+commit d37469809639508957a8adc77a9835bc3cc704fd
+Author: spender <spender>
+Date:   Mon Jul 14 17:31:48 2003 +0000
+
+    fix learning log generation while rbac enabled
+
+commit f45fbfd56afc5b3cc4ab4e47d8ac7f9531e454d1
+Author: spender <spender>
+Date:   Thu Jul 10 18:06:59 2003 +0000
+
+    fix several kernel daemons
+
+commit 775a8184cba9bdbcca66a99be8e5c204c3dc9bb5
+Author: spender <spender>
+Date:   Thu Jul 10 00:15:59 2003 +0000
+
+    don't allow -F and -E
+
+commit 31d145ac9b25d5b310f11d64e899c60537c01441
+Author: spender <spender>
+Date:   Wed Jul 9 21:09:34 2003 +0000
+
+    fix warning
+
+commit 7d93edfcf7a3ef65e0517c1178fa1e5adde7dedc
+Author: spender <spender>
+Date:   Wed Jul 9 15:14:44 2003 +0000
+
+    add check for grlearn
+
+commit 0153579d4aa4606c4bb4fa19aadb36e9dc74ee1b
+Author: spender <spender>
+Date:   Mon Jun 30 17:00:42 2003 +0000
+
+    cleanups thanks to peter s. mazinger, learning fix by me
+
+commit 5515c2b8a69e4d1ed192e119b4f11fafbf25a7ef
+Author: spender <spender>
+Date:   Fri Jun 27 20:18:59 2003 +0000
+
+    don't add kernel acls
+
+commit 9408749e0f192e5359b3d696e3acc0b94efac903
+Author: spender <spender>
+Date:   Fri Jun 27 18:52:20 2003 +0000
+
+    fix subject name
+
+commit f594e7c97df1363755c1543abd21459f26dce7fe
+Author: spender <spender>
+Date:   Thu Jun 26 00:18:55 2003 +0000
+
+    relax thresholds a bit for better learning
+
+commit f6d245c28e39303c1ce0facd68f0ac194905e667
+Author: spender <spender>
+Date:   Wed Jun 25 23:55:56 2003 +0000
+
+    fix proto and socktype reduction
+
+commit de9ef0d3b06789a6628d3486ee434c461302608b
+Author: spender <spender>
+Date:   Wed Jun 25 19:01:10 2003 +0000
+
+    update to new learning
+
+commit 153ff78b049505f8fb7c6db7b8e5534ab21acc72
+Author: spender <spender>
+Date:   Wed Jun 25 16:46:45 2003 +0000
+
+    add userspace portion of rbac status mechanism
+
+commit 49c6717dc33b9dbf17a4e446e8d4cb4a2e0bf18e
+Author: spender <spender>
+Date:   Wed Jun 25 15:36:25 2003 +0000
+
+    fix third pass reduction
+
+commit 93d626c485e6824649ed5869cb52cb7afcb49a8f
+Author: spender <spender>
+Date:   Wed Jun 25 14:12:08 2003 +0000
+
+    update usage
+
+commit 2e0abfb5cf93870b4158ad0b487c10e51dc3a9fd
+Author: spender <spender>
+Date:   Tue Jun 24 21:19:49 2003 +0000
+
+    add G to root role
+
+commit 99bc40ce615a1065aa7ce3ae0bb0fb50c2667d2d
+Author: spender <spender>
+Date:   Tue Jun 24 18:20:13 2003 +0000
+
+    allow use of more protocols
+
+commit 26dfa428a8e56c5f0ae9efeffe41ffb2341bf79c
+Author: spender <spender>
+Date:   Tue Jun 24 16:15:40 2003 +0000
+
+    compile fix
+
+commit cc71e99919777a6ee5129f018bd69e5037463bc8
+Author: spender <spender>
+Date:   Tue Jun 24 02:56:36 2003 +0000
+
+    fix for filenames with spaces
+
+commit a5130961dce788fe069fb058ce1ed6f753b3a709
+Author: spender <spender>
+Date:   Tue Jun 24 02:29:01 2003 +0000
+
+    add gradm acl when enabling full learning
+
+commit 5f665daf341b7324a73f58be10e85fdc030d86ee
+Author: spender <spender>
+Date:   Mon Jun 23 22:12:36 2003 +0000
+
+    fix makefile
+
+commit 0456ff98c759e163ddff911c29f7a8df3af478ba
+Author: spender <spender>
+Date:   Mon Jun 23 19:26:35 2003 +0000
+
+    fix makefile
+
+commit d5fd3c03831752ad5521e7ba2b828e4d7a25c56f
+Author: spender <spender>
+Date:   Mon Jun 23 19:15:04 2003 +0000
+
+    fix makefile
+
+commit 20b078ce16d388eb835ec379c9ee8448a8e300b4
+Author: spender <spender>
+Date:   Mon Jun 23 19:01:11 2003 +0000
+
+    update devfs check
+
+commit 32cc7acc64e3e61d6f3e78f411e1b411d7543d38
+Author: spender <spender>
+Date:   Mon Jun 23 18:57:23 2003 +0000
+
+    fix install with devfs
+
+commit 952d82250c6ec585959d873bf823c29bc1ac20c6
+Author: spender <spender>
+Date:   Sun Jun 22 22:55:58 2003 +0000
+
+    wrong function
+
+commit aacd7525bc98946ee67c3289619bdd058d29a46e
+Author: spender <spender>
+Date:   Sun Jun 22 22:53:05 2003 +0000
+
+    ensure default subject security on role-based learning
+
+commit cabffbd50e1e43c12e58b044f5fd231cfc169280
+Author: spender <spender>
+Date:   Sun Jun 22 22:05:55 2003 +0000
+
+    update documentation
+
+commit 90282939ca5ee817f7ef17ffb60d258f872382a0
+Author: spender <spender>
+Date:   Sun Jun 22 21:32:14 2003 +0000
+
+    put back stripping
+
+commit cd3f7f4e518698b8e786c4e1ad9bb9a4297cbfee
+Author: spender <spender>
+Date:   Sun Jun 22 21:30:29 2003 +0000
+
+    I apologize in advance for putting the security industry out of business.
+
+commit 3746b3f9d63e6bd890d2e62fde2ff6937544e8b0
+Author: spender <spender>
+Date:   Fri Jun 13 23:57:33 2003 +0000
+
+    make sure no one tries to make gradm suid root...god knows why
+
+commit e0168b7840d05c4f4b70bd18a3d2cdce520012fc
+Author: spender <spender>
+Date:   Thu Jun 12 14:32:22 2003 +0000
+
+    fix typo
+
+commit d614b329b42bda2fd9a1b21611ad6a4cafb5d0c5
+Author: spender <spender>
+Date:   Wed Jun 11 21:29:30 2003 +0000
+
+    cosmetic fix
+
+commit 1dad6fb93f94e69ec956b1ca6a488d34a6abe7df
+Author: spender <spender>
+Date:   Mon Jun 9 04:36:25 2003 +0000
+
+    update manpage
+
+commit 4a9ec809698870fc510508c00ff18c2acef9fa70
+Author: spender <spender>
+Date:   Sun Jun 8 01:07:00 2003 +0000
+
+    fix up default acl for new modes, fix object modes in lexer
+
+commit a95fa7a0f431acc62a20cf18a19b48be91c03f99
+Author: spender <spender>
+Date:   Sat Jun 7 00:30:18 2003 +0000
+
+    update default acl
+
+commit c8a032e6365d131a85198ea4953028509ff3a8b6
+Author: spender <spender>
+Date:   Fri Jun 6 22:52:19 2003 +0000
+
+    error checking for modes
+
+commit 38b932e74b2dadfdd4a77cf8e37755cdf3dd1138
+Author: spender <spender>
+Date:   Fri Jun 6 21:21:33 2003 +0000
+
+    add creation and deletion modes, change chmod +s mode representation to m
+
+commit 5bc0dc8ac3a28b0dcc658eba6f66c09adc34a84f
+Author: spender <spender>
+Date:   Fri Jun 6 14:28:10 2003 +0000
+
+    fix capabilities bug when only the default acl exists
+
+commit 865675ae346aaf1d6e3c4efcdae36ffc34b8fa4a
+Author: spender <spender>
+Date:   Tue Jun 3 00:34:16 2003 +0000
+
+    update modes, add auditing flag
+
+commit 1b45c3ce0a5a840aa6a7e280235a0b805d62a028
+Author: spender <spender>
+Date:   Mon Jun 2 23:58:21 2003 +0000
+
+    add chmod +s object mode
+
+commit 5951691484bda9558b87a385c8f1479e37bf81b4
+Author: spender <spender>
+Date:   Wed May 28 14:27:40 2003 +0000
+
+    more cleanups by peter s. mazinger
+
+commit b71bcd0d481c2ba246f2557da843852acc7d26fc
+Author: spender <spender>
+Date:   Wed May 28 14:24:20 2003 +0000
+
+    cleanup by peter s. mazinger
+
+commit 61afaa69c72ea18fdb42a50be4519478749a987a
+Author: spender <spender>
+Date:   Wed May 28 01:47:53 2003 +0000
+
+    merge patches submitted by peter s. mazinger
+
+commit 26f1684b50140a710667f46abf1dd4ca7b7b95b8
+Author: spender <spender>
+Date:   Wed May 28 01:40:09 2003 +0000
+
+    set the mode during open
+
+commit dacc9c5544306b61c64923656cafd99f817d3e80
+Author: spender <spender>
+Date:   Sat May 24 19:43:20 2003 +0000
+
+    fix inheritance bug
+
+commit fb0dad4d04e89e440b37bc482dc4030ab59eb164
+Author: spender <spender>
+Date:   Fri May 16 21:59:28 2003 +0000
+
+    more verbose errors for duplicates, ACL -> RBAC changes
+
+commit 3367c7dee02229a8db6eed0c98d791c317f9e19e
+Author: spender <spender>
+Date:   Mon May 5 02:10:22 2003 +0000
+
+    fix broken symlinks with globbing
+
+commit 278a2ce0e82d0e68ec6a67756fb0c413376fdc10
+Author: spender <spender>
+Date:   Mon May 5 01:49:01 2003 +0000
+
+    fix broken symlink code. 1.9.9 was correct
+
+commit d30e9b590a11078f9b83a4cd9d448770a2f8f5fc
+Author: spender <spender>
+Date:   Sat May 3 14:33:48 2003 +0000
+
+    fix up difference operator
+
+commit fb70cd90b4fa9100c4eb8600023fe3aee0787ced
+Author: spender <spender>
+Date:   Sat May 3 14:28:55 2003 +0000
+
+    fix up difference operator
+
+commit 73a88fb37282b8fa7e6b46c681daf72ceef7b5bf
+Author: spender <spender>
+Date:   Sat May 3 14:23:29 2003 +0000
+
+    fix typo
+
+commit 87b2486d4d4886615721aefaa1d0a8c9e0f27865
+Author: spender <spender>
+Date:   Sat May 3 14:23:04 2003 +0000
+
+    update difference operator
+
+commit 4fea5d80c606ae01b37302c2c99ffa21e8331534
+Author: spender <spender>
+Date:   Sat May 3 13:51:03 2003 +0000
+
+    allow comments within variable definition
+
+commit 9b0178d9e525889d9cb10b65da38ef68dbcbfef9
+Author: spender <spender>
+Date:   Sat May 3 13:39:46 2003 +0000
+
+    implement set operations on variables: AND, OR, DIFFERENCE, eg: ( & ) -
+
+commit bcd8a05c85c0f817f647e9ec718d09b7a25bbcb2
+Author: spender <spender>
+Date:   Mon Apr 28 22:11:02 2003 +0000
+
+    add dynamically allocated symbol table and variable support for objects
+
+commit c08f64977027561436f43cfb3b9e24ac1115de10
+Author: spender <spender>
+Date:   Sun Apr 27 14:49:05 2003 +0000
+
+    fix capability inheritance
+
+commit efefb03ffb5a90e9516d821ab91530fa3c245f2a
+Author: spender <spender>
+Date:   Wed Apr 16 21:50:00 2003 +0000
+
+    allow use of {}'s...they just have no meaning
+
+commit 15696318712bcebcecdc7af1dc4d7ed226c5a26a
+Author: spender <spender>
+Date:   Wed Apr 16 21:40:29 2003 +0000
+
+    update default acl
+
+commit 27eb56d95f8441d5964e0791bacfd31bb0a2a7ad
+Author: spender <spender>
+Date:   Wed Apr 16 21:39:04 2003 +0000
+
+    enforce hidden /dev/grsec
+
+commit d9c2b4f8f79a774542f117658e45e42c4e8632f5
+Author: spender <spender>
+Date:   Wed Apr 16 20:59:47 2003 +0000
+
+    fix
+
+commit 46678e36f3b063bf4c34ebae839745c2d98acffc
+Author: spender <spender>
+Date:   Wed Apr 16 20:50:03 2003 +0000
+
+    fix symlink parsing
+
+commit 3276bca888efe152fc2b346d5eb9a129f206a846
+Author: spender <spender>
+Date:   Wed Apr 16 19:41:44 2003 +0000
+
+    small speedups, only use strlen when we have to
+
+commit b0e7e2a83bd682fea21cbb92bb2db497998eb58b
+Author: spender <spender>
+Date:   Wed Apr 16 18:04:06 2003 +0000
+
+    hide and protect learning process
+
+commit 74619ea4aee702e4c4211387f4b7530c30eacbe1
+Author: spender <spender>
+Date:   Wed Apr 16 13:42:34 2003 +0000
+
+    fixes
+
+commit f59efd2860ba4843b49bd1c52aa235a56c5e2602
+Author: spender <spender>
+Date:   Wed Apr 16 13:35:01 2003 +0000
+
+    fix learning
+
+commit 8024f9f7f15a1cbeda0eab2d1b19647d60003230
+Author: spender <spender>
+Date:   Wed Apr 16 13:33:37 2003 +0000
+
+    remove func
+
+commit 8a0f8191126aa81b01e7684695beaefe1440d18e
+Author: spender <spender>
+Date:   Wed Apr 16 13:33:20 2003 +0000
+
+    remove syslog code
+
+commit 5aadeae5d1a6516812cbc9cb68866c88190effb4
+Author: spender <spender>
+Date:   Wed Apr 16 13:32:23 2003 +0000
+
+    finish up gradm integration
+
+commit 34e685a9141a557b6ee80c9d83f1d0bfb03f8824
+Author: spender <spender>
+Date:   Wed Apr 16 11:44:24 2003 +0000
+
+    update header
+
+commit 7d00c327401cf74a541f061e76af9fa24dcf3ee2
+Author: spender <spender>
+Date:   Wed Apr 16 11:43:46 2003 +0000
+
+    first parts of gradm integration
+
+commit 976714c64036bee10fb691d85687d5e5f506f8f3
+Author: spender <spender>
+Date:   Wed Apr 16 11:16:22 2003 +0000
+
+    add new learning daemon...gradm integration coming next
+
+commit f597edb2754b45f97dd3f4a80ab79e44cdd07e47
+Author: spender <spender>
+Date:   Wed Apr 16 03:04:43 2003 +0000
+
+    remove pw file if upgrading to 2.0
+
+commit 7a70414cbb08a83e96b177e8125ffd381ca07b3a
+Author: spender <spender>
+Date:   Wed Apr 16 02:02:10 2003 +0000
+
+    update makefile
+
+commit cdc60b398111035f3218b34c92881db3f47596d6
+Author: spender <spender>
+Date:   Tue Apr 15 18:03:55 2003 +0000
+
+    fix
+
+commit c3a51a2b341202c6705a068830e64d3b78ca96d6
+Author: spender <spender>
+Date:   Tue Apr 15 16:34:48 2003 +0000
+
+    clean up
+
+commit db9f7478d22fa11623de3d221a82d8296f3a82d4
+Author: spender <spender>
+Date:   Tue Apr 15 16:20:16 2003 +0000
+
+    update
+
+commit 2d58fab856628a87944a208ec263b09f1058bd68
+Author: spender <spender>
+Date:   Tue Apr 15 16:16:36 2003 +0000
+
+    update makefile
+
+commit 25482b25637e12f99c00b06bddb31449a4b5df6b
+Author: spender <spender>
+Date:   Tue Apr 15 16:14:31 2003 +0000
+
+    use /dev/grsec
+
+commit dc8e63fd1395359ea116c35710abd94aa13b010a
+Author: spender <spender>
+Date:   Tue Apr 15 15:47:46 2003 +0000
+
+    install device
+
+commit a7624335188245459ced1c040a6244dc6e228206
+Author: spender <spender>
+Date:   Tue Apr 15 15:34:21 2003 +0000
+
+    update learning parser for new handling
+
+commit 874796e7cd5616a2087fd6f77e95b6432a822e60
+Author: spender <spender>
+Date:   Sun Apr 13 22:24:21 2003 +0000
+
+    fix typo
+
+commit 1df7629ef4d7b42462194473c8a073e3322b2363
+Author: spender <spender>
+Date:   Sun Apr 13 20:10:29 2003 +0000
+
+    update
+
+commit 736fc34c55f70384be34c3d1823f538141d3222e
+Author: spender <spender>
+Date:   Sun Apr 13 19:46:13 2003 +0000
+
+    update in-acl documentation
+
+commit 8b033a01adfc8e90d5ff0fac662985557092b63a
+Author: spender <spender>
+Date:   Sun Apr 13 19:39:50 2003 +0000
+
+    add configuration inheritance support for nested subjects, they inherit rules from their nested parents
+
+commit e29649ca828675d6a0048a0bc4ddbec3d017cf90
+Author: spender <spender>
+Date:   Sun Apr 13 19:31:28 2003 +0000
+
+    update acl inheritance
+
+commit f21e9a7a5fddb5cec172df15b5488f76ac717682
+Author: spender <spender>
+Date:   Sun Apr 13 19:14:48 2003 +0000
+
+    update
+
+commit d00e0648919679401e3617acac77cd35a6800463
+Author: spender <spender>
+Date:   Sun Apr 13 19:03:02 2003 +0000
+
+    update learner
+
+commit c24e031ae11762fce40e5765e72b31d0c8cf16d2
+Author: spender <spender>
+Date:   Sun Apr 13 18:44:58 2003 +0000
+
+    update
+
+commit 9dccd40eaf9b4c59cb7a1b2161eec03b7b1194f8
+Author: spender <spender>
+Date:   Sun Apr 13 18:43:46 2003 +0000
+
+    update
+
+commit 579450f33ce4354bd302d72045fbf5f428e9100b
+Author: spender <spender>
+Date:   Sun Apr 13 01:32:37 2003 +0000
+
+    updates
+
+commit a2763375c9dc1e16ded4c04fd0e2920b63217d4a
+Author: spender <spender>
+Date:   Sun Apr 13 01:29:10 2003 +0000
+
+    auto-add binary for nested subjects
+
+commit fa452672f5e9acde8b7f8951533aecc4630b4dd4
+Author: spender <spender>
+Date:   Sun Apr 13 01:23:55 2003 +0000
+
+    add gradm_nest.c
+
+commit b381fc7e63936db8f9061988cf6efdc5ae9454c6
+Author: spender <spender>
+Date:   Sat Apr 12 20:29:32 2003 +0000
+
+    add userspace code for nested subjects
+
+commit d3a942fcde3457b95f9566747e64889c61b82868
+Author: spender <spender>
+Date:   Sat Apr 12 17:33:13 2003 +0000
+
+    fix ip acls
+
+commit 11070371717a96b702fd2dd5020a1560abcc9686
+Author: spender <spender>
+Date:   Sun Apr 6 15:08:36 2003 +0000
+
+    add some small documentation
+
+commit ca0b6e6321d1904be48b766a22dcd91e9b8b995d
+Author: spender <spender>
+Date:   Sun Apr 6 03:57:19 2003 +0000
+
+    default action
+
+commit 8e8750206a3cbdf7da327debd31185c62879ace2
+Author: spender <spender>
+Date:   Sun Apr 6 03:13:14 2003 +0000
+
+    lindent code
+
+commit 21ff28f3dd315f39d97720c3db0ce59f82e82f1e
+Author: spender <spender>
+Date:   Sun Apr 6 00:14:47 2003 +0000
+
+    add transition debugging
+
+commit 63cbf881db3cc2f3252f681ab201b88acf534b24
+Author: spender <spender>
+Date:   Sun Apr 6 00:09:14 2003 +0000
+
+    update default acl
+
+commit c30c9f2f4a8c5de7e04c09958974f2e02959314a
+Author: spender <spender>
+Date:   Sun Apr 6 00:07:55 2003 +0000
+
+    add role transition
+
+commit 823f25d0cf5860834bc9b1e0ba3ca23768448def
+Author: spender <spender>
+Date:   Sat Apr 5 23:51:17 2003 +0000
+
+    add define
+
+commit 15f64e89bafb217c12e95914c03afb4416f56612
+Author: spender <spender>
+Date:   Sat Apr 5 23:46:22 2003 +0000
+
+    implement userspace code for role transition tables
+
+commit db1abc75fcc8aaf2d5974602cf394a7b77ec0f3c
+Author: spender <spender>
+Date:   Sat Apr 5 23:13:26 2003 +0000
+
+    compile fix
+
+commit 01a6672e0197593d64ad47eb8c9462b8bc856b94
+Author: spender <spender>
+Date:   Sat Apr 5 19:06:04 2003 +0000
+
+    make role type 16bit
+
+commit f6266f879f206b6da5a4be9731516ecfe3cc7eae
+Author: spender <spender>
+Date:   Sat Apr 5 16:37:36 2003 +0000
+
+    update default acl
+
+commit 1fed56a26d0d2ac16fdd56d2c013dd563e924498
+Author: spender <spender>
+Date:   Sat Apr 5 15:38:56 2003 +0000
+
+    update default acl
+
+commit d4db286b6941cb2175ffb38749b1090d423fc444
+Author: spender <spender>
+Date:   Sat Apr 5 14:57:14 2003 +0000
+
+    don't log mlock when non-root
+
+commit f2eb426b25e7247d9b101843233b92340ee2b2f6
+Author: spender <spender>
+Date:   Sat Apr 5 14:42:39 2003 +0000
+
+    add new arg
+
+commit 9d1d7c4705febb650643982c76a73b7d316bb73a
+Author: spender <spender>
+Date:   Sat Apr 5 14:21:42 2003 +0000
+
+    updates
+
+commit e773051a5b861c000b4ec471f3d078ec4dde7dd8
+Author: spender <spender>
+Date:   Sat Apr 5 13:55:52 2003 +0000
+
+    skip analysis for special roles
+
+commit d24317d24afede0990504acc1e8e5d1ab8edee99
+Author: spender <spender>
+Date:   Sat Apr 5 13:53:29 2003 +0000
+
+    fix pw replace
+
+commit 1ee97627100ef235cf80e298052ed8eef25ba5c4
+Author: spender <spender>
+Date:   Sat Apr 5 13:48:15 2003 +0000
+
+    compile fix
+
+commit bdcb20fb07842b5f84972a8853c279e7bd7363b0
+Author: spender <spender>
+Date:   Sat Apr 5 13:45:41 2003 +0000
+
+    update makefile
+
+commit f74bf015d66722eb81f7ae4fbf45358ac1fe8045
+Author: spender <spender>
+Date:   Sat Apr 5 13:42:59 2003 +0000
+
+    update getopt
+
+commit dd31d929c0142c87c049305ae0af48ce41f4444f
+Author: spender <spender>
+Date:   Sat Apr 5 13:41:35 2003 +0000
+
+    update kernel role
+
+commit d1d2cad4ce635f7965fcbe52511c7cc60ead5530
+Author: spender <spender>
+Date:   Sat Apr 5 13:34:49 2003 +0000
+
+    fix typo
+
+commit ae7503bde6887d5f13bba1c1ff06f826a54bee30
+Author: spender <spender>
+Date:   Sat Apr 5 13:33:49 2003 +0000
+
+    update
+
+commit 139b5680f6f0177f7f8107a496ab86e061858000
+Author: spender <spender>
+Date:   Sat Apr 5 13:31:49 2003 +0000
+
+    update header
+
+commit 1e25d9ae12380519efa35cc63a020151ab0a2510
+Author: spender <spender>
+Date:   Sat Apr 5 13:31:23 2003 +0000
+
+    update
+
+commit 5fb41ab63aad9438e3bcdd88fa5bc65f62f47052
+Author: spender <spender>
+Date:   Sat Apr 5 13:30:00 2003 +0000
+
+    update header
+
+commit 4a986157a3e8b00e9ae22902bf6c2dc2c729e416
+Author: spender <spender>
+Date:   Sat Apr 5 13:28:21 2003 +0000
+
+    fix typo
+
+commit 55db6572d8c30cb3b7080f90944cc45146b71221
+Author: spender <spender>
+Date:   Sat Apr 5 13:28:06 2003 +0000
+
+    add back define
+
+commit 0944012921540b8cf55e58841a37d1393402e89a
+Author: spender <spender>
+Date:   Sat Apr 5 13:27:10 2003 +0000
+
+    compile fix
+
+commit c398d702d0b584bf8a0655be67941f61150042d6
+Author: spender <spender>
+Date:   Sat Apr 5 13:25:14 2003 +0000
+
+    update dupe check
+
+commit 701115dd1b01a840039b6aae3a15f3953b1b52c3
+Author: spender <spender>
+Date:   Sat Apr 5 13:23:43 2003 +0000
+
+    update parser
+
+commit 46a7d77d46f0e9439531510a50e383076bc4f977
+Author: spender <spender>
+Date:   Sat Apr 5 13:22:25 2003 +0000
+
+    update headers
+
+commit a586e74d20601f65d71fd236f552defb01e943c8
+Author: spender <spender>
+Date:   Sat Apr 5 13:19:24 2003 +0000
+
+    compile fix
+
+commit 334d279ef15829b5fb8145177139abcb63dc0334
+Author: spender <spender>
+Date:   Sat Apr 5 13:18:01 2003 +0000
+
+    finish special roles
+
+commit 059e84ed7504f81e72942acb7fd10e42a6943169
+Author: spender <spender>
+Date:   Sat Apr 5 12:44:36 2003 +0000
+
+    updates for special roles
+
+commit 987df31d62cd226d323986b9914be3c3a3c49593
+Author: spender <spender>
+Date:   Sat Apr 5 12:44:35 2003 +0000
+
+    updates for special roles
+
+commit d61434292ea9706e9fa399a7ff3707d2bbffd1c5
+Author: spender <spender>
+Date:   Sat Apr 5 03:39:15 2003 +0000
+
+    implement password handling routines for new special roles
+
+commit ad37680e52d58ec0d70089e1b9ea6b894b00b9f9
+Author: spender <spender>
+Date:   Sat Apr 5 02:24:29 2003 +0000
+
+    update makefile
+
+commit d1f940ba9f76f48e92dd1cf5988fbbe727fe29c3
+Author: spender <spender>
+Date:   Sat Apr 5 02:24:01 2003 +0000
+
+    update defines
+
+commit 7501d88883768ea396a623a17081f476e26f9ad6
+Author: spender <spender>
+Date:   Thu Apr 3 18:29:29 2003 +0000
+
+    fix typo
+
+commit 6ae2293ab386fc317be85c8b100641ead03f6af8
+Author: spender <spender>
+Date:   Thu Apr 3 18:28:03 2003 +0000
+
+    tokenize ROLE_ALLOW_IP
+
+commit d3c0a3886ad01f0560388512b1fa880a58f872bf
+Author: spender <spender>
+Date:   Thu Apr 3 18:26:58 2003 +0000
+
+    type ip_netmask
+
+commit 109dc900447bbae70aff4024c4f8f4d90eff4dd2
+Author: spender <spender>
+Date:   Thu Apr 3 18:04:18 2003 +0000
+
+    add ips to gr_arg
+
+commit cc4e57b355becbc9425550c64a5c606756c3aa0a
+Author: spender <spender>
+Date:   Thu Apr 3 17:46:38 2003 +0000
+
+    update
+
+commit 3a303db699c1327b3fcd47502fe9fd3530d1bd53
+Author: spender <spender>
+Date:   Thu Apr 3 17:45:04 2003 +0000
+
+    add first bit of userspace code for ip-based roles
+
+commit 05a789aebf8b9e1259b1e438eb6d8f9966363a73
+Author: spender <spender>
+Date:   Thu Apr 3 15:06:55 2003 +0000
+
+    small speedup
+
+commit 36dcbd296ecdcdc3d13d1a3b3d532ce4ff7558dc
+Author: spender <spender>
+Date:   Thu Apr 3 14:26:55 2003 +0000
+
+    update learning mode
+
+commit 913db1f7f91b2802c14a96300ea4f7c5a3b00812
+Author: spender <spender>
+Date:   Thu Apr 3 14:15:52 2003 +0000
+
+    update lexer
+
+commit 1ffc480b696add70110ab6a6c6dffb6cd59bbc56
+Author: spender <spender>
+Date:   Thu Apr 3 14:13:36 2003 +0000
+
+    remove debugging
+
+commit 53dec029328d24cc70a798211a812c7338300935
+Author: spender <spender>
+Date:   Thu Apr 3 13:57:35 2003 +0000
+
+    update learning
+
+commit a97c6fc7a64a14a94ae822a2dc716c38b1e9ae72
+Author: spender <spender>
+Date:   Thu Apr 3 13:47:17 2003 +0000
+
+    update declarations
+
+commit bfe216b8919b1730f93319e123e1f382245413c3
+Author: spender <spender>
+Date:   Thu Apr 3 13:46:35 2003 +0000
+
+    update declarations
+
+commit 402ac06dc4eab97679ba067c3c51ba33d3e09b6a
+Author: spender <spender>
+Date:   Thu Apr 3 13:43:18 2003 +0000
+
+    add userspace code for new learning
+
+commit 36fd2068d742d82827f9ea95b6b61eefe0ad6de1
+Author: spender <spender>
+Date:   Thu Apr 3 13:26:29 2003 +0000
+
+    update parser for learning
+
+commit 54614c5cf9ee98c7fdfc36db33b16cf40e5f3795
+Author: spender <spender>
+Date:   Thu Apr 3 12:29:00 2003 +0000
+
+    skip kernel and admin for acl checks
+
+commit d39899de70ed4b60aff924068fc4e73830d1791b
+Author: spender <spender>
+Date:   Thu Apr 3 12:25:22 2003 +0000
+
+    enable analysis
+
+commit bab5bea172c7c97803b22af6b7ebd5e49e31f0bc
+Author: spender <spender>
+Date:   Thu Apr 3 11:31:00 2003 +0000
+
+    update
+
+commit 44263d884aa1f2577313cb319128ef7092ceb118
+Author: spender <spender>
+Date:   Thu Apr 3 05:34:00 2003 +0000
+
+    update acl
+
+commit 20152d96f8e62c627f8cb44bef03e189c945e03d
+Author: spender <spender>
+Date:   Thu Apr 3 05:33:11 2003 +0000
+
+    update
+
+commit 2c5bfb5f8a44ba8037c7968f8292f1270c6b5c50
+Author: spender <spender>
+Date:   Thu Apr 3 05:30:38 2003 +0000
+
+    updates
+
+commit 4b10236725d8750b3a645735886d8b26b88e352e
+Author: spender <spender>
+Date:   Thu Apr 3 05:17:29 2003 +0000
+
+    updates
+
+commit 9358e150a343ee65c57b7c1e209ac41e6ce67046
+Author: spender <spender>
+Date:   Thu Apr 3 05:14:16 2003 +0000
+
+    updates
+
+commit 60298707f7d6ba45943b9eb59f499bb5e65804e1
+Author: spender <spender>
+Date:   Thu Apr 3 05:06:15 2003 +0000
+
+    add admin and kernel acls
+
+commit 287ec6ccf7b675bfa9c87264f5e13b9aaf1b546d
+Author: spender <spender>
+Date:   Thu Apr 3 04:51:54 2003 +0000
+
+    updates
+
+commit e47a9cbdb63a5eabeeef1149ad7495a8320d4f0f
+Author: spender <spender>
+Date:   Thu Apr 3 04:15:57 2003 +0000
+
+    compile fix
+
+commit d7f13bd55ec1996d28c0bff20f3f6bff8b51cfee
+Author: spender <spender>
+Date:   Thu Apr 3 04:07:02 2003 +0000
+
+    compile fix
+
+commit 81b3d5cb3c3cc6afb65cc6272e4f7e1331267d99
+Author: spender <spender>
+Date:   Thu Apr 3 03:12:22 2003 +0000
+
+    update logging
+
+commit 4be54f9be9d1c5bbf59bcd558d9516fe76a0b3cb
+Author: spender <spender>
+Date:   Thu Apr 3 03:09:34 2003 +0000
+
+    fix acl analysis
+
+commit 6672436515f8b8bfb21054679081dadc43d3e0ca
+Author: spender <spender>
+Date:   Thu Apr 3 03:04:35 2003 +0000
+
+    fix acl analysis
+
+commit 16900a8924c073bf78ab79373cb64153b1b58ffc
+Author: spender <spender>
+Date:   Thu Apr 3 02:47:24 2003 +0000
+
+    update analysis
+
+commit 4e8dc054443ac42051934bd468197cbc254ac930
+Author: spender <spender>
+Date:   Thu Apr 3 02:16:01 2003 +0000
+
+    add G to default, allows for authentication to kernel
+
+commit 17b63722294402119e31bbfaff35bb552d6749b9
+Author: spender <spender>
+Date:   Thu Apr 3 01:46:00 2003 +0000
+
+    updates
+
+commit fe22a4ea1864eaaf11ad9b754eba691cb7cc88a4
+Author: spender <spender>
+Date:   Thu Apr 3 01:32:29 2003 +0000
+
+    updates
+
+commit 042f9d990e859d21b00200ce73301cc9e5f11dc9
+Author: spender <spender>
+Date:   Wed Apr 2 15:11:00 2003 +0000
+
+    add authentication error reporting
+
+commit e558838af925742d3d96e2dcaf8dc56168c6b289
+Author: spender <spender>
+Date:   Tue Apr 1 00:33:37 2003 +0000
+
+    add error detection
+
+commit 22b1153a15d97cbc8bc2a12bca399f7c5e962f53
+Author: spender <spender>
+Date:   Tue Apr 1 00:30:57 2003 +0000
+
+    fix commenting
+
+commit eb5625e65db04a9dec22cade4bc02b3b9ce24229
+Author: spender <spender>
+Date:   Sun Mar 30 01:36:00 2003 +0000
+
+    fix learning for syslogng
+
+commit 6acb57baeea4b7ae07dea7af8f7de793c455693e
+Author: spender <spender>
+Date:   Sat Mar 29 14:42:22 2003 +0000
+
+    keep states during include
+
+commit f2478af9b9dec9d6bae5a8ec012e939cfb76669d
+Author: spender <spender>
+Date:   Fri Mar 28 23:15:55 2003 +0000
+
+    implement recursive parser, correct include directive
+
+commit c6385a5fb1419857f73f4ac25fbc4c9b27ce2abc
+Author: spender <spender>
+Date:   Fri Mar 28 22:50:01 2003 +0000
+
+    fix typo
+
+commit e46a45971f175aad9c240280ed8e20676803d9e5
+Author: spender <spender>
+Date:   Fri Mar 28 22:22:18 2003 +0000
+
+    dietlibc updates
+
+commit 02e469089f01170f0f80a26f625094327b08ce03
+Author: spender <spender>
+Date:   Fri Mar 28 03:31:02 2003 +0000
+
+    better symlink/globbing code
+
+commit d11475722a40e0ee215884bd456e3086bf112942
+Author: spender <spender>
+Date:   Sun Mar 23 18:46:22 2003 +0000
+
+    update header
+
+commit 45b40696295c92719b72c23b8be1c5538164dc15
+Author: spender <spender>
+Date:   Sun Mar 23 03:31:16 2003 +0000
+
+    lock authentication structures into physical memory
+
+commit 5dd542b13b512b892aa1b4b7adf33210d6b9f6fc
+Author: spender <spender>
+Date:   Mon Mar 17 23:17:36 2003 +0000
+
+    stat fix
+
+commit 37c613d075b656a51096d2e99aa54604b7970447
+Author: spender <spender>
+Date:   Mon Mar 17 03:28:20 2003 +0000
+
+    update dupe checks
+
+commit ef4da8ed536defa155e042f6b2ffeeafe10c3db4
+Author: spender <spender>
+Date:   Tue Feb 25 22:32:23 2003 +0000
+
+    allow no socket ops for gradm
+
+commit d86b225092dd8dbcbd2ce016919b04ea193b840d
+Author: spender <spender>
+Date:   Tue Feb 25 21:57:20 2003 +0000
+
+    fix -L arg handling
+
+commit 2943e2c0fb5d9b7492a7cb6cd410deccbbadc61e
+Author: spender <spender>
+Date:   Sat Feb 22 02:42:23 2003 +0000
+
+    protprocpid -> protprocfd
+
+commit 74ec881edd5e52cb2b27b8cfceed9553c862e7c8
+Author: spender <spender>
+Date:   Sat Feb 22 02:37:04 2003 +0000
+
+    add log suppression, process accounting, update globbing behavior
+
+commit dccf6643597d3e369d38ccb7c76ac219495a8838
+Author: spender <spender>
+Date:   Thu Feb 20 12:49:55 2003 +0000
+
+    update glob error reporting
+
+commit b023abc0f920f4636876e664b3cf551018da1053
+Author: spender <spender>
+Date:   Thu Feb 6 12:25:45 2003 +0000
+
+    fix support for some syslog-ng installs
+
+commit bb9d476f02ab469bf92aaf976f246620504c0408
+Author: spender <spender>
+Date:   Wed Jan 29 16:17:36 2003 +0000
+
+    add new proc fd/mem restriction subject flag
+
+commit fa7c6c1704f6d4b5ea10e5441e3e0a6a042275b4
+Author: spender <spender>
+Date:   Thu Jan 23 01:31:59 2003 +0000
+
+    throw in the beginnings of special roles
+
+commit 93d5b54e010953b87e26a9d3c8ce035e6bc120b5
+Author: spender <spender>
+Date:   Mon Jan 20 19:00:51 2003 +0000
+
+    fix kernel acl
+
+commit 1588a682c2cfd6fbf2d1d845bb7b1304669475e2
+Author: spender <spender>
+Date:   Sun Jan 19 23:55:35 2003 +0000
+
+    fix typo
+
+commit fccb517158bc3fc1a28dddeeb25349b8c4628f08
+Author: spender <spender>
+Date:   Sun Jan 19 23:51:08 2003 +0000
+
+    fix internal acl adding
+
+commit 6807699abda117ecc66d48ef976895403e121487
+Author: spender <spender>
+Date:   Sun Jan 19 18:18:04 2003 +0000
+
+    remove o object mode, it's silly
+
+commit 883ad925660cd0e83f6bd1e01d7130573083b8d8
+Author: spender <spender>
+Date:   Sat Jan 18 03:41:53 2003 +0000
+
+    fix keventd incompatibility
+
+commit a98bdb58d3d7b4b2de0622bc3c742074053d6be5
+Author: spender <spender>
+Date:   Fri Jan 17 23:52:09 2003 +0000
+
+    fix compilation on m68k
+
+commit fdf7973540ba553bde4f8c13e749d3ad9be1ff58
+Author: spender <spender>
+Date:   Thu Jan 16 22:22:13 2003 +0000
+
+    fix resource learning
+
+commit e0b2973a8604759332bd018513c2ae029e52d0d6
+Author: spender <spender>
+Date:   Thu Jan 16 04:31:05 2003 +0000
+
+    initial import of gradm 2.0-pre1

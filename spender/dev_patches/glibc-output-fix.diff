@@ -1,0 +1,33 @@
+diff -BbruN glibc-old/Makerules glibc-2.3.3/Makerules
+--- glibc-old/Makerules	Fri Oct 31 16:35:57 2003
++++ glibc-2.3.3/Makerules	Fri Dec 17 21:12:34 2004
+@@ -940,7 +940,6 @@
+ 	(echo '/* GNU ld script';\
+ 	 echo '   Use the shared library, but some functions are only in';\
+ 	 echo '   the static library, so try that secondarily.  */';\
+-	 cat $<; \
+ 	 echo 'GROUP ( $(slibdir)/libc.so$(libc.so-version)' \
+ 	      '$(libdir)/$(patsubst %,$(libtype.oS),$(libprefix)$(libc-name))'\
+ 	      ')' \
+diff -BbruN glibc-old/linuxthreads/Makefile glibc-2.3.3/linuxthreads/Makefile
+--- glibc-old/linuxthreads/Makefile	Thu Oct  2 11:48:48 2003
++++ glibc-2.3.3/linuxthreads/Makefile	Fri Dec 17 21:37:52 2004
+@@ -162,7 +162,6 @@
+ 	(echo '/* GNU ld script';\
+ 	 echo '   Use the shared library, but some functions are only in';\
+ 	 echo '   the static library, so try that secondarily.  */';\
+-	 cat $<; \
+ 	 echo 'GROUP ( $(slibdir)/libpthread.so$(libpthread.so-version)' \
+ 	      '$(libdir)/$(patsubst %,$(libtype.oS),$(libprefix)pthread)'\
+ 	      ')' \
+diff -BbruN glibc-old/nptl/Makefile glibc-2.3.3/nptl/Makefile
+--- glibc-old/nptl/Makefile	Fri Nov 21 10:53:01 2003
++++ glibc-2.3.3/nptl/Makefile	Fri Dec 17 21:38:22 2004
+@@ -351,7 +351,6 @@
+ 	(echo '/* GNU ld script';\
+ 	 echo '   Use the shared library, but some functions are only in';\
+ 	 echo '   the static library, so try that secondarily.  */';\
+-	 cat $<; \
+ 	 echo 'GROUP ( $(slibdir)/libpthread.so$(libpthread.so-version)' \
+ 	      '$(libdir)/$(patsubst %,$(libtype.oS),$(libprefix)pthread)'\
+ 	      ')' \

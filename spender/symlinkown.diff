@@ -1,0 +1,226 @@
+diff --git a/fs/namei.c b/fs/namei.c
+index e37fd3f..232326c 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -1371,6 +1371,9 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
+ 		if (!res)
+ 			res = walk_component(nd, path, &nd->last,
+ 					     nd->last_type, LOOKUP_FOLLOW);
++		if (res >= 0 && gr_handle_symlink_owner(&link, nd->inode)) {
++			res = -EACCES;
++		}
+ 		put_link(nd, &link, cookie);
+ 	} while (res > 0);
+ 
+@@ -1762,6 +1765,9 @@ static int path_lookupat(int dfd, const char *name,
+ 			err = follow_link(&link, nd, &cookie);
+ 			if (!err)
+ 				err = lookup_last(nd, &path);
++			if (!err && gr_handle_symlink_owner(&link, nd->inode)) {
++				err = -EACCES;
++			}
+ 			put_link(nd, &link, cookie);
+ 		}
+ 	}
+@@ -2505,8 +2511,14 @@ static struct file *path_openat(int dfd, const char *pathname,
+ 		error = follow_link(&link, nd, &cookie);
+ 		if (unlikely(error))
+ 			filp = ERR_PTR(error);
+-		else
++		else {
+ 			filp = do_last(nd, &path, op, pathname);
++			if (!IS_ERR(filp) && gr_handle_symlink_owner(&link, nd->inode)) {
++				if (filp)
++					fput(filp);
++				filp = ERR_PTR(-EACCES);
++			}
++		}
+ 		put_link(nd, &link, cookie);
+ 	}
+ out:
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index 2d6e3a8..b9e7d6f 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -271,6 +271,31 @@ config GRKERNSEC_LINK
+ 	  able to hardlink to files they do not own.  If the sysctl option is
+ 	  enabled, a sysctl option with name "linking_restrictions" is created.
+ 
++config GRKERNSEC_SYMLINKOWN
++	bool "Kernel-enforced SymlinksIfOwnerMatch"
++	default y if GRKERNSEC_CONFIG_AUTO && GRKERNSEC_CONFIG_SERVER
++	help
++	  Apache's SymlinksIfOwnerMatch option has an inherent race condition
++	  that prevents it from being used as a security feature.  As Apache
++	  verifies the symlink by performing a stat() against the target of
++	  the symlink before it is followed, an attacker can setup a symlink
++	  to point to a same-owned file, then replace the symlink with one
++	  that targets another user's file just after Apache "validates" the
++	  symlink -- a classic TOCTOU race.  If you say Y here, a complete,
++	  race-free replacement for Apache's "SymlinksIfOwnerMatch" option
++	  will be in place for the group you specify. If the sysctl option
++	  is enabled, a sysctl option with name "enforce_symlinksifowner" is
++	  created.
++
++config GRKERNSEC_SYMLINKOWN_GID
++	int "GID for users with kernel-enforced SymlinksIfOwnerMatch"
++	depends on GRKERNSEC_SYMLINKOWN
++	default 1006
++	help
++	  Setting this GID determines what group kernel-enforced
++	  SymlinksIfOwnerMatch will be enabled for.  If the sysctl option
++	  is enabled, a sysctl option with name "symlinkown_gid" is created.
++
+ config GRKERNSEC_FIFO
+ 	bool "FIFO restrictions"
+ 	default y if GRKERNSEC_CONFIG_AUTO
+@@ -674,7 +699,7 @@ config GRKERNSEC_SETXID
+ 
+ config GRKERNSEC_TPE
+ 	bool "Trusted Path Execution (TPE)"
+-	default y if GRKERNSEC_CONFIG_AUTO
++	default y if GRKERNSEC_CONFIG_AUTO && GRKERNSEC_CONFIG_SERVER
+ 	help
+ 	  If you say Y here, you will be able to choose a gid to add to the
+ 	  supplementary groups of users you want to mark as "untrusted."
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index 01ddde4..05a6015 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -9,6 +9,8 @@
+ 
+ int grsec_enable_ptrace_readexec;
+ int grsec_enable_setxid;
++int grsec_enable_symlinkown;
++int grsec_symlinkown_gid;
+ int grsec_enable_brute;
+ int grsec_enable_link;
+ int grsec_enable_dmesg;
+@@ -252,6 +254,10 @@ grsecurity_init(void)
+ #ifdef CONFIG_GRKERNSEC_CHROOT_SYSCTL
+ 	grsec_enable_chroot_sysctl = 1;
+ #endif
++#ifdef CONFIG_GRKERNSEC_SYMLINKOWN
++	grsec_enable_symlinkown = 1;
++	grsec_symlinkown_gid = CONFIG_GRKERNSEC_SYMLINKOWN_GID;
++#endif
+ #ifdef CONFIG_GRKERNSEC_TPE
+ 	grsec_enable_tpe = 1;
+ 	grsec_tpe_gid = CONFIG_GRKERNSEC_TPE_GID;
+diff --git a/grsecurity/grsec_link.c b/grsecurity/grsec_link.c
+index 3efe141..35a96d1 100644
+--- a/grsecurity/grsec_link.c
++++ b/grsecurity/grsec_link.c
+@@ -4,6 +4,22 @@
+ #include <linux/file.h>
+ #include <linux/grinternal.h>
+ 
++int gr_handle_symlink_owner(const struct path *link, const struct inode *target)
++{
++#ifdef CONFIG_GRKERNSEC_SYMLINKOWN
++	const struct inode *link_inode = link->dentry->d_inode;
++
++	if (grsec_enable_symlinkown && in_group_p(grsec_symlinkown_gid) &&
++	   /* ignore root-owned links, e.g. /proc/self */
++	    link_inode->i_uid &&
++	    link_inode->i_uid != target->i_uid) {
++		gr_log_fs_int2(GR_DONT_AUDIT, GR_SYMLINKOWNER_MSG, link->dentry, link->mnt, link_inode->i_uid, target->i_uid);
++		return 1;
++	}
++#endif
++	return 0;
++}
++
+ int
+ gr_handle_follow_link(const struct inode *parent,
+ 		      const struct inode *inode,
+diff --git a/grsecurity/grsec_sysctl.c b/grsecurity/grsec_sysctl.c
+index 8316f6f..f55ef0f 100644
+--- a/grsecurity/grsec_sysctl.c
++++ b/grsecurity/grsec_sysctl.c
+@@ -45,6 +45,22 @@ struct ctl_table grsecurity_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
++#ifdef CONFIG_GRKERNSEC_SYMLINKOWN
++	{
++		.procname	= "enforce_symlinksifowner",
++		.data		= &grsec_enable_symlinkown,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= &proc_dointvec,
++	},
++	{
++		.procname	= "symlinkown_gid",
++		.data		= &grsec_symlinkown_gid,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= &proc_dointvec,
++	},
++#endif
+ #ifdef CONFIG_GRKERNSEC_BRUTE
+ 	{
+ 		.procname	= "deter_bruteforce",
+diff --git a/include/linux/grinternal.h b/include/linux/grinternal.h
+index da390f1..c9292f7 100644
+--- a/include/linux/grinternal.h
++++ b/include/linux/grinternal.h
+@@ -59,6 +59,8 @@ extern int grsec_enable_chroot_execlog;
+ extern int grsec_enable_chroot_caps;
+ extern int grsec_enable_chroot_sysctl;
+ extern int grsec_enable_chroot_unix;
++extern int grsec_enable_symlinkown;
++extern int grsec_symlinkown_gid;
+ extern int grsec_enable_tpe;
+ extern int grsec_tpe_gid;
+ extern int grsec_enable_tpe_all;
+diff --git a/include/linux/grmsg.h b/include/linux/grmsg.h
+index ae576a1..54f4e85 100644
+--- a/include/linux/grmsg.h
++++ b/include/linux/grmsg.h
+@@ -107,3 +107,4 @@
+ #define GR_PTRACE_READEXEC_MSG "denied ptrace of unreadable binary %.950s by "
+ #define GR_INIT_TRANSFER_MSG "persistent special role transferred privilege to init by "
+ #define GR_BADPROCPID_MSG "denied read of sensitive /proc/pid/%s entry via fd passed across exec by "
++#define GR_SYMLINKOWNER_MSG "denied following symlink %.950s since symlink owner %u does not match target owner %u, by "
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index acd05db..38bfb04 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -182,6 +182,7 @@ __u32 gr_acl_handle_link(const struct dentry *new_dentry,
+ 				const struct vfsmount *parent_mnt,
+ 				const struct dentry *old_dentry,
+ 				const struct vfsmount *old_mnt, const char *to);
++int gr_handle_symlink_owner(const struct path *link, const struct inode *target);
+ int gr_acl_handle_rename(struct dentry *new_dentry,
+ 				struct dentry *parent_dentry,
+ 				const struct vfsmount *parent_mnt,
+diff --git a/security/Kconfig b/security/Kconfig
+index 3334dd6..d0e12f0 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -176,6 +176,7 @@ config GRKERNSEC_PROC_GID
+ 
+ config GRKERNSEC_TPE_GID
+ 	int "GID for untrusted users"
++	depends on GRKERNSEC_CONFIG_SERVER
+ 	default 1005
+ 	help
+ 	  Setting this GID determines which group untrusted users should
+@@ -184,6 +185,16 @@ config GRKERNSEC_TPE_GID
+ 	  The users will only be able to execute binaries in directories owned and
+ 	  writable only by the root user.
+ 
++config GRKERNSEC_SYMLINKOWN_GID
++        int "GID for users with kernel-enforced SymlinksIfOwnerMatch"
++        depends on GRKERNSEC_CONFIG_SERVER
++        default 1006
++        help
++          Setting this GID determines what group kernel-enforced
++          SymlinksIfOwnerMatch will be enabled for.  If the sysctl option
++          is enabled, a sysctl option with name "symlinkown_gid" is created.
++
++
+ endmenu
+ 
+ menu "Customize Configuration"

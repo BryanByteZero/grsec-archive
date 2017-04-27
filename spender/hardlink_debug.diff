@@ -1,0 +1,43 @@
+diff --git a/fs/namei.c b/fs/namei.c
+index 2b72db1..97a2601 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -3623,6 +3623,8 @@ retry:
+ 		error = vfs_unlink(nd.path.dentry->d_inode, dentry);
+ 		if (!error && (saved_ino || saved_dev))
+ 			gr_handle_delete(saved_ino, saved_dev);
++		else if (!error)
++			printk(KERN_ALERT "not handling delete of inode %lu due to hardlinking\n", inode->i_ino);
+ exit2:
+ 		dput(dentry);
+ 	}
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 0d5c602..f87a497 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -2955,13 +2955,21 @@ gr_handle_rename(struct inode *old_dir, struct inode *new_dir,
+ 		dev_t new_dev = __get_dev(new_dentry);
+ 
+ 		inodev = lookup_inodev_entry(new_ino, new_dev);
+-		if (inodev != NULL && ((inode->i_nlink <= 1) || S_ISDIR(inode->i_mode)))
+-			do_handle_delete(inodev, new_ino, new_dev);
++		if (inodev != NULL) {
++			if ((inode->i_nlink <= 1) || S_ISDIR(inode->i_mode))
++				do_handle_delete(inodev, new_ino, new_dev);
++			else if (matchn)
++				printk(KERN_ALERT "Not processing recreation event for %s as old file is still hardlinked\n", matchn->name);
++		}
+ 	}
+ 
+ 	inodev = lookup_inodev_entry(old_ino, old_dev);
+-	if (inodev != NULL && ((old_dentry->d_inode->i_nlink <= 1) || S_ISDIR(old_dentry->d_inode->i_mode)))
+-		do_handle_delete(inodev, old_ino, old_dev);
++	if (inodev != NULL) {
++		if ((old_dentry->d_inode->i_nlink <= 1) || S_ISDIR(old_dentry->d_inode->i_mode))
++			do_handle_delete(inodev, old_ino, old_dev);
++		else if (matchn)
++			printk(KERN_ALERT "Not processing delete event in rename for %s as old file is still hardlinked\n", matchn->name);
++	}
+ 
+ 	if (unlikely((unsigned long)matchn))
+ 		do_handle_create(matchn, old_dentry, mnt);

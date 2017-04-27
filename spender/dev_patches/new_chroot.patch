@@ -1,0 +1,388 @@
+diff -u linux-2.6.32.15/fs/fs_struct.c linux-2.6.32.15-new/fs/fs_struct.c
+--- linux-2.6.32.15/fs/fs_struct.c	2010-05-28 21:27:16.158915754 -0400
++++ linux-2.6.32.15-new/fs/fs_struct.c	2010-06-29 19:02:17.015799051 -0400
+@@ -4,6 +4,7 @@
+ #include <linux/path.h>
+ #include <linux/slab.h>
+ #include <linux/fs_struct.h>
++#include <linux/grsecurity.h>
+ 
+ /*
+  * Replace the fs->{rootmnt,root} with {mnt,dentry}. Put the old values.
+@@ -17,6 +18,7 @@
+ 	old_root = fs->root;
+ 	fs->root = *path;
+ 	path_get(path);
++	gr_set_chroot_entries(current, path);
+ 	write_unlock(&fs->lock);
+ 	if (old_root.dentry)
+ 		path_put(&old_root);
+@@ -45,12 +47,10 @@
+ 	struct task_struct *g, *p;
+ 	struct fs_struct *fs;
+ 	int count = 0;
+-	unsigned long flags;
+ 
+ 	read_lock(&tasklist_lock);
+ 	do_each_thread(g, p) {
+ 		task_lock(p);
+-		gr_fs_write_lock_irqsave(p, flags);
+ 		fs = p->fs;
+ 		if (fs) {
+ 			write_lock(&fs->lock);
+@@ -58,6 +58,7 @@
+ 			    && fs->root.mnt == old_root->mnt) {
+ 				path_get(new_root);
+ 				fs->root = *new_root;
++				gr_set_chroot_entries(p, new_root);
+ 				count++;
+ 			}
+ 			if (fs->pwd.dentry == old_root->dentry
+@@ -68,7 +69,6 @@
+ 			}
+ 			write_unlock(&fs->lock);
+ 		}
+-		gr_fs_write_unlock_irqrestore(p, flags);
+ 		task_unlock(p);
+ 	} while_each_thread(g, p);
+ 	read_unlock(&tasklist_lock);
+@@ -86,17 +86,15 @@
+ void exit_fs(struct task_struct *tsk)
+ {
+ 	struct fs_struct *fs = tsk->fs;
+-	unsigned long flags;
+ 
+ 	if (fs) {
+ 		int kill;
+ 		task_lock(tsk);
+-		gr_fs_write_lock_irqsave(tsk, flags);
+ 		write_lock(&fs->lock);
+ 		tsk->fs = NULL;
++		gr_clear_chroot_entries(tsk);
+ 		kill = !atomic_dec_return(&fs->users);
+ 		write_unlock(&fs->lock);
+-		gr_fs_write_unlock_irqrestore(tsk, flags);
+ 		task_unlock(tsk);
+ 		if (kill)
+ 			free_fs_struct(fs);
+@@ -127,18 +125,16 @@
+ 	struct fs_struct *fs = current->fs;
+ 	struct fs_struct *new_fs = copy_fs_struct(fs);
+ 	int kill;
+-	unsigned long flags;
+ 
+ 	if (!new_fs)
+ 		return -ENOMEM;
+ 
+ 	task_lock(current);
+-	gr_fs_write_lock_irqsave(current, flags);
+ 	write_lock(&fs->lock);
+ 	kill = !atomic_dec_return(&fs->users);
+ 	current->fs = new_fs;
++	gr_set_chroot_entries(current, &new_fs->root);
+ 	write_unlock(&fs->lock);
+-	gr_fs_write_unlock_irqrestore(current, flags);
+ 	task_unlock(current);
+ 
+ 	if (kill)
+@@ -164,7 +160,6 @@
+ void daemonize_fs_struct(void)
+ {
+ 	struct fs_struct *fs = current->fs;
+-	unsigned long flags;
+ 
+ 	if (fs) {
+ 		int kill;
+@@ -175,12 +170,11 @@
+ 		atomic_inc(&init_fs.users);
+ 		write_unlock(&init_fs.lock);
+ 
+-		gr_fs_write_lock_irqsave(current, flags);
+ 		write_lock(&fs->lock);
+ 		current->fs = &init_fs;
++		gr_set_chroot_entries(current, &current->fs->root);
+ 		kill = !atomic_dec_return(&fs->users);
+ 		write_unlock(&fs->lock);
+-		gr_fs_write_unlock_irqrestore(current, flags);
+ 
+ 		task_unlock(current);
+ 		if (kill)
+diff -u linux-2.6.32.15/grsecurity/gracl.c linux-2.6.32.15-new/grsecurity/gracl.c
+--- linux-2.6.32.15/grsecurity/gracl.c	2010-06-26 14:00:02.982610280 -0400
++++ linux-2.6.32.15-new/grsecurity/gracl.c	2010-06-29 18:44:01.503770893 -0400
+@@ -3789,7 +3789,6 @@
+ 	read_lock(&tasklist_lock);
+ 	task = find_task_by_vpid(pid);
+ 	if (task) {
+-		gr_fs_read_lock(task);
+ #ifdef CONFIG_GRKERNSEC_CHROOT
+ 		if (proc_is_chrooted(task))
+ 			ret = -EACCES;
+@@ -3808,8 +3807,6 @@
+ 			if (!(task->acl->mode & GR_VIEW))
+ 				ret = -EACCES;
+ 		}
+-		
+-		gr_fs_read_unlock(task);
+ 	} else
+ 		ret = -ENOENT;
+ 
+diff -u linux-2.6.32.15/grsecurity/grsec_chroot.c linux-2.6.32.15-new/grsecurity/grsec_chroot.c
+--- linux-2.6.32.15/grsecurity/grsec_chroot.c	2010-06-26 14:05:26.054819575 -0400
++++ linux-2.6.32.15-new/grsecurity/grsec_chroot.c	2010-06-29 18:45:55.499819398 -0400
+@@ -9,6 +9,29 @@
+ #include <linux/grsecurity.h>
+ #include <linux/grinternal.h>
+ 
++void gr_set_chroot_entries(struct task_struct *task, struct path *path)
++{
++#ifdef CONFIG_GRKERNSEC
++	if (task->pid > 1 && path->dentry != init_task.fs->root.dentry &&
++	    		     path->dentry != task->nsproxy->mnt_ns->root->mnt_root)
++		task->gr_is_chrooted = 1;
++	else
++		task->gr_is_chrooted = 0;
++
++	task->gr_chroot_dentry = path->dentry;
++#endif
++	return;
++}
++
++void gr_clear_chroot_entries(struct task_struct *task)
++{
++#ifdef CONFIG_GRKERNSEC
++	task->gr_is_chrooted = 0;
++	task->gr_chroot_dentry = NULL;
++#endif
++	return;
++}	
++
+ int
+ gr_handle_chroot_unix(const pid_t pid)
+ {
+@@ -28,15 +51,12 @@
+ 	if (spid) {
+ 		struct task_struct *p;
+ 		p = pid_task(spid, PIDTYPE_PID);
+-		gr_fs_read_lock(p);
+ 		if (unlikely(!have_same_root(current, p))) {
+-			gr_fs_read_unlock(p);
+ 			read_unlock(&tasklist_lock);
+ 			rcu_read_unlock();
+ 			gr_log_noargs(GR_DONT_AUDIT, GR_UNIX_CHROOT_MSG);
+ 			return 0;
+ 		}
+-		gr_fs_read_unlock(p);
+ 	}
+ 	read_unlock(&tasklist_lock);
+ 	rcu_read_unlock();
+@@ -87,13 +107,10 @@
+ 	if (!grsec_enable_chroot_findtask || !proc_is_chrooted(current) || p == NULL)
+ 		return 0;
+ 
+-	gr_fs_read_lock(p);
+ 	if ((p->exit_state & (EXIT_ZOMBIE | EXIT_DEAD)) ||
+ 	    !have_same_root(current, p)) {
+-		gr_fs_read_unlock(p);
+ 		return 1;
+ 	}
+-	gr_fs_read_unlock(p);
+ #endif
+ 	return 0;
+ }
+@@ -189,31 +206,25 @@
+ 	if (pid) {
+ 		struct task_struct *p;
+ 		p = pid_task(pid, PIDTYPE_PID);
+-		gr_fs_read_lock(p);
+ 		starttime = p->start_time.tv_sec;
+ 		if (unlikely(!have_same_root(current, p) &&
+ 			     time_before_eq((unsigned long)starttime, (unsigned long)shm_createtime))) {
+-			gr_fs_read_unlock(p);
+ 			read_unlock(&tasklist_lock);
+ 			rcu_read_unlock();
+ 			gr_log_noargs(GR_DONT_AUDIT, GR_SHMAT_CHROOT_MSG);
+ 			return 0;
+ 		}
+-		gr_fs_read_unlock(p);
+ 	} else {
+ 		pid = find_vpid(shm_lapid);
+ 		if (pid) {
+ 			struct task_struct *p;
+ 			p = pid_task(pid, PIDTYPE_PID);
+-			gr_fs_read_lock(p);
+ 			if (unlikely(!have_same_root(current, p))) {
+-				gr_fs_read_unlock(p);
+ 				read_unlock(&tasklist_lock);
+ 				rcu_read_unlock();
+ 				gr_log_noargs(GR_DONT_AUDIT, GR_SHMAT_CHROOT_MSG);
+ 				return 0;
+ 			}
+-			gr_fs_read_unlock(p);
+ 		}
+ 	}
+ 
+diff -u linux-2.6.32.15/grsecurity/grsec_disabled.c linux-2.6.32.15-new/grsecurity/grsec_disabled.c
+--- linux-2.6.32.15/grsecurity/grsec_disabled.c	2010-05-28 21:27:16.331240103 -0400
++++ linux-2.6.32.15-new/grsecurity/grsec_disabled.c	2010-06-29 18:35:22.735519301 -0400
+@@ -415,7 +415,6 @@
+ 	return 0;
+ }
+ 
+-
+ EXPORT_SYMBOL(gr_is_capable);
+ EXPORT_SYMBOL(gr_is_capable_nolog);
+ EXPORT_SYMBOL(gr_learn_resource);
+diff -u linux-2.6.32.15/include/linux/grinternal.h linux-2.6.32.15-new/include/linux/grinternal.h
+--- linux-2.6.32.15/include/linux/grinternal.h	2010-06-19 21:46:05.111766483 -0400
++++ linux-2.6.32.15-new/include/linux/grinternal.h	2010-06-29 18:41:17.475795654 -0400
+@@ -103,13 +103,9 @@
+ 			gr_to_filename1(tsk->parent->exec_file->f_path.dentry, \
+ 			tsk->parent->exec_file->f_vfsmnt) : "/")
+ 
+-#define proc_is_chrooted(tsk_a)  ((tsk_a->pid > 1) && (tsk_a->fs != NULL) && \
+-			  ((init_task.fs->root.dentry != tsk_a->fs->root.dentry) && \
+-			   (tsk_a->nsproxy->mnt_ns->root->mnt_root != \
+-			    tsk_a->fs->root.dentry)))
++#define proc_is_chrooted(tsk_a)  (tsk_a->gr_is_chrooted)
+ 
+-#define have_same_root(tsk_a,tsk_b) ((tsk_a->fs != NULL) && (tsk_b->fs != NULL) && \
+-			  (tsk_a->fs->root.dentry == tsk_b->fs->root.dentry))
++#define have_same_root(tsk_a,tsk_b) (tsk_a->gr_chroot_dentry == tsk_b->gr_chroot_dentry)
+ 
+ #define DEFAULTSECARGS(task, cred, pcred) gr_task_fullpath(task), task->comm, \
+ 		       task->pid, cred->uid, \
+diff -u linux-2.6.32.15/include/linux/grsecurity.h linux-2.6.32.15-new/include/linux/grsecurity.h
+--- linux-2.6.32.15/include/linux/grsecurity.h	2010-06-19 21:45:41.506145931 -0400
++++ linux-2.6.32.15-new/include/linux/grsecurity.h	2010-06-29 18:36:10.367327541 -0400
+@@ -60,7 +60,8 @@
+ 
+ int gr_tpe_allow(const struct file *file);
+ 
+-int gr_random_pid(void);
++void gr_set_chroot_entries(struct task_struct *task, struct path *path);
++void gr_clear_chroot_entries(struct task_struct *task);
+ 
+ void gr_log_forkfail(const int retval);
+ void gr_log_timechange(void);
+reverted:
+--- linux-2.6.32.15/include/linux/init_task.h	2010-05-28 21:27:16.377048812 -0400
++++ linux-2.6.32.15/include/linux/init_task.h	2010-03-15 11:52:04.000000000 -0400
+@@ -115,13 +115,6 @@
+ # define INIT_PERF_EVENTS(tsk)
+ #endif
+ 
+-#ifdef CONFIG_GRKERNSEC
+-# define INIT_GR_FS_LOCK					\
+-	.gr_fs_lock = __RW_LOCK_UNLOCKED(gr_fs_lock),
+-#else
+-# define INIT_GR_FS_LOCK
+-#endif
+-
+ /*
+  *  INIT_TASK is used to set up the first task table, touch at
+  * your own risk!. Base=0, limit=0x1fffff (=2MB)
+@@ -191,7 +184,6 @@
+ 	INIT_FTRACE_GRAPH						\
+ 	INIT_TRACE_RECURSION						\
+ 	INIT_TASK_RCU_PREEMPT(tsk)					\
+-	INIT_GR_FS_LOCK							\
+ }
+ 
+ 
+diff -u linux-2.6.32.15/include/linux/sched.h linux-2.6.32.15-new/include/linux/sched.h
+--- linux-2.6.32.15/include/linux/sched.h	2010-05-28 21:27:16.403248422 -0400
++++ linux-2.6.32.15-new/include/linux/sched.h	2010-06-29 18:42:31.311381807 -0400
+@@ -1535,7 +1535,7 @@
+ 
+ #ifdef CONFIG_GRKERNSEC
+ 	/* grsecurity */
+-	rwlock_t gr_fs_lock;
++	struct dentry *gr_chroot_dentry;
+ 	struct acl_subject_label *acl;
+ 	struct acl_role_label *role;
+ 	struct file *exec_file;
+@@ -1543,6 +1543,7 @@
+ 	u8 acl_sp_role;
+ 	u8 is_writable;
+ 	u8 brute;
++	u8 gr_is_chrooted;
+ #endif
+ 
+ #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+@@ -2315,33 +2316,6 @@
+ 	spin_unlock(&p->alloc_lock);
+ }
+ 
+-/* grsec: protects only ->fs as task_lock is overkill and we can't
+-   be using a spin_lock in interrupt context
+-*/
+-#ifdef CONFIG_GRKERNSEC
+-#define gr_fs_write_lock_irqsave(x, y)				\
+-	write_lock_irqsave(&x->gr_fs_lock, y)
+-#define gr_fs_write_unlock_irqrestore(x, y) 			\
+-	write_unlock_irqrestore(&x->gr_fs_lock, y)
+-#else
+-#define gr_fs_write_lock_irqsave(x, y)
+-#define gr_fs_write_unlock_irqrestore(x, y)
+-#endif
+-
+-static inline void gr_fs_read_lock(struct task_struct *p)
+-{
+-#ifdef CONFIG_GRKERNSEC
+-	read_lock(&p->gr_fs_lock);
+-#endif
+-}
+-
+-static inline void gr_fs_read_unlock(struct task_struct *p)
+-{
+-#ifdef CONFIG_GRKERNSEC
+-	read_unlock(&p->gr_fs_lock);
+-#endif
+-}
+-
+ extern struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
+ 							unsigned long *flags);
+ 
+diff -u linux-2.6.32.15/kernel/fork.c linux-2.6.32.15-new/kernel/fork.c
+--- linux-2.6.32.15/kernel/fork.c	2010-05-28 21:27:16.436716677 -0400
++++ linux-2.6.32.15-new/kernel/fork.c	2010-06-29 19:01:54.683484807 -0400
+@@ -764,6 +764,7 @@
+ 	tsk->fs = copy_fs_struct(fs);
+ 	if (!tsk->fs)
+ 		return -ENOMEM;
++	gr_set_chroot_entries(tsk, &tsk->fs->root);
+ 	return 0;
+ }
+ 
+@@ -1088,10 +1089,6 @@
+ 	p->vfork_done = NULL;
+ 	spin_lock_init(&p->alloc_lock);
+ 
+-#ifdef CONFIG_GRKERNSEC
+-	rwlock_init(&p->gr_fs_lock);
+-#endif
+-
+ 	init_sigpending(&p->pending);
+ 
+ 	p->utime = cputime_zero;
+@@ -1726,18 +1723,15 @@
+ 		task_lock(current);
+ 
+ 		if (new_fs) {
+-			unsigned long flags;
+-
+-			gr_fs_write_lock_irqsave(current, flags);
+ 			fs = current->fs;
+ 			write_lock(&fs->lock);
+ 			current->fs = new_fs;
++			gr_set_chroot_entries(current, &current->fs->root);
+ 			if (atomic_dec_return(&fs->users))
+ 				new_fs = NULL;
+ 			else
+ 				new_fs = fs;
+ 			write_unlock(&fs->lock);
+-			gr_fs_write_unlock_irqrestore(current, flags);
+ 		}
+ 
+ 		if (new_mm) {

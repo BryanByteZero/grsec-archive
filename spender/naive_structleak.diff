@@ -1,0 +1,16 @@
+diff --git a/tools/gcc/structleak_plugin.c b/tools/gcc/structleak_plugin.c
+index e9dbd4b..030ccde 100644
+--- a/tools/gcc/structleak_plugin.c
++++ b/tools/gcc/structleak_plugin.c
+@@ -75,6 +75,11 @@ static tree get_field_type(tree field)
+ static bool is_userspace_type(tree type)
+ {
+ 	tree field;
++	expanded_location xloc;
++
++	xloc = expand_location(DECL_SOURCE_LOCATION(TYPE_FIELDS(type)));
++	if (strstr(xloc.file, "/uapi/"))
++		return true;
+ 
+ 	for (field = TYPE_FIELDS(type); field; field = TREE_CHAIN(field)) {
+ 		tree fieldtype = get_field_type(field);

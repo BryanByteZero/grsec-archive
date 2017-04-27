@@ -1,0 +1,99 @@
+--- plugin.c	2014-01-02 17:23:26.000000000 -0500
++++ /root/plugin.c	2017-03-18 14:24:59.682286624 -0400
+@@ -118,13 +118,24 @@ static const char *str_license = "plugin
+ #endif
+ 
+ /* Helper function for the hash table that compares the base_name of the
+-   existing entry (S1) with the given string (S2).  */
++   existing entry (S1) with the base_name of a second entry (S2).  */
+ 
+ static int
+-htab_str_eq (const void *s1, const void *s2)
++htab_plugin_eq (const void *s1, const void *s2)
+ {
+-  const struct plugin_name_args *plugin = (const struct plugin_name_args *) s1;
+-  return !strcmp (plugin->base_name, (const char *) s2);
++  const struct plugin_name_args *plugin1 = (const struct plugin_name_args *) s1;
++  const struct plugin_name_args *plugin2 = (const struct plugin_name_args *) s2;
++  return !strcmp (plugin1->base_name, plugin2->base_name);
++}
++
++/* Helper function for hashing the base_name of the plugin_name_args
++   structure to be inserted into the hash table.  */
++
++static hashval_t
++htab_hash_plugin(const PTR p)
++{
++  const struct plugin_name_args *plugin = (const struct plugin_name_args *) p;
++  return htab_hash_string(plugin->base_name);
+ }
+ 
+ 
+@@ -151,6 +162,7 @@ get_plugin_base_name (const char *full_n
+ void
+ add_new_plugin (const char* plugin_name)
+ {
++  struct plugin_name_args find_plugin;
+   struct plugin_name_args *plugin;
+   void **slot;
+   char *base_name;
+@@ -185,10 +197,11 @@ add_new_plugin (const char* plugin_name)
+   /* If this is the first -fplugin= option we encounter, create
+      'plugin_name_args_tab' hash table.  */
+   if (!plugin_name_args_tab)
+-    plugin_name_args_tab = htab_create (10, htab_hash_string, htab_str_eq,
++    plugin_name_args_tab = htab_create (10, htab_hash_plugin, htab_plugin_eq,
+                                         NULL);
+ 
+-  slot = htab_find_slot (plugin_name_args_tab, base_name, INSERT);
++  find_plugin.base_name = base_name;
++  slot = htab_find_slot (plugin_name_args_tab, &find_plugin, INSERT);
+ 
+   /* If the same plugin (name) has been specified earlier, either emit an
+      error or a warning message depending on if they have identical full
+@@ -217,6 +230,7 @@ add_new_plugin (const char* plugin_name)
+ void
+ parse_plugin_arg_opt (const char *arg)
+ {
++  struct plugin_name_args find_plugin;
+   size_t len = 0, name_len = 0, key_len = 0, value_len = 0;
+   const char *ptr, *name_start = arg, *key_start = NULL, *value_start = NULL;
+   char *name, *key, *value;
+@@ -272,10 +286,12 @@ parse_plugin_arg_opt (const char *arg)
+   strncpy (name, name_start, name_len);
+   name[name_len] = '\0';
+ 
++  find_plugin.base_name = name;
++
+   /* Check if the named plugin has already been specified earlier in the
+      command-line.  */
+   if (plugin_name_args_tab
+-      && ((slot = htab_find_slot (plugin_name_args_tab, name, NO_INSERT))
++      && ((slot = htab_find_slot (plugin_name_args_tab, &find_plugin, NO_INSERT))
+           != NULL))
+     {
+       struct plugin_name_args *plugin = (struct plugin_name_args *) *slot;
+@@ -331,8 +347,12 @@ parse_plugin_arg_opt (const char *arg)
+ static void
+ register_plugin_info (const char* name, struct plugin_info *info)
+ {
+-  void **slot = htab_find_slot (plugin_name_args_tab, name, NO_INSERT);
+-  struct plugin_name_args *plugin = (struct plugin_name_args *) *slot;
++  struct plugin_name_args find_plugin;
++  void **slot;
++  struct plugin_name_args *plugin;
++  find_plugin.base_name = (char *)name;
++  slot = htab_find_slot (plugin_name_args_tab, &find_plugin, NO_INSERT);
++  plugin = (struct plugin_name_args *) *slot;
+   plugin->version = info->version;
+   plugin->help = info->help;
+ }
+@@ -628,7 +648,7 @@ init_one_plugin (void **slot, void * ARG
+   bool ok = try_init_one_plugin (plugin);
+   if (!ok)
+     {
+-      htab_remove_elt (plugin_name_args_tab, plugin->base_name);
++      htab_remove_elt (plugin_name_args_tab, plugin);
+       XDELETE (plugin);
+     }
+   return 1;

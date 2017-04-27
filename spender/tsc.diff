@@ -1,0 +1,23 @@
+diff --git a/fs/exec.c b/fs/exec.c
+index 4983f7d..e6d7c22 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1636,8 +1636,18 @@ static int do_execve_common(const char *filename,
+ 
+ 	/* execve succeeded */
+ #ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
++#if defined(CONFIG_X86_32) && !defined(CONFIG_M386) && !defined(CONFIG_M486) && !defined(CONFIG_M586) && (NR_CPUS <= 256)
++	{
++		int cpu = get_cpu();
++		u64 exec_id;
++		rdtscll(exec_id);
++		current->exec_id = ((u64)cpu << 56) | exec_id;
++		put_cpu();
++	}
++#else
+ 	current->exec_id = atomic64_inc_return_unchecked(&global_exec_counter);
+ #endif
++#endif
+ 
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;

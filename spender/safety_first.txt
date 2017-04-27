@@ -1,0 +1,4 @@
+spender@www:~$ function /bin/ls () { whoami; }
+spender@www:~$ /bin/ls
+spender
+

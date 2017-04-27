@@ -1,0 +1,14 @@
+diffstat /root/reload_working.diff
+ grsecurity/Makefile         |    2 
+ grsecurity/gracl.c          | 3889 +++++++++++++-------------------------------
+ grsecurity/gracl_alloc.c    |   41 
+ grsecurity/gracl_policy.c   | 1840 ++++++++++++++++++++
+ grsecurity/gracl_segv.c     |   12 
+ grsecurity/grsec_disabled.c |    7 
+ grsecurity/grsec_init.c     |   15 
+ include/linux/gracl.h       |   26 
+ include/linux/grinternal.h  |    1 
+ include/linux/grsecurity.h  |    1 
+ include/linux/sched.h       |    2 
+ 11 files changed, 3059 insertions(+), 2777 deletions(-)
+

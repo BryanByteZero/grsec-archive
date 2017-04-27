@@ -1,0 +1,19 @@
+br_write_lock is used in release_mounts() on vfsmount_lock, let's say
+it's acquired N - 1 locks, but on cpu N, we're doing a path_is_under(),
+which acquires vfsmount_lock for the current CPU (via br_read_lock) and
+then we eventually reach the code of is_subdir() which is trying to
+acquire rename_lock via read_seqlock().  Now on another CPU we're trying
+to generate a pathname via getcwd. Let's assume this CPU is < N - 1, so 
+we're holding rename_lock via write_seqlock, and now trying to acquire 
+vfsmount_lock via br_read_lock(), but we can't because it's currently 
+being held via the br_write_lock in release_mounts().  And around and 
+around it goes, without any kind of lock debugging figuring out what's 
+going wrong.
+
+
+                      CPU 0                CPU 1             
+release_mounts():    vfsmount_lock        wants vfsmount_lock
+path_is_under():                          vfsmount_lock
+getcwd():            rename_lock
+prepend_path():      wants vfsmount_lock
+is_subdir():                              wants rename_lock

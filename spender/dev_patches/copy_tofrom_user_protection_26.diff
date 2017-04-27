@@ -1,0 +1,347 @@
+diff -u linux-2.6.29.1-pax/arch/x86/ia32/ia32_signal.c linux-2.6.29.1-pax/arch/x86/ia32/ia32_signal.c
+--- linux-2.6.29.1-pax/arch/x86/ia32/ia32_signal.c	2009-03-24 08:46:37.000000000 +0100
++++ linux-2.6.29.1-pax/arch/x86/ia32/ia32_signal.c	2009-04-26 19:24:05.000000000 +0200
+@@ -464,7 +464,7 @@
+ 
+ #if DEBUG_SIG
+ 	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
+-	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
++	       current->comm, task_pid_nr(current), frame, regs->ip, frame->pretcode);
+ #endif
+ 
+ 	return 0;
+@@ -552,7 +552,7 @@
+ 
+ #if DEBUG_SIG
+ 	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
+-	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
++	       current->comm, task_pid_nr(current), frame, regs->ip, frame->pretcode);
+ #endif
+ 
+ 	return 0;
+diff -u linux-2.6.29.1-pax/arch/x86/include/asm/uaccess.h linux-2.6.29.1-pax/arch/x86/include/asm/uaccess.h
+--- linux-2.6.29.1-pax/arch/x86/include/asm/uaccess.h	2009-03-24 08:46:37.000000000 +0100
++++ linux-2.6.29.1-pax/arch/x86/include/asm/uaccess.h	2009-04-26 23:05:13.000000000 +0200
+@@ -8,6 +8,7 @@
+ #include <linux/thread_info.h>
+ #include <linux/prefetch.h>
+ #include <linux/string.h>
++#include <linux/slab.h>
+ #include <asm/asm.h>
+ #include <asm/page.h>
+ #include <asm/segment.h>
+diff -u linux-2.6.29.1-pax/arch/x86/kernel/dumpstack.c linux-2.6.29.1-pax/arch/x86/kernel/dumpstack.c
+--- linux-2.6.29.1-pax/arch/x86/kernel/dumpstack.c	2009-03-24 08:46:38.000000000 +0100
++++ linux-2.6.29.1-pax/arch/x86/kernel/dumpstack.c	2009-04-26 19:18:23.000000000 +0200
+@@ -178,7 +178,7 @@
+ #endif
+ 
+ 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
+-		current->pid, current->comm, print_tainted(),
++		task_pid_nr(current), current->comm, print_tainted(),
+ 		init_utsname()->release,
+ 		(int)strcspn(init_utsname()->version, " "),
+ 		init_utsname()->version);
+diff -u linux-2.6.29.1-pax/arch/x86/kernel/process_64.c linux-2.6.29.1-pax/arch/x86/kernel/process_64.c
+--- linux-2.6.29.1-pax/arch/x86/kernel/process_64.c	2009-03-24 08:46:38.000000000 +0100
++++ linux-2.6.29.1-pax/arch/x86/kernel/process_64.c	2009-04-26 19:23:18.000000000 +0200
+@@ -91,7 +91,7 @@
+ void exit_idle(void)
+ {
+ 	/* idle loop has pid 0 */
+-	if (current->pid)
++	if (task_pid_nr(current))
+ 		return;
+ 	__exit_idle();
+ }
+@@ -162,7 +162,7 @@
+ 	if (!board)
+ 		board = "";
+ 	printk(KERN_INFO "Pid: %d, comm: %.20s %s %s %.*s %s\n",
+-		current->pid, current->comm, print_tainted(),
++		task_pid_nr(current), current->comm, print_tainted(),
+ 		init_utsname()->release,
+ 		(int)strcspn(init_utsname()->version, " "),
+ 		init_utsname()->version, board);
+diff -u linux-2.6.29.1-pax/arch/x86/kernel/traps.c linux-2.6.29.1-pax/arch/x86/kernel/traps.c
+--- linux-2.6.29.1-pax/arch/x86/kernel/traps.c	2009-03-24 08:46:38.000000000 +0100
++++ linux-2.6.29.1-pax/arch/x86/kernel/traps.c	2009-04-26 19:22:12.000000000 +0200
+@@ -195,7 +195,7 @@
+ 	    printk_ratelimit()) {
+ 		printk(KERN_INFO
+ 		       "%s[%d] trap %s ip:%lx sp:%lx error:%lx",
+-		       tsk->comm, tsk->pid, str,
++		       tsk->comm, task_pid_nr(tsk), str,
+ 		       regs->ip, regs->sp, error_code);
+ 		print_vma_addr(" in ", regs->ip);
+ 		printk("\n");
+diff -u linux-2.6.29.1-pax/fs/exec.c linux-2.6.29.1-pax/fs/exec.c
+--- linux-2.6.29.1-pax/fs/exec.c	2009-04-13 22:42:51.000000000 +0200
++++ linux-2.6.29.1-pax/fs/exec.c	2009-04-27 01:08:42.000000000 +0200
+@@ -1669,6 +1669,20 @@
+ }
+ #endif
+ 
++void pax_report_leak_to_user(const void *ptr, unsigned long len)
++{
++	printk(KERN_ERR "PAX: kernel memory leak attempt detected from %p (%lu bytes)\n", ptr, len);
++	dump_stack();
++	do_group_exit(SIGKILL);
++}
++
++void pax_report_overflow_from_user(const void *ptr, unsigned long len)
++{
++	printk(KERN_ERR "PAX: kernel memory overflow attempt detected to %p (%lu bytes)\n", ptr, len);
++	dump_stack();
++	do_group_exit(SIGKILL);
++}
++
+ static int zap_process(struct task_struct *start)
+ {
+ 	struct task_struct *t;
+diff -u linux-2.6.29.1-pax/include/linux/sched.h linux-2.6.29.1-pax/include/linux/sched.h
+--- linux-2.6.29.1-pax/include/linux/sched.h	2009-03-24 08:46:39.000000000 +0100
++++ linux-2.6.29.1-pax/include/linux/sched.h	2009-04-26 20:29:44.000000000 +0200
+@@ -1462,6 +1462,8 @@
+ void pax_report_fault(struct pt_regs *regs, void *pc, void *sp);
+ void pax_report_insns(void *pc, void *sp);
+ void pax_report_refcount_overflow(struct pt_regs *regs);
++void pax_report_leak_to_user(const void *ptr, unsigned long len);
++void pax_report_overflow_from_user(const void *ptr, unsigned long len);
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+ #define tsk_cpumask(tsk) (&(tsk)->cpus_allowed)
+diff -u linux-2.6.29.1-pax/include/linux/slab.h linux-2.6.29.1-pax/include/linux/slab.h
+--- linux-2.6.29.1-pax/include/linux/slab.h	2009-03-24 08:46:39.000000000 +0100
++++ linux-2.6.29.1-pax/include/linux/slab.h	2009-04-26 20:11:08.000000000 +0200
+@@ -128,6 +128,7 @@
+ void kfree(const void *);
+ void kzfree(const void *);
+ size_t ksize(const void *);
++void check_object_size(const void *ptr, unsigned long n, bool to);
+ 
+ /*
+  * Allocator specific definitions. These are mainly used to establish optimized
+diff -u linux-2.6.29.1-pax/mm/slab.c linux-2.6.29.1-pax/mm/slab.c
+--- linux-2.6.29.1-pax/mm/slab.c	2009-03-24 08:46:40.000000000 +0100
++++ linux-2.6.29.1-pax/mm/slab.c	2009-04-27 00:59:06.000000000 +0200
+@@ -4437,6 +4437,40 @@
+ module_init(slab_proc_init);
+ #endif
+ 
++void check_object_size(const void *ptr, unsigned long n, bool to)
++{
++	struct page *page;
++
++	if (!n)
++		return;
++
++	if (ZERO_OR_NULL_PTR(ptr))
++		goto report;
++
++	if (!virt_addr_valid(ptr))
++		return;
++
++	page = virt_to_head_page(ptr);
++
++	if (!PageSlab(page))
++		/* TODO: check for stack based ptr */
++		return;
++
++	size = obj_size(virt_to_cache(ptr));
++	if (n > size)
++		goto report;
++
++	/* TODO: figure out how to find beginning of object if ptr is inside one */
++	return;
++
++report:
++	if (to)
++		pax_report_leak_to_user(from, n);
++	else
++		pax_report_overflow_from_user(from, n);
++}
++EXPORT_SYMBOL(check_object_size);
++
+ /**
+  * ksize - get the actual amount of memory allocated for a given object
+  * @objp: Pointer to the object
+diff -u linux-2.6.29.1-pax/mm/slub.c linux-2.6.29.1-pax/mm/slub.c
+--- linux-2.6.29.1-pax/mm/slub.c	2009-03-28 12:59:48.000000000 +0100
++++ linux-2.6.29.1-pax/mm/slub.c	2009-04-27 00:59:11.000000000 +0200
+@@ -1783,7 +1783,7 @@
+  * Merge control. If this is set then no merging of slab caches will occur.
+  * (Could be removed. This was introduced to pacify the merge skeptics.)
+  */
+-static int slub_nomerge;
++static int slub_nomerge = 1;
+ 
+ /*
+  * Calculate the order of allocation given an slab object size.
+@@ -2698,6 +2698,40 @@
+ EXPORT_SYMBOL(__kmalloc_node);
+ #endif
+ 
++void check_object_size(const void *ptr, unsigned long n, bool to)
++{
++	struct page *page;
++	struct kmem_cache *s;
++	unsigned long offset;
++
++	if (!n)
++		return;
++
++	if (ZERO_OR_NULL_PTR(ptr))
++		goto report;
++
++	if (!virt_addr_valid(ptr))
++		return;
++
++	page = virt_to_head_page(ptr);
++
++	if (!PageSlab(page))
++		/* TODO: check for stack based ptr */
++		return;
++
++	s = page->slab;
++	offset = (ptr - page_address(page)) % s->size;
++	if (offset <= s->objsize && n <=  s->objsize - offset)
++		return;
++
++report:
++	if (to)
++		pax_report_leak_to_user(ptr, n);
++	else
++		pax_report_overflow_from_user(ptr, n);
++}
++EXPORT_SYMBOL(check_object_size);
++
+ size_t ksize(const void *object)
+ {
+ 	struct page *page;
+only in patch2:
+unchanged:
+--- linux-2.6.29.1/arch/x86/include/asm/uaccess_32.h	2009-03-24 08:35:02.000000000 +0100
++++ linux-2.6.29.1-pax/arch/x86/include/asm/uaccess_32.h	2009-04-26 23:52:27.000000000 +0200
+@@ -62,6 +62,8 @@ __copy_to_user_inatomic(void __user *to,
+ 			return ret;
+ 		}
+ 	}
++	if (!__builtin_constant_p(n))
++		check_object_size(from, n, true);
+ 	return __copy_to_user_ll(to, from, n);
+ }
+ 
+@@ -153,6 +155,8 @@ __copy_from_user(void *to, const void __
+ 			return ret;
+ 		}
+ 	}
++	if (!__builtin_constant_p(n))
++		check_object_size(to, n, false);
+ 	return __copy_from_user_ll(to, from, n);
+ }
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.29.1/arch/x86/mm/pat.c	2009-04-04 11:01:08.000000000 +0200
++++ linux-2.6.29.1-pax/arch/x86/mm/pat.c	2009-04-26 19:25:25.000000000 +0200
+@@ -204,7 +204,7 @@ chk_conflict(struct memtype *new, struct
+ 
+  conflict:
+ 	printk(KERN_INFO "%s:%d conflicting memory types "
+-	       "%Lx-%Lx %s<->%s\n", current->comm, current->pid, new->start,
++	       "%Lx-%Lx %s<->%s\n", current->comm, task_pid_nr(current), new->start,
+ 	       new->end, cattr_name(new->type), cattr_name(entry->type));
+ 	return -EBUSY;
+ }
+@@ -488,7 +488,7 @@ int free_memtype(u64 start, u64 end)
+ 
+ 	if (err) {
+ 		printk(KERN_INFO "%s:%d freeing invalid memtype %Lx-%Lx\n",
+-			current->comm, current->pid, start, end);
++			current->comm, task_pid_nr(current), start, end);
+ 	}
+ 
+ 	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
+@@ -590,7 +590,7 @@ int phys_mem_access_prot_allowed(struct 
+ 		free_memtype(offset, offset + size);
+ 		printk(KERN_INFO
+ 		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
+-			current->comm, current->pid,
++			current->comm, task_pid_nr(current),
+ 			cattr_name(flags),
+ 			offset, (unsigned long long)(offset + size));
+ 		return 0;
+@@ -611,7 +611,7 @@ void map_devmem(unsigned long pfn, unsig
+ 	if (flags != want_flags) {
+ 		printk(KERN_INFO
+ 		"%s:%d /dev/mem expected mapping type %s for %Lx-%Lx, got %s\n",
+-			current->comm, current->pid,
++			current->comm, task_pid_nr(current),
+ 			cattr_name(want_flags),
+ 			addr, (unsigned long long)(addr + size),
+ 			cattr_name(flags));
+@@ -656,7 +656,7 @@ static int reserve_pfn_range(u64 paddr, 
+ 			free_memtype(paddr, paddr + size);
+ 			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
+ 				" for %Lx-%Lx, got %s\n",
+-				current->comm, current->pid,
++				current->comm, task_pid_nr(current),
+ 				cattr_name(want_flags),
+ 				(unsigned long long)paddr,
+ 				(unsigned long long)(paddr + size),
+@@ -685,7 +685,7 @@ static int reserve_pfn_range(u64 paddr, 
+ 		printk(KERN_ERR
+ 			"%s:%d reserve_pfn_range ioremap_change_attr failed %s "
+ 			"for %Lx-%Lx\n",
+-			current->comm, current->pid,
++			current->comm, task_pid_nr(current),
+ 			cattr_name(flags),
+ 			(unsigned long long)paddr,
+ 			(unsigned long long)(paddr + size));
+only in patch2:
+unchanged:
+--- linux-2.6.29.1/mm/slob.c	2009-03-24 08:35:51.000000000 +0100
++++ linux-2.6.29.1-pax/mm/slob.c	2009-04-27 01:00:48.000000000 +0200
+@@ -504,6 +504,41 @@ void kfree(const void *block)
+ }
+ EXPORT_SYMBOL(kfree);
+ 
++void check_object_size(const void *ptr, unsigned long n, bool to)
++{
++	struct slob_page *sp;
++	int align;
++	unsigned int m;
++
++	if (!n)
++		return;
++
++	if (ZERO_OR_NULL_PTR(ptr))
++		goto report;
++
++	sp = (struct slob_page *)virt_to_page(ptr);
++	if (!slob_page(sp))
++		/* TODO: how identify >PAGE_SIZE slob pages? */
++		/* sp->page.private */
++		return;
++
++	/* TODO: figure out how to find the beginning of an object if ptr is inside one */
++	return;
++
++	/*
++	align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++	m = *(unsigned int *)(ptr - align);
++	SLOB_UNITS(*m) * SLOB_UNIT
++	*/
++
++report:
++	if (to)
++		pax_report_leak_to_user(from, n);
++	else
++		pax_report_overflow_from_user(from, n);
++}
++EXPORT_SYMBOL(check_object_size);
++
+ /* can't use ksize for kmem_cache_alloc memory, only kmalloc */
+ size_t ksize(const void *block)
+ {

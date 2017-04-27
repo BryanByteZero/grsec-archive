@@ -1,0 +1,12 @@
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 8ad4236..b45cc70 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -631,6 +631,7 @@ static bool has_pid_permissions(struct pid_namespace *pid,
+ #ifdef CONFIG_GRKERNSEC_PROC_USERGROUP
+ 			|| in_group_p(grsec_proc_gid)
+ #endif
++			|| (task_pid_nr(task) == 1 && capable_nolog(CAP_DAC_READ_SEARCH))
+ 		) {
+ 			rcu_read_unlock();
+ 			return true;

@@ -1,0 +1,83 @@
+diff --git a/arch/arm/include/asm/uaccess.h b/arch/arm/include/asm/uaccess.h
+index 510061e..d42d7f8 100644
+--- a/arch/arm/include/asm/uaccess.h
++++ b/arch/arm/include/asm/uaccess.h
+@@ -73,7 +73,7 @@ static inline void pax_open_userland(void)
+ {
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (segment_eq(get_fs(), USER_DS) {
++	if (segment_eq(get_fs(), USER_DS)) {
+ 		BUG_ON(test_domain(DOMAIN_USER, DOMAIN_UDEREF));
+ 		modify_domain(DOMAIN_USER, DOMAIN_UDEREF);
+ 	}
+@@ -85,7 +85,7 @@ static inline void pax_close_userland(void)
+ {
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (segment_eq(get_fs(), USER_DS) {
++	if (segment_eq(get_fs(), USER_DS)) {
+ 		BUG_ON(test_domain(DOMAIN_USER, DOMAIN_NOACCESS));
+ 		modify_domain(DOMAIN_USER, DOMAIN_NOACCESS);
+ 	}
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 0193da8..f375351 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -304,15 +304,18 @@ static struct mem_type mem_types[] __read_only = {
+ 		.domain    = DOMAIN_VECTORS,
+ 	},
+ 	[MT_HIGH_VECTORS] = {
+-		/* we always want the vector page to be noaccess for userland
++		/* we always want the vector page to be noaccess for userland on archs with
++		   XN where we can enforce some reasonable measure of security
+ 		   therefore, when kernexec is disabled, instead of L_PTE_USER | L_PTE_RDONLY
+ 		   which turns into supervisor rwx, userland rx, we instead omit that entirely,
+ 		   leaving it as supervisor rwx only
+ 		*/
+ #ifdef CONFIG_PAX_KERNEXEC
+ 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY | L_PTE_RDONLY,
+-#else
++#elif __LINUX_ARM_ARCH__ >= 6
+ 		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY,
++#else
++		.prot_pte  = L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY | L_PTE_USER | L_PTE_RDONLY,
+ #endif
+ 		.prot_l1   = PMD_TYPE_TABLE,
+ 		.domain    = DOMAIN_VECTORS,
+diff --git a/drivers/clk/socfpga/clk.c b/drivers/clk/socfpga/clk.c
+index bd11315..2f14eae 100644
+--- a/drivers/clk/socfpga/clk.c
++++ b/drivers/clk/socfpga/clk.c
+@@ -135,8 +135,10 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
+ 	if (strcmp(clk_name, "main_pll") || strcmp(clk_name, "periph_pll") ||
+ 			strcmp(clk_name, "sdram_pll")) {
+ 		socfpga_clk->hw.bit_idx = SOCFPGA_PLL_EXT_ENA;
+-		clk_pll_ops.enable = clk_gate_ops.enable;
+-		clk_pll_ops.disable = clk_gate_ops.disable;
++		pax_open_kernel();
++		*(void **)&clk_pll_ops.enable = clk_gate_ops.enable;
++		*(void **)&clk_pll_ops.disable = clk_gate_ops.disable;
++		pax_close_kernel();
+ 	}
+ 
+ 	clk = clk_register(NULL, &socfpga_clk->hw.hw);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 4e8c835..aafb1ed 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -519,12 +519,12 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ #ifdef CONFIG_PAX_SEGMEXEC
+ 	if (current->mm->pax_flags & MF_PAX_SEGMEXEC) {
+ 		if (end > SEGMEXEC_TASK_SIZE)
+-			goto out;
++			return error;
+ 	} else
+ #endif
+ 
+ 	if (end > TASK_SIZE)
+-		goto out;
++		return error;
+ 
+ 	error = 0;
+ 	if (end == start)

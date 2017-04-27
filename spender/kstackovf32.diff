@@ -1,0 +1,238 @@
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 55ec769..e2d53a8 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -248,6 +248,11 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
+ 	tsk->thread.error_code = error_code;
+ 	tsk->thread.trap_no = X86_TRAP_DF;
+ 
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++	if ((unsigned long)tsk->stack - regs->sp <= PAGE_SIZE)
++		die("grsec: kernel stack overflow detected", regs, error_code);
++#endif
++
+ 	/*
+ 	 * This is always a kernel trap and never fixable (and thus must
+ 	 * never return).
+diff --git a/fs/exec.c b/fs/exec.c
+index fccf75a..38c4c00 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -919,6 +919,7 @@ static int exec_mmap(struct mm_struct *mm)
+ 	tsk->mm = mm;
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
++	populate_stack();
+ 	task_unlock(tsk);
+ 	arch_pick_mmap_layout(mm);
+ 	if (old_mm) {
+@@ -2260,7 +2261,7 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user, bool co
+ #endif
+ 
+ #ifndef CONFIG_STACK_GROWSUP
+-	const void * stackstart = task_stack_page(current);
++	unsigned long stackstart = (unsigned long)task_stack_page(current);
+ 	if (unlikely(current_stack_pointer < stackstart + 512 ||
+ 		     current_stack_pointer >= stackstart + THREAD_SIZE))
+ 		BUG();
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index 802b13c..ddeec00 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -136,6 +136,19 @@ config GRKERNSEC_PROC_MEMMAP
+ 	  If you use PaX it is essential that you say Y here as it closes up
+ 	  several holes that make full ASLR useless locally.
+ 
++
++config GRKERNSEC_KSTACKOVERFLOW
++	bool "Prevent kernel stack overflows"
++	default y if GRKERNSEC_CONFIG_AUTO
++	depends on !IA64 && 64BIT
++	help
++	  If you say Y here, the kernel's process stacks will be allocated
++	  with vmalloc instead of the kernel's default allocator.  This
++	  introduces guard pages that in combination with the alloca checking
++	  of the STACKLEAK feature prevents all forms of kernel process stack
++	  overflow abuse.  Note that this is different from kernel stack
++	  buffer overflows.
++
+ config GRKERNSEC_BRUTE
+ 	bool "Deter exploit bruteforcing"
+ 	default y if GRKERNSEC_CONFIG_AUTO
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 38255ee..1d75f44 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2068,6 +2068,25 @@ extern u64 sched_clock_cpu(int cpu);
+ 
+ extern void sched_clock_init(void);
+ 
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++static inline void populate_stack(void)
++{
++	struct task_struct *curtask = current;
++	int c;
++	int *ptr = curtask->stack;
++	int *end = curtask->stack + THREAD_SIZE;
++
++	while (ptr < end) {
++		c = *(volatile int *)ptr;
++		ptr += PAGE_SIZE/sizeof(int);
++	}
++}
++#else
++static inline void populate_stack(void)
++{
++}
++#endif
++
+ #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+ static inline void sched_clock_tick(void)
+ {
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 943f335..d19c720 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -64,6 +64,7 @@ extern void *vzalloc_node(unsigned long size, int node);
+ extern void *vmalloc_exec(unsigned long size);
+ extern void *vmalloc_32(unsigned long size);
+ extern void *vmalloc_32_user(unsigned long size);
++extern void *vmalloc_stack(int node);
+ extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
+ extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+ 			unsigned long start, unsigned long end, gfp_t gfp_mask,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index c6ec99a..b8e5b18 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -138,6 +138,30 @@ static inline void free_thread_info(struct thread_info *ti)
+ }
+ #endif
+ 
++#ifdef CONFIG_GRKERNSEC_KSTACKOVERFLOW
++static inline struct thread_info *gr_alloc_thread_info_node(struct task_struct *tsk,
++						  int node)
++{
++	return vmalloc_stack(node);
++}
++
++static inline void gr_free_thread_info(struct thread_info *ti)
++{
++	vfree(ti);
++}
++#else
++static inline struct thread_info *gr_alloc_thread_info_node(struct task_struct *tsk,
++						  int node)
++{
++	return alloc_thread_info_node(tsk, node);
++}
++
++static inline void gr_free_thread_info(struct thread_info *ti)
++{
++	free_thread_info(ti);
++}
++#endif
++
+ /* SLAB cache for signal_struct structures (tsk->signal) */
+ static struct kmem_cache *signal_cachep;
+ 
+@@ -158,15 +182,17 @@ static struct kmem_cache *mm_cachep;
+ 
+ static void account_kernel_stack(struct thread_info *ti, int account)
+ {
++#ifndef CONFIG_GRKERNSEC_KSTACKOVERFLOW
+ 	struct zone *zone = page_zone(virt_to_page(ti));
+ 
+ 	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
++#endif
+ }
+ 
+ void free_task(struct task_struct *tsk)
+ {
+ 	account_kernel_stack(tsk->stack, -1);
+-	free_thread_info(tsk->stack);
++	gr_free_thread_info(tsk->stack);
+ 	rt_mutex_debug_task_free(tsk);
+ 	ftrace_graph_exit_task(tsk);
+ 	put_seccomp_filter(tsk);
+@@ -265,7 +291,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	if (!tsk)
+ 		return NULL;
+ 
+-	ti = alloc_thread_info_node(tsk, node);
++	ti = gr_alloc_thread_info_node(tsk, node);
+ 	if (!ti) {
+ 		free_task_struct(tsk);
+ 		return NULL;
+@@ -307,7 +333,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
+ 	return tsk;
+ 
+ out:
+-	free_thread_info(ti);
++	gr_free_thread_info(ti);
+ 	free_task_struct(tsk);
+ 	return NULL;
+ }
+diff --git a/kernel/sched.c b/kernel/sched.c
+index e0b6326..633af22 100644
+--- a/kernel/sched.c
++++ b/kernel/sched.c
+@@ -3307,8 +3307,10 @@ context_switch(struct rq *rq, struct task_struct *prev,
+ 		next->active_mm = oldmm;
+ 		atomic_inc(&oldmm->mm_count);
+ 		enter_lazy_tlb(oldmm, next);
+-	} else
++	} else {
+ 		switch_mm(oldmm, mm, next);
++		populate_stack();
++	}
+ 
+ 	if (!prev->mm) {
+ 		prev->active_mm = NULL;
+@@ -6525,8 +6527,10 @@ void idle_task_exit(void)
+ 
+ 	BUG_ON(cpu_online(smp_processor_id()));
+ 
+-	if (mm != &init_mm)
++	if (mm != &init_mm) {
+ 		switch_mm(mm, &init_mm, current);
++		populate_stack();
++	}
+ 	mmdrop(mm);
+ }
+ 
+diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+index cf332bc..add7e3a 100644
+--- a/mm/mmu_context.c
++++ b/mm/mmu_context.c
+@@ -33,6 +33,7 @@ void use_mm(struct mm_struct *mm)
+ 	}
+ 	tsk->mm = mm;
+ 	switch_mm(active_mm, mm, tsk);
++	populate_stack();
+ 	task_unlock(tsk);
+ 
+ 	if (active_mm != mm)
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index a22618a..5fc3323 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1752,6 +1752,18 @@ static inline void *__vmalloc_node_flags(unsigned long size,
+ 					node, __builtin_return_address(0));
+ }
+ 
++void *vmalloc_stack(int node)
++{
++#ifdef CONFIG_DEBUG_STACK_USAGE
++        gfp_t mask = GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO;
++#else
++        gfp_t mask = GFP_KERNEL | __GFP_NOTRACK;
++#endif
++
++	return __vmalloc_node(THREAD_SIZE, THREAD_SIZE, mask, PAGE_KERNEL,
++				node, __builtin_return_address(0));
++}
++
+ /**
+  *	vmalloc  -  allocate virtually contiguous memory
+  *	@size:		allocation size

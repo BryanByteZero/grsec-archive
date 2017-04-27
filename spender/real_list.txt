@@ -1,0 +1,58 @@
+2.6.35.5->2.6.35.6 security count: > 17
+1) KVM: VMX: Fix host GDT.LIMIT corruption
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.35.y.git;a=commitdiff;h=d963ca2b66d33935a858dc01a899dec0b3c77fc9
+host infoleak
+2) mmap: call unlink_anon_vmas() in __split_vma() in case of error 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.35.y.git;a=commitdiff;h=e675865c92e66331dba733c544eb53b3d6c45eaa
+exploitable use-after-free
+3..17) all vulns listed below
+
+2.6.32.22->2.6.32.23 security count: > 15
+1) sctp: Do not reset the packet during sctp_packet_config().
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=ca92b22ffac5a8b47d6be1a6f2e0dbe68b485f18
+remote DoS
+2) drivers/video/via/ioctl.c: prevent reading uninitialized stack memory 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=d912e785e25fb48bc4eae43c497430b1d5b7e044
+local infoleak
+3) xfs: prevent reading uninitialized stack memory
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=043d7866aebbc60a37dc3245035aee41836eb9be
+local infoleak
+4) KEYS: Fix bug in keyctl_session_to_parent() if parent has no session keyring 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=db1a0b94ba65383e790bbba18c95b319ecbe534e
+local DoS
+5) drivers/video/sis/sis_main.c: prevent reading uninitialized stack memory 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=e286d83959320fcf7eadfc81aeceb6e1a81667c9
+local infoleak
+6) Staging: vt6655: fix buffer overflow
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=e220aa2dd5c106fbeb97558d68475b84d8fbd12a
+local overflow
+7) drivers/net/eql.c: prevent reading uninitialized stack memory 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=ab5fc422d50d6e43faed1d757be1deb2ba2200e0
+local infoleak
+8) drivers/net/cxgb3/cxgb3_main.c: prevent reading uninitialized stack memory 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=c99489058f070b580faf1093a448d47fbd676489
+local infoleak
+9) drivers/net/usb/hso.c: prevent reading uninitialized memory 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=adf62df3786df2525f0817c8847d609bf72113a3
+local infoleak
+10) rds: fix a leak of kernel memory
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=f99150007ae1ff46aefbd5c96cf22af0cdc34563
+local infoleak
+11) USB: serial/mos*: prevent reading uninitialized stack memory
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=f2ba1916d33431e42f4ef440c903aeb5dbac62fb
+local infoleak
+12) aio: check for multiplication overflow in do_io_submit
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=02e33709e19a12720a8da0c5bfa5572ed8b5c9ec
+local infoleak
+13) UNIX: Do not loop forever at unix_autobind()
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=0987a43dadd8a45843c906d674221b180488e42d
+local DoS
+14) irda: Correctly clean up self->ias_obj on irda_bind() failure.
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=8e75a0d65dce9d24b551d4a5ccbe00a23771583a
+local use-after-free
+15) net: Fix oops from tcp_collapse() when using splice() 
+http://git.kernel.org/?p=linux/kernel/git/stable/linux-2.6.32.y.git;a=commitdiff;h=12fc5c218002041cf2d3be3a5fd26fad993c6fbc
+local DoS
+
+still not fixed (going on 2 months now since the re-reporting):
+http://grsecurity.net/~spender/64bit_dos.c

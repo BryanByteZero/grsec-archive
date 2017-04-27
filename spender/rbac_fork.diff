@@ -1,0 +1,68 @@
+commit 5f733a29308f3298e0826db157309edfa990ee4b
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Thu Jul 12 20:46:54 2012 -0400
+
+    Fix RBAC enable / special role exit race with fork
+    Thanks to Mark Moseley for reporting and testing
+    
+    race looked like:
+    >   cpu 1                               cpu 2
+    >   fork begins
+    >   fork calls dup_task_struct
+    >                                       RBAC sets ->acl on all procs in tasklist
+    >   fork completes, adds to tasklist
+    >                                       RBAC sets enabled flag
+    >   process exists with RBAC enabled
+    >   and NULL ->acl
+
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 71152c3..9273a92 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -2277,18 +2277,17 @@ out:
+ void
+ gr_copy_label(struct task_struct *tsk)
+ {
+-	/* plain copying of fields is already done by dup_task_struct */
+ 	tsk->signal->used_accept = 0;
+ 	tsk->acl_sp_role = 0;
+-	//tsk->acl_role_id = current->acl_role_id;
+-	//tsk->acl = current->acl;
+-	//tsk->role = current->role;
++	tsk->acl_role_id = current->acl_role_id;
++	tsk->acl = current->acl;
++	tsk->role = current->role;
+ 	tsk->signal->curr_ip = current->signal->curr_ip;
+ 	tsk->signal->saved_ip = current->signal->saved_ip;
+ 	if (current->exec_file)
+ 		get_file(current->exec_file);
+-	//tsk->exec_file = current->exec_file;
+-	//tsk->is_writable = current->is_writable;
++	tsk->exec_file = current->exec_file;
++	tsk->is_writable = current->is_writable;
+ 	if (unlikely(current->signal->used_accept)) {
+ 		current->signal->curr_ip = 0;
+ 		current->signal->saved_ip = 0;
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 94d79d4..2101311 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1322,8 +1322,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+ 	if (clone_flags & CLONE_THREAD)
+ 		p->tgid = current->tgid;
+ 
+-	gr_copy_label(p);
+-
+ 	p->set_child_tid = (clone_flags & CLONE_CHILD_SETTID) ? child_tidptr : NULL;
+ 	/*
+ 	 * Clear TID on mm_release()?
+@@ -1381,6 +1379,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+ 	/* Need tasklist lock for parent etc handling! */
+ 	write_lock_irq(&tasklist_lock);
+ 
++	/* synchronizes with gr_set_acls() */
++	gr_copy_label(p);
++
+ 	/* CLONE_PARENT re-uses the old parent */
+ 	if (clone_flags & (CLONE_PARENT|CLONE_THREAD)) {
+ 		p->real_parent = current->real_parent;

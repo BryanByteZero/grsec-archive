@@ -1,0 +1,145 @@
+diff -u linux-2.6.32.16/arch/x86/kernel/vmlinux.lds.S linux-2.6.32.16-new/arch/x86/kernel/vmlinux.lds.S
+--- linux-2.6.32.16/arch/x86/kernel/vmlinux.lds.S	2010-07-09 14:50:44.000000000 -0400
++++ linux-2.6.32.16-new/arch/x86/kernel/vmlinux.lds.S	2010-07-10 08:19:32.000000000 -0400
+@@ -28,6 +28,15 @@
+ #include <asm/boot.h>
+ #include <asm/segment.h>
+ 
++#undef PMD_SIZE
++#undef PMD_SHIFT
++#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
++#define PMD_SHIFT 21
++#else
++#define PMD_SHIFT 22
++#endif
++#define PMD_SIZE (1 << PMD_SHIFT)
++
+ #if defined(CONFIG_X86_32) && defined(CONFIG_PAX_KERNEXEC)
+ #define __KERNEL_TEXT_OFFSET	(LOAD_OFFSET + ____LOAD_PHYSICAL_ADDR)
+ #else
+diff -u linux-2.6.32.16/fs/fcntl.c linux-2.6.32.16-new/fs/fcntl.c
+--- linux-2.6.32.16/fs/fcntl.c	2010-07-09 14:50:38.000000000 -0400
++++ linux-2.6.32.16-new/fs/fcntl.c	2010-07-10 08:04:59.000000000 -0400
+@@ -223,6 +223,11 @@
+ 	if (err)
+ 		return err;
+ 
++	if (gr_handle_chroot_fowner(pid, type))
++		return -ENOENT;
++	if (gr_check_protected_task_fowner(pid, type))
++		return -EACCES;
++
+ 	f_modown(filp, pid, type, force);
+ 	return 0;
+ }
+@@ -501,8 +506,7 @@
+ 	ret = ((fown->euid == 0 ||
+ 		fown->euid == cred->suid || fown->euid == cred->uid ||
+ 		fown->uid  == cred->suid || fown->uid  == cred->uid) &&
+-	       !security_file_send_sigiotask(p, fown, sig) &&
+-	       !gr_check_protected_task(p) && !gr_pid_is_chrooted(p));
++	       !security_file_send_sigiotask(p, fown, sig));
+ 	rcu_read_unlock();
+ 	return ret;
+ }
+diff -u linux-2.6.32.16/grsecurity/gracl.c linux-2.6.32.16-new/grsecurity/gracl.c
+--- linux-2.6.32.16/grsecurity/gracl.c	2010-07-09 14:50:38.000000000 -0400
++++ linux-2.6.32.16-new/grsecurity/gracl.c	2010-07-10 08:10:31.000000000 -0400
+@@ -2114,6 +2114,29 @@
+ 	return 0;
+ }
+ 
++int
++gr_check_protected_task_fowner(struct pid *pid, enum pid_type type)
++{
++	struct task_struct *p;
++	int ret = 0;
++
++	if (unlikely(!(gr_status & GR_READY) || !pid))
++		return ret;
++
++	read_lock(&tasklist_lock);
++	do_each_pid_task(pid, type, p) {
++		if ((p->acl->mode & GR_PROTECTED) && !(current->acl->mode & GR_KILL) &&
++		    p->acl != current->acl) {
++			ret = 1;
++			goto out;
++		}
++	} while_each_pid_task(pid, type, p);
++out:
++	read_unlock(&tasklist_lock);
++
++	return ret;
++}
++
+ void
+ gr_copy_label(struct task_struct *tsk)
+ {
+diff -u linux-2.6.32.16/grsecurity/grsec_chroot.c linux-2.6.32.16-new/grsecurity/grsec_chroot.c
+--- linux-2.6.32.16/grsecurity/grsec_chroot.c	2010-07-09 14:50:38.000000000 -0400
++++ linux-2.6.32.16-new/grsecurity/grsec_chroot.c	2010-07-10 08:10:14.000000000 -0400
+@@ -101,6 +101,29 @@
+ }
+ 
+ int
++gr_handle_chroot_fowner(struct pid *pid, enum pid_type type)
++{
++#ifdef CONFIG_GRKERNSEC_CHROOT_FINDTASK
++	struct task_struct *p;
++	int ret = 0;
++	if (!grsec_enable_chroot_findtask || !proc_is_chrooted(current) || !pid)
++		return ret;
++
++	read_lock(&tasklist_lock);
++	do_each_pid_task(pid, type, p) {
++		if (!have_same_root(current, p)) {
++			ret = 1;
++			goto out;
++		}
++	} while_each_pid_task(pid, type, p);
++out:
++	read_unlock(&tasklist_lock);
++	return ret;
++#endif
++	return 0;
++}
++
++int
+ gr_pid_is_chrooted(struct task_struct *p)
+ {
+ #ifdef CONFIG_GRKERNSEC_CHROOT_FINDTASK
+diff -u linux-2.6.32.16/grsecurity/grsec_disabled.c linux-2.6.32.16-new/grsecurity/grsec_disabled.c
+--- linux-2.6.32.16/grsecurity/grsec_disabled.c	2010-07-09 14:50:38.000000000 -0400
++++ linux-2.6.32.16-new/grsecurity/grsec_disabled.c	2010-07-10 07:45:05.000000000 -0400
+@@ -88,6 +88,12 @@
+ 	return 0;
+ }
+ 
++int
++gr_check_protected_task_fowner(struct pid *pid, enum pid_type type)
++{
++	return 0;
++}
++
+ void
+ gr_copy_label(struct task_struct *tsk)
+ {
+diff -u linux-2.6.32.16/include/linux/grsecurity.h linux-2.6.32.16-new/include/linux/grsecurity.h
+--- linux-2.6.32.16/include/linux/grsecurity.h	2010-07-09 14:50:38.000000000 -0400
++++ linux-2.6.32.16-new/include/linux/grsecurity.h	2010-07-10 07:56:56.000000000 -0400
+@@ -33,6 +33,7 @@
+ void gr_del_task_from_ip_table(struct task_struct *p);
+ 
+ int gr_pid_is_chrooted(struct task_struct *p);
++int gr_handle_chroot_fowner(struct pid *pid, enum pid_type type);
+ int gr_handle_chroot_nice(void);
+ int gr_handle_chroot_sysctl(const int op);
+ int gr_handle_chroot_setpriority(struct task_struct *p,
+@@ -98,6 +99,7 @@
+ int gr_handle_signal(const struct task_struct *p, const int sig);
+ int gr_check_crash_uid(const uid_t uid);
+ int gr_check_protected_task(const struct task_struct *task);
++int gr_check_protected_task_fowner(struct pid *pid, enum pid_type type);
+ int gr_acl_handle_mmap(const struct file *file,
+ 			      const unsigned long prot);
+ int gr_acl_handle_mprotect(const struct file *file,

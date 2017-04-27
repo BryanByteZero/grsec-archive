@@ -1,0 +1,29 @@
+dfadd9edff498d767008edc6b2a6e86a7a19934d is first bad commit
+commit dfadd9edff498d767008edc6b2a6e86a7a19934d
+Author: Yinghai Lu <yinghai@kernel.org>
+Date:   Sun Mar 8 21:35:37 2009 -0700
+
+    PCI/x86: detect host bridge config space size w/o using quirks
+    
+    Many host bridges support a 4k config space, so check them directy
+    instead of using quirks to add them.
+    
+    We only need to do this extra check for host bridges at this point,
+    because only host bridges are known to have extended address space
+    without also having a PCI-X/PCI-E caps.  Other devices with this
+    property could be done with quirks (if there are any).
+    
+    As a bonus, we can remove the quirks for AMD host bridges with family
+    10h and 11h since they're not needed any more.
+    
+    With this patch, we can get correct pci cfg size of new Intel CPUs/IOHs
+    with host bridges.
+    
+    Signed-off-by: Yinghai Lu <yinghai@kernel.org>
+    Acked-by: H. Peter Anvin <hpa@zytor.com>
+    Reviewed-by: Matthew Wilcox <willy@linux.intel.com>
+    Cc: <stable@kernel.org>
+    Signed-off-by: Jesse Barnes <jbarnes@virtuousgeek.org>
+
+:040000 040000 23ab896766c8d0508835c11b00a6b733eba931e7 63891fbba74896d3b02b5e067246ca1a0afa5387 M	arch
+:040000 040000 36a37c545b6f5329765fd8b97f819916263d7c6b a770496bda0b6b17d7f1f6609ad07e138defa9c1 M	drivers

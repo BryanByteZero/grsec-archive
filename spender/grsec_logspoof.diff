@@ -1,0 +1,260 @@
+diff --git a/fs/exec.c b/fs/exec.c
+index 49e9bc9..12ca5b0 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1677,6 +1677,7 @@ static int do_execve_common(struct filename *filename,
+ 	if (old_exec_file)
+ 		fput(old_exec_file);
+ #endif
++	gr_set_log_flag();
+ 
+ 	/* execve succeeded */
+ 
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index 27cec32..d28d4b8 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -800,6 +800,33 @@ config GRKERNSEC_DMESG
+ 	  If the sysctl option is enabled, a sysctl option with name "dmesg" is
+ 	  created.
+ 
++config GRKERNSEC_LOGSPOOF
++	bool "Prevent log spoofing"
++	default y if GRKERNSEC_CONFIG_AUTO
++	help
++	  If you say Y here, common methods of spoofing syslog log messages
++	  will be prevented.  This is of particular importance in shared
++	  webhosting environments, where an attacker could fool tools like
++	  Fail2Ban into banning connections from innocent systems.
++	  Only the following processes will be able to log to syslog:
++	  1) Processes with real uid of 0 in the current namespace
++	  2) Processes started as root that changed credentials at runtime
++	  3) Processes with non-empty effective capabilities
++	  4) Processes started with CONFIG_GRKERNSEC_LOGSPOOF_GID
++	  5) Any forked processes of 1-4 above
++
++          If the sysctl option is enabled, a sysctl option with name
++	  "prevent_logspoof" is created.
++
++config GRKERNSEC_LOGSPOOF_GID
++	int "GID for additional allowed loggers"
++	default 1008
++	depends on GRKERNSEC_LOGSPOOF
++	help
++	  Setting this GID determines what additional group is allowed to
++	  log via syslog.  If the sysctl option is enabled, a sysctl option
++	  with name "logspoof_log_gid" is created.
++
+ config GRKERNSEC_HARDEN_PTRACE
+ 	bool "Deter ptrace-based process snooping"
+ 	default y if GRKERNSEC_CONFIG_AUTO
+diff --git a/grsecurity/grsec_disabled.c b/grsecurity/grsec_disabled.c
+index 2d3bcb7..9618879 100644
+--- a/grsecurity/grsec_disabled.c
++++ b/grsecurity/grsec_disabled.c
+@@ -434,6 +434,19 @@ void gr_put_exec_file(struct task_struct *task)
+ 	return;
+ }
+ 
++void gr_set_log_flag(void)
++{
++	return;
++}
++
++int gr_handle_logspoof(struct dentry *dentry, struct vfsmount *mnt)
++{
++	return 1;
++}
++#ifdef CONFIG_UNIX_MODULE
++EXPORT_SYMBOL_GPL(gr_handle_logspoof);
++#endif
++
+ #ifdef CONFIG_SECURITY
+ EXPORT_SYMBOL_GPL(gr_check_user_change);
+ EXPORT_SYMBOL_GPL(gr_check_group_change);
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index b7cb191..7a9d5dc 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -60,6 +60,8 @@ kgid_t grsec_socket_server_gid;
+ int grsec_resource_logging;
+ int grsec_disable_privio;
+ int grsec_enable_log_rwxmaps;
++int grsec_enable_logspoof;
++kgid_t grsec_logspoof_gid;
+ int grsec_lock;
+ 
+ DEFINE_SPINLOCK(grsec_alert_lock);
+@@ -156,6 +158,10 @@ grsecurity_init(void)
+ #ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
+ 	grsec_enable_log_rwxmaps = 1;
+ #endif
++#ifdef CONFIG_GRKERNSEC_LOGSPOOF
++	grsec_enable_logspoof = 1;
++	grsec_logspoof_gid = KGIDT_INIT(CONFIG_GRKERNSEC_LOGSPOOF_GID);
++#endif
+ #ifdef CONFIG_GRKERNSEC_AUDIT_GROUP
+ 	grsec_enable_group = 1;
+ 	grsec_audit_gid = KGIDT_INIT(CONFIG_GRKERNSEC_AUDIT_GID);
+diff --git a/grsecurity/grsec_log.c b/grsecurity/grsec_log.c
+index dbe0a6b..5f990e7 100644
+--- a/grsecurity/grsec_log.c
++++ b/grsecurity/grsec_log.c
+@@ -339,3 +339,45 @@ void gr_log_varargs(int audit, const char *msg, int argtypes, ...)
+ 		gr_log_end(audit, 1);
+ 	END_LOCKS(audit);
+ }
++
++void gr_set_log_flag(void)
++{
++#ifdef CONFIG_GRKERNSEC_LOGSPOOF
++	/* if is "root" for the current user namespace, needs
++	   to be redone if we ever allow unprivileged user namespaces */
++	if (!from_kuid_munged(current_user_ns(), current_uid()) ||
++	    !cap_isclear(current_cap()) || in_group_p(grsec_logspoof_gid))
++		current->gr_can_log = 1;
++	else
++		current->gr_can_log = 0;
++#endif
++}
++
++int gr_handle_logspoof(struct dentry *dentry, struct vfsmount *mnt)
++{
++#ifdef CONFIG_GRKERNSEC_LOGSPOOF
++	int can_log = 1;
++	char *path;
++
++	if (!grsec_enable_logspoof)
++		goto out;
++
++	preempt_disable();
++	path = gr_to_filename(dentry, mnt);
++	if (!strcmp(path, "/dev/log") && !current->gr_can_log)
++		can_log = 0;
++	preempt_enable();
++
++	if (!can_log)
++		gr_log_noargs(GR_DONT_AUDIT, GR_LOGSPOOF_MSG);
++
++out:
++	return can_log;
++#else
++	return 1;
++#endif
++}
++#ifdef CONFIG_UNIX_MODULE
++EXPORT_SYMBOL_GPL(gr_handle_logspoof);
++#endif
++
+diff --git a/grsecurity/grsec_sysctl.c b/grsecurity/grsec_sysctl.c
+index 8159888..79b9bf9 100644
+--- a/grsecurity/grsec_sysctl.c
++++ b/grsecurity/grsec_sysctl.c
+@@ -276,6 +276,22 @@ struct ctl_table grsecurity_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
++#ifdef CONFIG_GRKERNSEC_LOGSPOOF
++	{
++		.procname	= "prevent_logspoof",
++		.data		= &grsec_enable_logspoof,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= &proc_dointvec,
++	},
++	{
++		.procname	= "logspoof_log_gid",
++		.data		= &grsec_logspoof_gid,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= &proc_dointvec,
++	},
++#endif
+ #ifdef CONFIG_GRKERNSEC_TPE
+ 	{
+ 		.procname	= "tpe",
+diff --git a/include/linux/grinternal.h b/include/linux/grinternal.h
+index d25522e..d2b0b63 100644
+--- a/include/linux/grinternal.h
++++ b/include/linux/grinternal.h
+@@ -81,6 +81,8 @@ extern int grsec_enable_blackhole;
+ extern int grsec_lastack_retries;
+ extern int grsec_enable_brute;
+ extern int grsec_enable_harden_ipc;
++extern int grsec_enable_logspoof;
++extern kgid_t grsec_logspoof_gid;
+ extern int grsec_lock;
+ 
+ extern spinlock_t grsec_alert_lock;
+diff --git a/include/linux/grmsg.h b/include/linux/grmsg.h
+index b02ba9d..8b41061 100644
+--- a/include/linux/grmsg.h
++++ b/include/linux/grmsg.h
+@@ -115,3 +115,4 @@
+ #define GR_BRUTE_SUID_MSG "bruteforce prevention initiated due to crash of %.950s against uid %u, banning suid/sgid execs for %u minutes.  Please investigate the crash report for "
+ #define GR_IPC_DENIED_MSG "denied %s of overly-permissive IPC object with creator uid %u by "
+ #define GR_MSRWRITE_MSG "denied write to CPU MSR by "
++#define GR_LOGSPOOF_MSG "denied logging to /dev/log by "
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index 10b9635..8a5442e 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -209,6 +209,9 @@ void gr_put_exec_file(struct task_struct *task);
+ 
+ int gr_ptrace_readexec(struct file *file, int unsafe_flags);
+ 
++int gr_handle_logspoof(struct dentry *dentry, struct vfsmount *mnt);
++void gr_set_log_flag(void);
++
+ #if defined(CONFIG_GRKERNSEC) && (defined(CONFIG_GRKERNSEC_RESLOG) || !defined(CONFIG_GRKERNSEC_NO_RBAC))
+ extern void gr_learn_resource(const struct task_struct *task, const int res,
+ 			      const unsigned long wanted, const int gt);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 82054c2..a16297c 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1720,8 +1720,10 @@ struct task_struct {
+ 	u8 is_writable;
+ 	u8 brute;
+ 	u8 gr_is_chrooted;
++#ifdef CONFIG_GRKERNSEC_LOGSPOOF
++	u8 gr_can_log;
++#endif
+ #endif
+-
+ } __randomize_layout;
+ 
+ #define MF_PAX_PAGEEXEC		0x01000000	/* Paging based non-executable pages */
+diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
+index bc95776..1ca068e 100644
+--- a/net/unix/af_unix.c
++++ b/net/unix/af_unix.c
+@@ -792,6 +792,10 @@ static struct sock *unix_find_other(struct net *net,
+ 		if (!S_ISSOCK(inode->i_mode))
+ 			goto put_fail;
+ 
++		if (!gr_handle_logspoof(path.dentry, path.mnt)) {
++			err = -EACCES;
++			goto put_fail;
++		}
+ 		if (!gr_acl_handle_unix(path.dentry, path.mnt)) {
+ 			err = -EACCES;
+ 			goto put_fail;
+diff --git a/security/Kconfig b/security/Kconfig
+index 40b1edb..6b27e0e 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -234,6 +234,13 @@ config GRKERNSEC_SYMLINKOWN_GID
+           SymlinksIfOwnerMatch will be enabled for.  If the sysctl option
+           is enabled, a sysctl option with name "symlinkown_gid" is created.
+ 
++config GRKERNSEC_LOGSPOOF_GID
++	int "GID for additional allowed loggers"
++	default 1008
++	help
++	  Setting this GID determines what additional group is allowed to
++	  log via syslog.  If the sysctl option is enabled, a sysctl option
++	  with name "logspoof_log_gid" is created.
+ 
+ endmenu
+ 

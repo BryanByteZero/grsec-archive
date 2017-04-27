@@ -1,0 +1,80 @@
+diff --git a/fs/stat.c b/fs/stat.c
+index eae4946..17b4c2b 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -28,8 +28,13 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
+ 	stat->gid = inode->i_gid;
+ 	stat->rdev = inode->i_rdev;
+ 	stat->size = i_size_read(inode);
+-	stat->atime = inode->i_atime;
+-	stat->mtime = inode->i_mtime;
++	if (is_sidechannel_device(inode) && !capable_nolog(CAP_MKNOD)) {
++		stat->atime = inode->i_ctime;
++		stat->mtime = inode->i_ctime;
++	} else
++		stat->atime = inode->i_atime;
++		stat->mtime = inode->i_mtime;
++	}
+ 	stat->ctime = inode->i_ctime;
+ 	stat->blksize = (1 << inode->i_blkbits);
+ 	stat->blocks = inode->i_blocks;
+@@ -46,8 +51,14 @@ int vfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+ 	if (retval)
+ 		return retval;
+ 
+-	if (inode->i_op->getattr)
+-		return inode->i_op->getattr(mnt, dentry, stat);
++	if (inode->i_op->getattr) {
++		retval = inode->i_op->getattr(mnt, dentry, stat);
++		if (!retval && is_sidechannel_device(inode) && !capable_nolog(CAP_MKNOD)) {
++			stat->atime = stat->ctime;
++			stat->mtime = stat->ctime;
++		}
++		return retval;
++	}
+ 
+ 	generic_fillattr(inode, stat);
+ 	return 0;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 72a4a6b..8417cac 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2668,4 +2668,14 @@ static inline void inode_has_no_xattr(struct inode *inode)
+ 		inode->i_flags |= S_NOSEC;
+ }
+ 
++static inline bool is_sidechannel_device(const struct inode *inode)
++{
++#ifdef CONFIG_GRKERNSEC_DEVICE_SIDECHANNEL
++	umode_t mode = inode->i_mode;
++	return ((S_ISCHR(mode) || S_ISBLK(mode)) && (mode & (S_IROTH | S_IWOTH)));
++#else
++	return false;
++#endif
++}
++
+ #endif /* _LINUX_FS_H */
+diff --git a/include/linux/fsnotify.h b/include/linux/fsnotify.h
+index 52a6556..508eb0d 100644
+--- a/include/linux/fsnotify.h
++++ b/include/linux/fsnotify.h
+@@ -195,6 +195,9 @@ static inline void fsnotify_access(struct file *file)
+ 	struct inode *inode = path->dentry->d_inode;
+ 	__u32 mask = FS_ACCESS;
+ 
++	if (is_sidechannel_device(inode))
++		return;
++
+ 	if (S_ISDIR(inode->i_mode))
+ 		mask |= FS_ISDIR;
+ 
+@@ -213,6 +216,9 @@ static inline void fsnotify_modify(struct file *file)
+ 	struct inode *inode = path->dentry->d_inode;
+ 	__u32 mask = FS_MODIFY;
+ 
++	if (is_sidechannel_device(inode))
++		return;
++
+ 	if (S_ISDIR(inode->i_mode))
+ 		mask |= FS_ISDIR;
+ 

@@ -1,0 +1,106 @@
+diff -u linux-2.6.30.4/arch/x86/xen/enlighten.c linux-2.6.30.4/arch/x86/xen/enlighten.c
+--- linux-2.6.30.4/arch/x86/xen/enlighten.c	2009-07-30 09:48:09.980662517 -0400
++++ linux-2.6.30.4/arch/x86/xen/enlighten.c	2009-08-02 09:44:58.948757274 -0400
+@@ -967,7 +967,7 @@
+ 	 * percpu gdt_page is to remember it here, so we can go and
+ 	 * mark it RW later, when the initial percpu area is freed.
+ 	 */
+-	xen_initial_gdt = &per_cpu(gdt_page, 0);
++	xen_initial_gdt = cpu_gdt_table[0];
+ 
+ 	xen_smp_init();
+ 
+diff -u linux-2.6.30.4/grsecurity/grsec_init.c linux-2.6.30.4/grsecurity/grsec_init.c
+--- linux-2.6.30.4/grsecurity/grsec_init.c	2009-07-30 12:01:03.627768838 -0400
++++ linux-2.6.30.4/grsecurity/grsec_init.c	2009-08-02 09:38:20.116597572 -0400
+@@ -77,7 +77,7 @@
+ #endif
+ 
+ 	for (j = 0; j < 4; j++) {
+-		gr_shared_page[j] = (char *)__alloc_percpu(PAGE_SIZE, 0);
++		gr_shared_page[j] = (char *)__alloc_percpu(PAGE_SIZE, __alignof__(unsigned long long));
+ 		if (gr_shared_page[j] == NULL) {
+ 			panic("Unable to allocate grsecurity shared page");
+ 			return;
+only in patch2:
+unchanged:
+--- linux-2.6.30.4/arch/x86/lguest/Kconfig	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.4/arch/x86/lguest/Kconfig	2009-08-02 09:47:36.165378342 -0400
+@@ -3,6 +3,7 @@ config LGUEST_GUEST
+ 	select PARAVIRT
+ 	depends on X86_32
+ 	depends on !X86_PAE
++	depends on !PAX_KERNEXEC
+ 	select VIRTIO
+ 	select VIRTIO_RING
+ 	select VIRTIO_CONSOLE
+only in patch2:
+unchanged:
+--- linux-2.6.30.4/arch/x86/xen/Kconfig	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.4/arch/x86/xen/Kconfig	2009-08-02 09:47:15.079210101 -0400
+@@ -8,6 +8,7 @@ config XEN
+ 	select PARAVIRT_CLOCK
+ 	depends on X86_64 || (X86_32 && X86_PAE && !X86_VISWS)
+ 	depends on X86_CMPXCHG && X86_TSC
++	depends on !PAX_KERNEXEC
+ 	help
+ 	  This is the Linux Xen port.  Enabling this will allow the
+ 	  kernel to boot in a paravirtualized environment under the
+only in patch2:
+unchanged:
+--- linux-2.6.30.4/mm/highmem.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.4/mm/highmem.c	2009-08-02 11:24:41.617453261 -0400
+@@ -95,6 +95,9 @@ static void flush_all_zero_pkmaps(void)
+ 
+ 	for (i = 0; i < LAST_PKMAP; i++) {
+ 		struct page *page;
++#ifdef CONFIG_PAX_KERNEXEC
++		unsigned long cr0;
++#endif
+ 
+ 		/*
+ 		 * zero means we don't have anything to do,
+@@ -117,9 +120,18 @@ static void flush_all_zero_pkmaps(void)
+ 		 * So no dangers, even with speculative execution.
+ 		 */
+ 		page = pte_page(pkmap_page_table[i]);
++
++#ifdef CONFIG_PAX_KERNEXEC
++		pax_open_kernel(cr0);
++#endif
++
+ 		pte_clear(&init_mm, (unsigned long)page_address(page),
+ 			  &pkmap_page_table[i]);
+ 
++#ifdef CONFIG_PAX_KERNEXEC
++		pax_close_kernel(cr0);
++#endif
++
+ 		set_page_address(page, NULL);
+ 		need_flush = 1;
+ 	}
+@@ -141,6 +153,9 @@ static inline unsigned long map_new_virt
+ {
+ 	unsigned long vaddr;
+ 	int count;
++#ifdef CONFIG_PAX_KERNEXEC
++	unsigned long cr0;
++#endif
+ 
+ start:
+ 	count = LAST_PKMAP;
+@@ -178,8 +193,14 @@ start:
+ 		}
+ 	}
+ 	vaddr = PKMAP_ADDR(last_pkmap_nr);
++#ifdef CONFIG_PAX_KERNEXEC
++	pax_open_kernel(cr0);
++#endif
+ 	set_pte_at(&init_mm, vaddr,
+ 		   &(pkmap_page_table[last_pkmap_nr]), mk_pte(page, kmap_prot));
++#ifdef CONFIG_PAX_KERNEXEC
++	pax_close_kernel(cr0);
++#endif
+ 
+ 	pkmap_count[last_pkmap_nr] = 1;
+ 	set_page_address(page, (void *)vaddr);

@@ -1,0 +1,77 @@
+diff -u linux-2.6.32.8/arch/x86/mm/fault.c linux-2.6.32.8/arch/x86/mm/fault.c
+--- linux-2.6.32.8/arch/x86/mm/fault.c	2010-01-25 17:39:40.326401486 -0500
++++ linux-2.6.32.8/arch/x86/mm/fault.c	2010-02-10 11:52:17.689241922 -0500
+@@ -1508,7 +1508,7 @@
+ 	printk("\n");
+ 
+ 	printk(KERN_ERR "PAX: bytes at SP-%lu: ", (unsigned long)sizeof(long));
+-	for (i = -1; i < 80 / sizeof(long); i++) {
++	for (i = -1; i < 80 / (long)sizeof(long); i++) {
+ 		unsigned long c;
+ 		if (get_user(c, (__force unsigned long __user *)sp+i))
+ #ifdef CONFIG_X86_32
+diff -u linux-2.6.32.8/security/Kconfig linux-2.6.32.8/security/Kconfig
+--- linux-2.6.32.8/security/Kconfig	2010-01-25 20:02:43.052267501 -0500
++++ linux-2.6.32.8/security/Kconfig	2010-02-10 11:52:20.518387265 -0500
+@@ -98,7 +98,7 @@
+ 
+ config PAX_NOEXEC
+ 	bool "Enforce non-executable pages"
+-	depends on (PAX_EI_PAX || PAX_PT_PAX_FLAGS || PAX_HAVE_ACL_FLAGS || PAX_HOOK_ACL_FLAGS) && (ALPHA || IA64 || MIPS32 || MIPS64 || PARISC || PPC32 || PPC64 || SPARC32 || SPARC64 || X86)
++	depends on (PAX_EI_PAX || PAX_PT_PAX_FLAGS || PAX_HAVE_ACL_FLAGS || PAX_HOOK_ACL_FLAGS) && (ALPHA || IA64 || MIPS32 || MIPS64 || PARISC || PPC32 || PPC64 || SPARC32 || SPARC64 || X86 || (ARM && (CPU_V6 || CPU_V7)))
+ 	help
+ 	  By design some architectures do not allow for protecting memory
+ 	  pages against execution or even if they do, Linux does not make
+only in patch2:
+unchanged:
+--- linux-2.6.32.8/arch/arm/mm/fault.c	2010-02-09 07:57:19.000000000 -0500
++++ linux-2.6.32.8/arch/arm/mm/fault.c	2010-02-10 12:19:14.385136510 -0500
+@@ -337,6 +337,14 @@ do_page_fault(unsigned long addr, unsign
+ 		 * Something tried to access memory that
+ 		 * isn't in our memory map..
+ 		 */
++
++#ifdef CONFIG_PAX_PAGEEXEC
++		if (fsr & FSR_LNX_PF) {
++			pax_report_fault(regs, (void *)regs->ARM_pc, (void *)regs->ARM_sp);
++			do_group_exit(SIGKILL);
++		}
++#endif
++
+ 		sig = SIGSEGV;
+ 		code = fault == VM_FAULT_BADACCESS ?
+ 			SEGV_ACCERR : SEGV_MAPERR;
+@@ -357,6 +365,33 @@ do_page_fault(unsigned long addr, unsign
+ }
+ #endif					/* CONFIG_MMU */
+ 
++#ifdef CONFIG_PAX_PAGEEXEC
++void pax_report_insns(void *pc, void *sp)
++{
++	long i;
++
++	printk(KERN_ERR "PAX: bytes at PC: ");
++	for (i = 0; i < 20; i++) {
++		unsigned char c;
++		if (get_user(c, (__force unsigned char __user *)pc+i))
++			printk(KERN_CONT "?? ");
++		else
++			printk(KERN_CONT "%02x ", c);
++	}
++	printk("\n");
++
++	printk(KERN_ERR "PAX: bytes at SP-%lu: ", (unsigned long)sizeof(long));
++	for (i = -1; i < 80 / (long)sizeof(long); i++) {
++		unsigned long c;
++		if (get_user(c, (__force unsigned long __user *)sp+i))
++			printk(KERN_CONT "???????? ");
++		else
++			printk(KERN_CONT "%0*lx ", 2 * (int)sizeof(long), c);
++	}
++	printk("\n");
++}
++#endif
++
+ /*
+  * First Level Translation Fault Handler
+  *

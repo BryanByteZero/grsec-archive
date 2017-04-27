@@ -1,0 +1,15 @@
+diff --git a/arch/x86/kernel/entry_64.S b/arch/x86/kernel/entry_64.S
+index e7d04cc..a9ea2e4 100644
+--- a/arch/x86/kernel/entry_64.S
++++ b/arch/x86/kernel/entry_64.S
+@@ -2342,6 +2342,10 @@ ENTRY(nmi)
+ 	movq	RBX(%rsp), %rbx
+ #endif
+ 
++#ifdef CONFIG_PAX_KERNEXEC_PLUGIN_METHOD_OR
++	movq R12(%rsp), %r12
++#endif
++
+ 	addq	$6*8, %rsp	/* skip bx, bp, and r12-r15 */
+ 	popq	%r11		/* pt_regs->r11 */
+ 	popq	%r10		/* pt_regs->r10 */

@@ -1,0 +1,631 @@
+Index: llvm.svn/Makefile
+===================================================================
+--- llvm.svn/Makefile	(revision 176776)
++++ llvm.svn/Makefile	(working copy)
+@@ -253,7 +253,7 @@ AWK = awk
+ # a given path. svnup() requires one argument: the root to search from.
+ define SUB_SVN_DIRS
+ svnup() {
+-  dirs=`svn status --no-ignore $$1 | awk '/I|\?      / {print $$2}' | LC_ALL=C xargs svn info 2>/dev/null | awk '/^Path:\ / {print $$2}'`;
++  dirs=`svn status --no-ignore $$1 | awk '/^I|\?      / {print $$2}' | LC_ALL=C xargs svn info 2>/dev/null | awk '/^Path:\ / {print $$2}'`;
+   if [ "$$dirs" = "" ]; then
+     return;
+   fi;
+Index: llvm.svn/include/llvm/MC/MCParser/MCAsmLexer.h
+===================================================================
+--- llvm.svn/include/llvm/MC/MCParser/MCAsmLexer.h	(revision 176776)
++++ llvm.svn/include/llvm/MC/MCParser/MCAsmLexer.h	(working copy)
+@@ -10,6 +10,7 @@
+ #ifndef LLVM_MC_MCPARSER_MCASMLEXER_H
+ #define LLVM_MC_MCPARSER_MCASMLEXER_H
+ 
++#include "llvm/ADT/APInt.h"
+ #include "llvm/ADT/StringRef.h"
+ #include "llvm/Support/Compiler.h"
+ #include "llvm/Support/DataTypes.h"
+@@ -57,12 +58,14 @@ class AsmToken {
+   /// a memory buffer owned by the source manager.
+   StringRef Str;
+ 
+-  int64_t IntVal;
++  APInt IntVal;
+ 
+ public:
+   AsmToken() {}
++  AsmToken(TokenKind _Kind, StringRef _Str, APInt _IntVal)
++    : Kind(_Kind), Str(_Str), IntVal(_IntVal) {}
+   AsmToken(TokenKind _Kind, StringRef _Str, int64_t _IntVal = 0)
+-    : Kind(_Kind), Str(_Str), IntVal(_IntVal) {}
++    : Kind(_Kind), Str(_Str), IntVal(64, _IntVal, true) {}
+ 
+   TokenKind getKind() const { return Kind; }
+   bool is(TokenKind K) const { return Kind == K; }
+@@ -99,6 +102,11 @@ class AsmToken {
+   // as a single token, then diagnose as an invalid number).
+   int64_t getIntVal() const {
+     assert(Kind == Integer && "This token isn't an integer!");
++    return IntVal.getZExtValue();
++  }
++
++  APInt getAPIntVal() const {
++    assert(Kind == Integer && "This token isn't an integer!");
+     return IntVal;
+   }
+ };
+Index: llvm.svn/include/llvm/MC/MCStreamer.h
+===================================================================
+--- llvm.svn/include/llvm/MC/MCStreamer.h	(revision 176776)
++++ llvm.svn/include/llvm/MC/MCStreamer.h	(working copy)
+@@ -549,7 +549,7 @@ namespace llvm {
+ 
+     virtual void EmitCompactUnwindEncoding(uint32_t CompactUnwindEncoding);
+     virtual void EmitCFISections(bool EH, bool Debug);
+-    void EmitCFIStartProc();
++    void EmitCFIStartProc(bool Simple);
+     void EmitCFIEndProc();
+     virtual void EmitCFIDefCfa(int64_t Register, int64_t Offset);
+     virtual void EmitCFIDefCfaOffset(int64_t Offset);
+Index: llvm.svn/lib/CodeGen/AsmPrinter/DwarfCFIException.cpp
+===================================================================
+--- llvm.svn/lib/CodeGen/AsmPrinter/DwarfCFIException.cpp	(revision 176776)
++++ llvm.svn/lib/CodeGen/AsmPrinter/DwarfCFIException.cpp	(working copy)
+@@ -113,7 +113,7 @@ void DwarfCFIException::BeginFunction(const Machin
+   if (!shouldEmitPersonality && !shouldEmitMoves)
+     return;
+ 
+-  Asm->OutStreamer.EmitCFIStartProc();
++  Asm->OutStreamer.EmitCFIStartProc(false);
+ 
+   // Indicate personality routine, if any.
+   if (!shouldEmitPersonality)
+Index: llvm.svn/lib/MC/MCParser/AsmLexer.cpp
+===================================================================
+--- llvm.svn/lib/MC/MCParser/AsmLexer.cpp	(revision 176776)
++++ llvm.svn/lib/MC/MCParser/AsmLexer.cpp	(working copy)
+@@ -269,7 +269,7 @@ AsmToken AsmLexer::LexDigit() {
+     if (CurPtr == NumStart)
+       return ReturnError(CurPtr-2, "invalid hexadecimal number");
+ 
+-    unsigned long long Result;
++    APInt Result(128, 0);
+     if (StringRef(TokStart, CurPtr - TokStart).getAsInteger(0, Result))
+       return ReturnError(TokStart, "invalid hexadecimal number");
+ 
+@@ -282,7 +282,7 @@ AsmToken AsmLexer::LexDigit() {
+     SkipIgnoredIntegerSuffix(CurPtr);
+ 
+     return AsmToken(AsmToken::Integer, StringRef(TokStart, CurPtr - TokStart),
+-                    (int64_t)Result);
++                    Result);
+   }
+ 
+   // Either octal or hexadecimal.
+Index: llvm.svn/lib/MC/MCParser/AsmParser.cpp
+===================================================================
+--- llvm.svn/lib/MC/MCParser/AsmParser.cpp	(revision 176776)
++++ llvm.svn/lib/MC/MCParser/AsmParser.cpp	(working copy)
+@@ -327,8 +327,8 @@ class AsmParser : public MCAsmParser {
+   enum DirectiveKind {
+     DK_NO_DIRECTIVE, // Placeholder
+     DK_SET, DK_EQU, DK_EQUIV, DK_ASCII, DK_ASCIZ, DK_STRING, DK_BYTE, DK_SHORT,
+-    DK_VALUE, DK_2BYTE, DK_LONG, DK_INT, DK_4BYTE, DK_QUAD, DK_8BYTE, DK_SINGLE,
+-    DK_FLOAT, DK_DOUBLE, DK_ALIGN, DK_ALIGN32, DK_BALIGN, DK_BALIGNW,
++    DK_VALUE, DK_2BYTE, DK_LONG, DK_INT, DK_4BYTE, DK_QUAD, DK_8BYTE, DK_OCTA,
++    DK_SINGLE, DK_FLOAT, DK_DOUBLE, DK_ALIGN, DK_ALIGN32, DK_BALIGN, DK_BALIGNW,
+     DK_BALIGNL, DK_P2ALIGN, DK_P2ALIGNW, DK_P2ALIGNL, DK_ORG, DK_FILL, DK_ENDR,
+     DK_BUNDLE_ALIGN_MODE, DK_BUNDLE_LOCK, DK_BUNDLE_UNLOCK,
+     DK_ZERO, DK_EXTERN, DK_GLOBL, DK_GLOBAL, DK_INDIRECT_SYMBOL,
+@@ -356,6 +356,7 @@ class AsmParser : public MCAsmParser {
+   // ".ascii", ".asciz", ".string"
+   bool ParseDirectiveAscii(StringRef IDVal, bool ZeroTerminated);
+   bool ParseDirectiveValue(unsigned Size); // ".byte", ".long", ...
++  bool ParseDirectiveOctaValue(); // ".octa"
+   bool ParseDirectiveRealValue(const fltSemantics &); // ".single", ...
+   bool ParseDirectiveFill(); // ".fill"
+   bool ParseDirectiveZero(); // ".zero"
+@@ -436,7 +437,7 @@ class AsmParser : public MCAsmParser {
+                                     MCSymbolRefExpr::VariantKind Variant);
+ 
+   // Macro-like directives
+-  MCAsmMacro *ParseMacroLikeBody(SMLoc DirectiveLoc);
++  MCAsmMacro *ParseMacroLikeBody(SMLoc DirectiveLoc, MCAsmMacroParameters &Parameters);
+   void InstantiateMacroLikeBody(MCAsmMacro *M, SMLoc DirectiveLoc,
+                                 raw_svector_ostream &OS);
+   bool ParseDirectiveRept(SMLoc DirectiveLoc); // ".rept"
+@@ -1300,6 +1301,8 @@ bool AsmParser::ParseStatement(ParseStatementInfo
+       case DK_QUAD:
+       case DK_8BYTE:
+         return ParseDirectiveValue(8);
++      case DK_OCTA:
++        return ParseDirectiveOctaValue();
+       case DK_SINGLE:
+       case DK_FLOAT:
+         return ParseDirectiveRealValue(APFloat::IEEEsingle);
+@@ -1650,7 +1653,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &O
+     std::size_t End = Body.size(), Pos = 0;
+     for (; Pos != End; ++Pos) {
+       // Check for a substitution or escape.
+-      if (!NParameters) {
++      if (IsDarwin && !NParameters) {
+         // This macro has no parameters, look for $0, $1, etc.
+         if (Body[Pos] != '$' || Pos + 1 == End)
+           continue;
+@@ -1659,7 +1662,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &O
+         if (Next == '$' || Next == 'n' ||
+             isdigit(static_cast<unsigned char>(Next)))
+           break;
+-      } else {
++      } else if (NParameters) {
+         // This macro has parameters, look for \foo, \bar, etc.
+         if (Body[Pos] == '\\' && Pos + 1 != End)
+           break;
+@@ -1673,7 +1676,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &O
+     if (Pos == End)
+       break;
+ 
+-    if (!NParameters) {
++    if (IsDarwin && !NParameters) {
+       switch (Body[Pos+1]) {
+         // $$ => $
+       case '$':
+@@ -1700,7 +1703,7 @@ bool AsmParser::expandMacro(raw_svector_ostream &O
+       }
+       }
+       Pos += 2;
+-    } else {
++    } else if (NParameters) {
+       unsigned I = Pos + 1;
+       while (isIdentifierChar(Body[I]) && I + 1 != End)
+         ++I;
+@@ -1833,6 +1836,9 @@ bool AsmParser::ParseMacroArgument(MCAsmMacroArgum
+     // to be able to fill in the remaining default parameter values
+     if (Lexer.is(AsmToken::EndOfStatement))
+       break;
++//    if (ParenLevel == 0 && !MA.empty() && !IsDarwin &&
++//        Lexer.getLoc().getPointer() - MA.back().getEndLoc().getPointer() != 1)
++//      break;
+ 
+     // Adjust the current parentheses level.
+     if (Lexer.is(AsmToken::LParen))
+@@ -1895,6 +1901,8 @@ bool AsmParser::ParseMacroArguments(const MCAsmMac
+     if (Lexer.is(AsmToken::Comma))
+       Lex();
+   }
++  if (Lexer.is(AsmToken::EndOfStatement))
++    return false;
+   return TokError("Too many arguments");
+ }
+ 
+@@ -2242,6 +2250,42 @@ bool AsmParser::ParseDirectiveValue(unsigned Size)
+   return false;
+ }
+ 
++/// ParseDirectiveOctaValue
++///  ::= .octa [ hexconstant (, hexconstant)* ]
++bool AsmParser::ParseDirectiveOctaValue() {
++  if (getLexer().isNot(AsmToken::EndOfStatement)) {
++    checkForValidSection();
++
++    for (;;) {
++      if (Lexer.getKind() != AsmToken::Integer)
++        return TokError("unknown token in expression");
++
++      APInt IntValue = getTok().getAPIntVal();
++      Lex();
++
++      assert(IntValue.isIntN(128) && "Invalid .octa constant");
++      if (MAI.isLittleEndian()) {
++        getStreamer().EmitIntValue(IntValue.getLoBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
++        getStreamer().EmitIntValue(IntValue.getHiBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
++      } else {
++        getStreamer().EmitIntValue(IntValue.getHiBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
++        getStreamer().EmitIntValue(IntValue.getLoBits(64).getZExtValue(), 8, DEFAULT_ADDRSPACE);
++      }
++
++      if (getLexer().is(AsmToken::EndOfStatement))
++        break;
++
++      // FIXME: Improve diagnostic.
++      if (getLexer().isNot(AsmToken::Comma))
++        return TokError("unexpected token in directive");
++      Lex();
++    }
++  }
++
++  Lex();
++  return false;
++}
++
+ /// ParseDirectiveRealValue
+ ///  ::= (.single | .double) [ expression (, expression)* ]
+ bool AsmParser::ParseDirectiveRealValue(const fltSemantics &Semantics) {
+@@ -2709,9 +2753,19 @@ bool AsmParser::ParseDirectiveCFISections() {
+ }
+ 
+ /// ParseDirectiveCFIStartProc
+-/// ::= .cfi_startproc
++/// ::= .cfi_startproc [simple]
+ bool AsmParser::ParseDirectiveCFIStartProc() {
+-  getStreamer().EmitCFIStartProc();
++  bool Simple = false;
++
++  if (getLexer().isNot(AsmToken::EndOfStatement)) {
++    if (getLexer().isNot(AsmToken::Identifier))
++      return TokError("Expected 'simple'");
++    if (getTok().getIdentifier() != "simple")
++      return TokError("Expected 'simple'");
++    Lex();
++    Simple = true;
++  }
++  getStreamer().EmitCFIStartProc(Simple);
+   return false;
+ }
+ 
+@@ -3034,21 +3088,30 @@ bool AsmParser::ParseDirectiveMacro(SMLoc Directiv
+   AsmToken EndToken, StartToken = getTok();
+ 
+   // Lex the macro definition.
++  unsigned NestLevel = 0;
+   for (;;) {
+     // Check whether we have reached the end of the file.
+     if (getLexer().is(AsmToken::Eof))
+       return Error(DirectiveLoc, "no matching '.endmacro' in definition");
+ 
++    if (getLexer().is(AsmToken::Identifier) &&
++         getTok().getIdentifier() == ".macro") {
++      ++NestLevel;
++    }
++
+     // Otherwise, check whether we have reach the .endmacro.
+     if (getLexer().is(AsmToken::Identifier) &&
+         (getTok().getIdentifier() == ".endm" ||
+          getTok().getIdentifier() == ".endmacro")) {
+-      EndToken = getTok();
+-      Lex();
+-      if (getLexer().isNot(AsmToken::EndOfStatement))
+-        return TokError("unexpected token in '" + EndToken.getIdentifier() +
+-                        "' directive");
+-      break;
++      if (NestLevel == 0) {
++        EndToken = getTok();
++        Lex();
++        if (getLexer().isNot(AsmToken::EndOfStatement))
++          return TokError("unexpected token in '" + EndToken.getIdentifier() +
++                          "' directive");
++        break;
++      }
++      --NestLevel;
+     }
+ 
+     // Otherwise, scan til the end of the statement.
+@@ -3702,6 +3765,7 @@ void AsmParser::initializeDirectiveKindMap() {
+   DirectiveKindMap[".4byte"] = DK_4BYTE;
+   DirectiveKindMap[".quad"] = DK_QUAD;
+   DirectiveKindMap[".8byte"] = DK_8BYTE;
++  DirectiveKindMap[".octa"] = DK_OCTA;
+   DirectiveKindMap[".single"] = DK_SINGLE;
+   DirectiveKindMap[".float"] = DK_FLOAT;
+   DirectiveKindMap[".double"] = DK_DOUBLE;
+@@ -3789,8 +3853,10 @@ void AsmParser::initializeDirectiveKindMap() {
+   DirectiveKindMap[".purgem"] = DK_PURGEM;
+ }
+ 
++// Helper functions for parsing macro-like directives
+ 
+-MCAsmMacro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc) {
++MCAsmMacro *AsmParser::ParseMacroLikeBody(SMLoc DirectiveLoc,
++                                          MCAsmMacroParameters &Parameters) {
+   AsmToken EndToken, StartToken = getTok();
+ 
+   unsigned NestLevel = 0;
+@@ -3802,7 +3868,9 @@ void AsmParser::initializeDirectiveKindMap() {
+     }
+ 
+     if (Lexer.is(AsmToken::Identifier) &&
+-        (getTok().getIdentifier() == ".rept")) {
++        (getTok().getIdentifier() == ".rept" ||
++         getTok().getIdentifier() == ".irp" ||
++         getTok().getIdentifier() == ".irpc")) {
+       ++NestLevel;
+     }
+ 
+@@ -3831,7 +3899,6 @@ void AsmParser::initializeDirectiveKindMap() {
+ 
+   // We Are Anonymous.
+   StringRef Name;
+-  MCAsmMacroParameters Parameters;
+   return new MCAsmMacro(Name, Body, Parameters);
+ }
+ 
+@@ -3856,6 +3923,12 @@ void AsmParser::InstantiateMacroLikeBody(MCAsmMacr
+   Lex();
+ }
+ 
++// These macro-like directives fundamentally behave as macros but they
++// - are anonymous
++// - instantiate immediately (in multiple instances)
++
++/// ParseDirectiveRept
++/// ::= .rept count
+ bool AsmParser::ParseDirectiveRept(SMLoc DirectiveLoc) {
+   int64_t Count;
+   if (parseAbsoluteExpression(Count))
+@@ -3871,14 +3944,14 @@ bool AsmParser::ParseDirectiveRept(SMLoc Directive
+   Lex();
+ 
+   // Lex the rept definition.
+-  MCAsmMacro *M = ParseMacroLikeBody(DirectiveLoc);
++  MCAsmMacroParameters Parameters;
++  MCAsmMacro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
+   if (!M)
+     return true;
+ 
+   // Macro instantiation is lexical, unfortunately. We construct a new buffer
+   // to hold the macro body with substitutions.
+   SmallString<256> Buf;
+-  MCAsmMacroParameters Parameters;
+   MCAsmMacroArguments A;
+   raw_svector_ostream OS(Buf);
+   while (Count--) {
+@@ -3914,7 +3987,7 @@ bool AsmParser::ParseDirectiveIrp(SMLoc DirectiveL
+   Lex();
+ 
+   // Lex the irp definition.
+-  MCAsmMacro *M = ParseMacroLikeBody(DirectiveLoc);
++  MCAsmMacro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
+   if (!M)
+     return true;
+ 
+@@ -3963,7 +4036,7 @@ bool AsmParser::ParseDirectiveIrpc(SMLoc Directive
+   Lex();
+ 
+   // Lex the irpc definition.
+-  MCAsmMacro *M = ParseMacroLikeBody(DirectiveLoc);
++  MCAsmMacro *M = ParseMacroLikeBody(DirectiveLoc, Parameters);
+   if (!M)
+     return true;
+ 
+@@ -3990,6 +4063,8 @@ bool AsmParser::ParseDirectiveIrpc(SMLoc Directive
+   return false;
+ }
+ 
++/// ParseDirectiveEndr
++/// ::= .endr
+ bool AsmParser::ParseDirectiveEndr(SMLoc DirectiveLoc) {
+   if (ActiveMacros.empty())
+     return TokError("unmatched '.endr' directive");
+Index: llvm.svn/lib/MC/MCStreamer.cpp
+===================================================================
+--- llvm.svn/lib/MC/MCStreamer.cpp	(revision 176776)
++++ llvm.svn/lib/MC/MCStreamer.cpp	(working copy)
+@@ -212,7 +212,7 @@ void MCStreamer::EmitCFISections(bool EH, bool Deb
+   EmitDebugFrame = Debug;
+ }
+ 
+-void MCStreamer::EmitCFIStartProc() {
++void MCStreamer::EmitCFIStartProc(bool Simple) {
+   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+   if (CurFrame && !CurFrame->End)
+     report_fatal_error("Starting a frame before finishing the previous one!");
+Index: llvm.svn/lib/Target/X86/MCTargetDesc/X86MCCodeEmitter.cpp
+===================================================================
+--- llvm.svn/lib/Target/X86/MCTargetDesc/X86MCCodeEmitter.cpp	(revision 176776)
++++ llvm.svn/lib/Target/X86/MCTargetDesc/X86MCCodeEmitter.cpp	(working copy)
+@@ -1188,10 +1188,42 @@ EncodeInstruction(const MCInst &MI, raw_ostream &O
+     } else {
+       unsigned FixupKind;
+       // FIXME: Is there a better way to know that we need a signed relocation?
+-      if (MI.getOpcode() == X86::ADD64ri32 ||
+-          MI.getOpcode() == X86::MOV64ri32 ||
+-          MI.getOpcode() == X86::MOV64mi32 ||
+-          MI.getOpcode() == X86::PUSH64i32)
++//      if (is64BitMode() && X86II::getSizeOfImm(TSFlags) == 4 &&
++//          ((MemoryOperand != -1 && Is64BitMemOperand(MI, MemoryOperand)) ||
++//           (<check for 64 bit register operand>)))
++//grep "^  {.*ImmSExti64i32" lib/Target/X86/X86GenAsmMatcher.inc | awk '{print $6}' | sort -u | sed -e 's/\(.*\),/            MI.getOpcode() == \1 ||/'
++       if (MI.getOpcode() == X86::ADC64i32 ||
++           MI.getOpcode() == X86::ADC64mi32 ||
++           MI.getOpcode() == X86::ADC64ri32 ||
++           MI.getOpcode() == X86::ADD64i32 ||
++           MI.getOpcode() == X86::ADD64mi32 ||
++           MI.getOpcode() == X86::ADD64ri32 ||
++           MI.getOpcode() == X86::AND64i32 ||
++           MI.getOpcode() == X86::AND64mi32 ||
++           MI.getOpcode() == X86::AND64ri32 ||
++           MI.getOpcode() == X86::CMP64i32 ||
++           MI.getOpcode() == X86::CMP64mi32 ||
++           MI.getOpcode() == X86::CMP64ri32 ||
++           MI.getOpcode() == X86::IMUL64rmi32 ||
++           MI.getOpcode() == X86::IMUL64rri32 ||
++           MI.getOpcode() == X86::MOV64mi32 ||
++           MI.getOpcode() == X86::MOV64ri32 ||
++           MI.getOpcode() == X86::OR64i32 ||
++           MI.getOpcode() == X86::OR64mi32 ||
++           MI.getOpcode() == X86::OR64ri32 ||
++           MI.getOpcode() == X86::PUSH64i32 ||
++           MI.getOpcode() == X86::SBB64i32 ||
++           MI.getOpcode() == X86::SBB64mi32 ||
++           MI.getOpcode() == X86::SBB64ri32 ||
++           MI.getOpcode() == X86::SUB64i32 ||
++           MI.getOpcode() == X86::SUB64mi32 ||
++           MI.getOpcode() == X86::SUB64ri32 ||
++           MI.getOpcode() == X86::TEST64i32 ||
++           MI.getOpcode() == X86::TEST64mi32 ||
++           MI.getOpcode() == X86::TEST64ri32 ||
++           MI.getOpcode() == X86::XOR64i32 ||
++           MI.getOpcode() == X86::XOR64mi32 ||
++           MI.getOpcode() == X86::XOR64ri32)
+         FixupKind = X86::reloc_signed_4byte;
+       else
+         FixupKind = getImmFixupKind(TSFlags);
+Index: llvm.svn/lib/Target/X86/X86FastISel.cpp
+===================================================================
+--- llvm.svn/lib/Target/X86/X86FastISel.cpp	(revision 176776)
++++ llvm.svn/lib/Target/X86/X86FastISel.cpp	(working copy)
+@@ -484,7 +484,7 @@ bool X86FastISel::X86SelectAddress(const Value *V,
+   // Handle constant address.
+   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
+     // Can't handle alternate code models yet.
+-    if (TM.getCodeModel() != CodeModel::Small)
++    if (TM.getCodeModel() != CodeModel::Small && TM.getCodeModel() != CodeModel::Kernel)
+       return false;
+ 
+     // Can't handle TLS yet.
+@@ -630,7 +630,7 @@ bool X86FastISel::X86SelectCallAddress(const Value
+   // Handle constant address.
+   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
+     // Can't handle alternate code models yet.
+-    if (TM.getCodeModel() != CodeModel::Small)
++    if (TM.getCodeModel() != CodeModel::Small && TM.getCodeModel() != CodeModel::Kernel)
+       return false;
+ 
+     // RIP-relative addresses can't have additional register operands.
+@@ -1936,6 +1936,7 @@ bool X86FastISel::DoSelectCall(const Instruction *
+     // has hidden or protected visibility, or if it is static or local, then
+     // we don't need to use the PLT - we can directly call it.
+     if (Subtarget->isTargetELF() &&
++        TM.getCodeModel() != CodeModel::Kernel &&
+         TM.getRelocationModel() == Reloc::PIC_ &&
+         GV->hasDefaultVisibility() && !GV->hasLocalLinkage()) {
+       OpFlags = X86II::MO_PLT;
+@@ -2195,7 +2196,7 @@ unsigned X86FastISel::TargetMaterializeConstant(co
+     OpFlag = X86II::MO_GOTOFF;
+     PICBase = getInstrInfo()->getGlobalBaseReg(FuncInfo.MF);
+   } else if (Subtarget->isPICStyleRIPRel() &&
+-             TM.getCodeModel() == CodeModel::Small) {
++             (TM.getCodeModel() == CodeModel::Small || TM.getCodeModel() == CodeModel::Kernel)) {
+     PICBase = X86::RIP;
+   }
+ 
+Index: llvm.svn/lib/Target/X86/X86ISelDAGToDAG.cpp
+===================================================================
+--- llvm.svn/lib/Target/X86/X86ISelDAGToDAG.cpp	(revision 176776)
++++ llvm.svn/lib/Target/X86/X86ISelDAGToDAG.cpp	(working copy)
+@@ -736,7 +736,7 @@ bool X86DAGToDAGISel::MatchAddress(SDValue N, X86I
+   // Post-processing: Convert foo to foo(%rip), even in non-PIC mode,
+   // because it has a smaller encoding.
+   // TODO: Which other code models can use this?
+-  if (TM.getCodeModel() == CodeModel::Small &&
++  if ((TM.getCodeModel() == CodeModel::Small || TM.getCodeModel() == CodeModel::Kernel) &&
+       Subtarget->is64Bit() &&
+       AM.Scale == 1 &&
+       AM.BaseType == X86ISelAddressMode::RegBase &&
+Index: llvm.svn/lib/Target/X86/X86ISelLowering.cpp
+===================================================================
+--- llvm.svn/lib/Target/X86/X86ISelLowering.cpp	(revision 176776)
++++ llvm.svn/lib/Target/X86/X86ISelLowering.cpp	(working copy)
+@@ -2575,6 +2575,7 @@ X86TargetLowering::LowerCall(TargetLowering::CallL
+       // has hidden or protected visibility, or if it is static or local, then
+       // we don't need to use the PLT - we can directly call it.
+       if (Subtarget->isTargetELF() &&
++          getTargetMachine().getCodeModel() != CodeModel::Kernel &&
+           getTargetMachine().getRelocationModel() == Reloc::PIC_ &&
+           GV->hasDefaultVisibility() && !GV->hasLocalLinkage()) {
+         OpFlags = X86II::MO_PLT;
+@@ -2587,6 +2588,7 @@ X86TargetLowering::LowerCall(TargetLowering::CallL
+         // automatically synthesizes these stubs.
+         OpFlags = X86II::MO_DARWIN_STUB;
+       } else if (Subtarget->isPICStyleRIPRel() &&
++                 getTargetMachine().getCodeModel() != CodeModel::Kernel &&
+                  isa<Function>(GV) &&
+                  cast<Function>(GV)->getAttributes().
+                    hasAttribute(AttributeSet::FunctionIndex,
+@@ -2617,6 +2619,7 @@ X86TargetLowering::LowerCall(TargetLowering::CallL
+     // On ELF targets, in either X86-64 or X86-32 mode, direct calls to
+     // external symbols should go through the PLT.
+     if (Subtarget->isTargetELF() &&
++        getTargetMachine().getCodeModel() != CodeModel::Kernel &&
+         getTargetMachine().getRelocationModel() == Reloc::PIC_) {
+       OpFlags = X86II::MO_PLT;
+     } else if (Subtarget->isPICStyleStubAny() &&
+@@ -3155,7 +3158,7 @@ bool X86::isOffsetSuitableForCodeModel(int64_t Off
+   // For kernel code model we know that all object resist in the negative half
+   // of 32bits address space. We may not accept negative offsets, since they may
+   // be just off and we may accept pretty large positive ones.
+-  if (M == CodeModel::Kernel && Offset > 0)
++  if (M == CodeModel::Kernel && (Offset > 0 || Offset < -2LL*1024*1024*1024+16*1024*1024))
+     return true;
+ 
+   return false;
+@@ -12582,7 +12585,7 @@ bool X86TargetLowering::isLegalAddressingMode(cons
+       return false;
+ 
+     // If lower 4G is not available, then we must use rip-relative addressing.
+-    if ((M != CodeModel::Small || R != Reloc::Static) &&
++    if (((M != CodeModel::Small && M != CodeModel::Kernel) || R != Reloc::Static) &&
+         Subtarget->is64Bit() && (AM.BaseOffs || AM.Scale > 1))
+       return false;
+   }
+Index: llvm.svn/lib/Target/X86/X86Subtarget.cpp
+===================================================================
+--- llvm.svn/lib/Target/X86/X86Subtarget.cpp	(revision 176776)
++++ llvm.svn/lib/Target/X86/X86Subtarget.cpp	(working copy)
+@@ -83,7 +83,7 @@ ClassifyGlobalReference(const GlobalValue *GV, con
+       assert(isTargetELF() && "Unknown rip-relative target");
+ 
+       // Extra load is needed for all externally visible.
+-      if (!GV->hasLocalLinkage() && GV->hasDefaultVisibility())
++      if (TM.getCodeModel() != CodeModel::Kernel && !GV->hasLocalLinkage() && GV->hasDefaultVisibility())
+         return X86II::MO_GOTPCREL;
+     }
+ 
+Index: llvm.svn/test/CodeGen/X86/codemodel.ll
+===================================================================
+--- llvm.svn/test/CodeGen/X86/codemodel.ll	(revision 176776)
++++ llvm.svn/test/CodeGen/X86/codemodel.ll	(working copy)
+@@ -10,7 +10,7 @@ entry:
+ ; CHECK-SMALL:  foo:
+ ; CHECK-SMALL:   movl data(%rip), %eax
+ ; CHECK-KERNEL: foo:
+-; CHECK-KERNEL:  movl data, %eax
++; CHECK-KERNEL:  movl data(%rip), %eax
+ 	%0 = load i32* getelementptr ([0 x i32]* @data, i64 0, i64 0), align 4		; <i32> [#uses=1]
+ 	ret i32 %0
+ }
+@@ -20,7 +20,7 @@ entry:
+ ; CHECK-SMALL:  foo2:
+ ; CHECK-SMALL:   movl data+40(%rip), %eax
+ ; CHECK-KERNEL: foo2:
+-; CHECK-KERNEL:  movl data+40, %eax
++; CHECK-KERNEL:  movl data+40(%rip), %eax
+ 	%0 = load i32* getelementptr ([0 x i32]* @data, i32 0, i64 10), align 4		; <i32> [#uses=1]
+ 	ret i32 %0
+ }
+@@ -42,7 +42,7 @@ entry:
+ ; CHECK-SMALL:   movl $16777216, %eax
+ ; CHECK-SMALL:   movl data(%rax), %eax
+ ; CHECK-KERNEL: foo4:
+-; CHECK-KERNEL:  movl data+16777216, %eax
++; CHECK-KERNEL:  movl data+16777216(%rip), %eax
+ 	%0 = load i32* getelementptr ([0 x i32]* @data, i32 0, i64 4194304), align 4		; <i32> [#uses=1]
+ 	ret i32 %0
+ }
+@@ -52,7 +52,7 @@ entry:
+ ; CHECK-SMALL:  foo1:
+ ; CHECK-SMALL:   movl data+16777212(%rip), %eax
+ ; CHECK-KERNEL: foo1:
+-; CHECK-KERNEL:  movl data+16777212, %eax
++; CHECK-KERNEL:  movl data+16777212(%rip), %eax
+         %0 = load i32* getelementptr ([0 x i32]* @data, i32 0, i64 4194303), align 4            ; <i32> [#uses=1]
+         ret i32 %0
+ }
+Index: llvm.svn/test/MC/AsmParser/exprs.s
+===================================================================
+--- llvm.svn/test/MC/AsmParser/exprs.s	(revision 176776)
++++ llvm.svn/test/MC/AsmParser/exprs.s	(working copy)
+@@ -1,4 +1,4 @@
+-// RUN: llvm-mc -triple i386-unknown-unknown %s > %t
++// RUN: llvm-mc -triple i386-apple-darwin10 %s > %t
+ 
+ .macro check_expr
+   .if ($0) != ($1)
+Index: llvm.svn/test/MC/AsmParser/macros.s
+===================================================================
+--- llvm.svn/test/MC/AsmParser/macros.s	(revision 176776)
++++ llvm.svn/test/MC/AsmParser/macros.s	(working copy)
+@@ -1,4 +1,4 @@
+-// RUN: not llvm-mc -triple i386-unknown-unknown %s 2> %t.err | FileCheck %s
++// RUN: not llvm-mc -triple i386-apple-darwin %s 2> %t.err | FileCheck %s
+ // RUN: FileCheck --check-prefix=CHECK-ERRORS %s < %t.err
+ 
+ .macro .test0

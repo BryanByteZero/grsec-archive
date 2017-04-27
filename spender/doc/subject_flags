@@ -1,0 +1,27 @@
+Subjects can be a file or directory.  All binaries or scripts matching 
+that path will gain the permission of the subject upon execution
+
+Subject flags:
+
+o  -  Disable configuration inheritance
+h  -  Hide this process for all processes but those with the 'v' subject 
+      flag
+p  -  Protect this process from all processes but those with the 'k' 
+      mode
+k  -  Allow killing of protected processes
+b  -  Enable process accounting
+d  -  Protect /proc/<pid>/fd and /proc/<pid>/mem
+l  -  Enable learning
+P  -  Disable PAGEEXEC feature of PaX
+S  -  Disable SEGMEXEC feature of PaX
+M  -  Disable MPROTECT feature of PaX
+R  -  Disable RANDMMAP feature of PaX
+G  -  Enable EMUTRAMP feature of PaX
+X  -  Enable RANDEXEC feature of PaX
+O  -  Allow writable library loads and ptraces of other subjects
+A  -  Protect shared memory
+K  -  Auto-kill upon violation of security policy
+C  -  Auto-kill all processes belonging to attacker's IP address upon 
+      violation of security policy
+T  -  Deny execution of binaries or scripts that are writable by any 
+      other subject in the policy

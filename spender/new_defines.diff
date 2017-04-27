@@ -1,0 +1,618 @@
+diff --git a/Makefile b/Makefile
+index d4d3c6f..d9ff594 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,7 +12,7 @@ GRSEC_DIR=/etc/grsec
+ LLEX=/usr/bin/lex
+ FLEX=/usr/bin/flex
+ LEX := $(shell if [ -x $(FLEX) ]; then echo $(FLEX); else echo $(LLEX); fi)
+-LEXFLAGS=-B
++LEXFLAGS=-Cfa -B
+ #ubuntu broke byacc for who knows why, disable it
+ #BYACC=/usr/bin/byacc
+ BISON=/usr/bin/bison
+diff --git a/gradm.l b/gradm.l
+index 0b811d5..8a46bc9 100644
+--- a/gradm.l
++++ b/gradm.l
+@@ -35,13 +35,16 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ %x INCLUDE_STATE IPNETMASK_STATE IPPORT_STATE ROLETRANS_STATE UMASK_STATE
+ %x VAR_STATE VAR_OBJ_STATE IDTRANS_STATE DOMAIN_STATE DOMAINTYPE_STATE
+ %x DOMAINLIST_STATE IPIP_STATE IPONLY_STATE REP_STATE CAP_STATE FAMILY_STATE
+-
++%x VAR_IPIP_STATE VAR_CAP_STATE VAR_IPNETMASK_STATE VAR_IP_STATE VAR_IPPORT_STATE
+ %%
+ 
+ <*>"\n"					{
+ 					  lineno++;
+ 					  if (YYSTATE == COMMENT_STATE)
+ 						  BEGIN(old_state2);
++					  if (YYSTATE == VAR_IPIP_STATE || YYSTATE == VAR_CAP_STATE || YYSTATE == VAR_IPNETMASK_STATE ||
++					      YYSTATE == VAR_IP_STATE || YYSTATE == VAR_IPPORT_STATE)
++						  BEGIN(VAR_OBJ_STATE);
+ 					  if (YYSTATE != VAR_STATE && YYSTATE != VAR_OBJ_STATE)
+ 						  BEGIN(INITIAL);
+ 					}
+@@ -133,11 +136,14 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 					  return RES_SOFTHARD;
+ 					}
+ 
+-<IPIP_STATE>"!"				{
++<VAR_IPIP_STATE,IPIP_STATE>"!"		{
+ 					  return NOT;
+ 					}
+-<IPIP_STATE>[-a-zA-Z0-9_]{1,7}("#"[0-9]{1,3})?	{
+-					  BEGIN(IP_STATE);
++<VAR_IPIP_STATE,IPIP_STATE>[-a-zA-Z0-9_]{1,7}("#"[0-9]{1,3})?	{
++					  if (YYSTATE == IPIP_STATE)
++					    BEGIN(IP_STATE);
++					  else
++					    BEGIN(VAR_IP_STATE);
+ 					  gr_line = yytext;
+ 					  gradmlval.string = gr_strdup(gr_line);
+ 					  gr_line = strchr(gradmlval.string, '#');
+@@ -145,11 +151,14 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 						*gr_line = ':';
+ 					  return INTERFACE;
+ 					}
+-<IPIP_STATE>"disabled"			{
++<VAR_IPIP_STATE,IPIP_STATE>"disabled"			{
+ 					  return DISABLED;
+ 					}
+-<IPIP_STATE>[-0-9a-zA-Z.]*[a-zA-Z][-0-9a-zA-Z.]*		{
+-					  BEGIN(IP_STATE);
++<VAR_IPIP_STATE,IPIP_STATE>[-0-9a-zA-Z.]*[a-zA-Z][-0-9a-zA-Z.]*		{
++					  if (YYSTATE == IPIP_STATE)
++					    BEGIN(IP_STATE);
++					  else
++					    BEGIN(VAR_IP_STATE);
+ 					  gradmlval.string = gr_strdup(yytext);
+ 					  return HOSTNAME;
+ 					}
+@@ -157,24 +166,33 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 					  gradmlval.num = get_ip(yytext);
+ 					  return IPADDR;
+ 					}
+-<IPIP_STATE>{IP}			{
+-					  BEGIN(IP_STATE);
++<VAR_IPIP_STATE,IPIP_STATE>{IP}			{
++					  if (YYSTATE == IPIP_STATE)
++					    BEGIN(IP_STATE);
++					  else
++					    BEGIN(VAR_IP_STATE);
+ 					  gradmlval.num = get_ip(yytext);
+ 					  return IPADDR;
+ 					}
+-<IP_STATE>[/]				{
+-					  BEGIN(IPNETMASK_STATE);
++<VAR_IP_STATE,IP_STATE>[/]		{
++					  if (YYSTATE == IP_STATE)
++					    BEGIN(IPNETMASK_STATE);
++					  else
++					    BEGIN(VAR_IPNETMASK_STATE);
+ 					  return *yytext;
+ 					}
+-<IP_STATE>[:-]				{
+-					  BEGIN(IPPORT_STATE);
++<VAR_IP_STATE,IP_STATE>[:-]		{
++					  if (YYSTATE == IP_STATE)
++					    BEGIN(IPPORT_STATE);
++					  else
++					    BEGIN(VAR_IPPORT_STATE);
+ 					  return *yytext;
+ 					}
+-<IP_STATE>"raw_sock"|"dgram"|"rdm"|"stream"|"any_sock" {
++<VAR_IP_STATE,IP_STATE>"raw_sock"|"dgram"|"rdm"|"stream"|"any_sock" {
+ 					  gradmlval.string = gr_strdup(yytext);
+ 					  return IPTYPE;
+ 					}
+-<IP_STATE>[a-z_-]+			{
++<VAR_IP_STATE,IP_STATE>[a-z_-]+			{
+ 					  gradmlval.string = gr_strdup(yytext);
+ 					  return IPPROTO;
+ 					}
+@@ -183,18 +201,24 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 					  return SOCKFAMILY;
+ 					}
+ 
+-<IPNETMASK_STATE>[0-9]{1,2}		{
++<VAR_IPNETMASK_STATE,IPNETMASK_STATE>[0-9]{1,2}		{
+ 					  unsigned int bits = atoi(yytext);
+-					  BEGIN(IP_STATE);
++					  if (YYSTATE == IPNETMASK_STATE)
++					    BEGIN(IP_STATE);
++					  else
++					    BEGIN(VAR_IP_STATE);
+ 					  if (!bits)
+ 						gradmlval.num = 0;
+ 					  else
+ 						gradmlval.num = 0xffffffff << (32 - bits);
+ 					  return IPNETMASK;
+ 					}
+-<IPPORT_STATE>[0-9]{1,5}		{
++<VAR_IPPORT_STATE,IPPORT_STATE>[0-9]{1,5}		{
+ 					  unsigned int portcheck = atoi(yytext);
+-					  BEGIN(IP_STATE);
++					  if (YYSTATE == IPPORT_STATE)
++					    BEGIN(IP_STATE);
++					  else
++					    BEGIN(VAR_IP_STATE);
+ 					  if (portcheck > 65535)
+ 						gradmerror("invalid port number error");
+ 					  gradmlval.shortnum = portcheck;
+@@ -307,12 +331,18 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 					  BEGIN(SUBJECT_STATE);
+ 					  return SUBJECT;
+ 					}
+-"connect"				{
+-					  BEGIN(IPIP_STATE);
++<INITIAL,VAR_OBJ_STATE>"connect"				{
++					  if (YYSTATE == INITIAL)
++					    BEGIN(IPIP_STATE);
++					  else
++					    BEGIN(VAR_IPIP_STATE);
+ 					  return CONNECT;
+ 					}
+-"bind"					{
+-					  BEGIN(IPIP_STATE);
++<INITIAL,VAR_OBJ_STATE>"bind"					{
++					  if (YYSTATE == INITIAL)
++					    BEGIN(IPIP_STATE);
++					  else
++					    BEGIN(VAR_IPIP_STATE);
+ 					  return BIND;
+ 					}
+ "ip_override"				{
+@@ -328,12 +358,15 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 					  *(gr_line + strlen(gr_line) - 1) = '\0';
+ 					  add_include(gr_line);					  
+ 					}
+-<CAP_STATE>"audit"|"suppress"		{
++<CAP_STATE,VAR_CAP_STATE>"audit"|"suppress"		{
+ 					  gradmlval.string = gr_strdup(yytext);
+ 					  return AUDIT;
+ 					}
+-[+-]"CAP_"[_A-Z]+			{
+-					  BEGIN(CAP_STATE);
++<INITIAL,VAR_OBJ_STATE>[+-]"CAP_"[_A-Z]+	{
++					  if (YYSTATE == INITIAL)
++					    BEGIN(CAP_STATE);
++					  else
++					    BEGIN(VAR_CAP_STATE);
+ 					  gradmlval.string = gr_strdup(yytext);
+ 					  return CAP_NAME;
+ 					}
+@@ -347,13 +380,13 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 					  return RES_NAME;
+ 					}
+ 
+-([/]|$[(])[^ \t\n]*				{
++<INITIAL,VAR_OBJ_STATE>([/]|$[(])[^ \t\n]*	{
+ 					  gradmlval.string = process_string_replace(yytext);
+ 					  if (strstr(gradmlval.string, "//") || strstr(gradmlval.string, "/./") || strstr(gradmlval.string, "/../"))
+ 						gradmerror("invalid pathname error");
+ 					  return OBJ_NAME;
+ 					}
+-["]([/]|$[(]).*["]				{
++<INITIAL,VAR_OBJ_STATE>["]([/]|$[(]).*["]	{
+ 					  gr_line = yytext;
+ 					  gr_line++;
+ 					  *(gr_line + strlen(gr_line) - 1) = '\0';
+@@ -362,13 +395,13 @@ IP [0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}"."[0-9]{1,3}
+ 						gradmerror("invalid pathname error");
+ 					  return OBJ_NAME;
+ 					}
+-$HOME[/]?[^ \t\n]*			{
++<INITIAL,VAR_OBJ_STATE>$HOME[/]?[^ \t\n]*	{
+ 					  gradmlval.string = gr_strdup(yytext);
+ 					  if (strstr(gradmlval.string, "//") || strstr(gradmlval.string, "/./") || strstr(gradmlval.string, "/../"))
+ 						gradmerror("invalid pathname error");
+ 					  return OBJ_NAME;
+ 					}
+-["]$HOME[/]?.*["]			{
++<INITIAL,VAR_OBJ_STATE>["]$HOME[/]?.*["]	{
+ 					  gr_line = yytext;
+ 					  gr_line++;
+ 					  *(gr_line + strlen(gr_line) - 1) = '\0';
+@@ -377,7 +410,7 @@ $HOME[/]?[^ \t\n]*			{
+ 						gradmerror("invalid pathname error");
+ 					  return OBJ_NAME;
+ 					}
+-[rwxahitmlLFRWXAIMcCdDspof]+		{
++<INITIAL,VAR_OBJ_STATE>[rwxahitmlLFRWXAIMcCdDspof]+	{
+ 					  gradmlval.num = proc_object_mode_conv(yytext);
+ 					  return OBJ_MODE;
+ 					}
+diff --git a/gradm.y b/gradm.y
+index e46706b..68de76e 100644
+--- a/gradm.y
++++ b/gradm.y
+@@ -108,16 +108,80 @@ variable_object:		DEFINE DEFINE_NAME '{' var_object_list '}'
+ 				}
+ 	;
+ 
+-var_object_list:		OBJ_NAME obj_mode
++var_object_file:		OBJ_NAME obj_mode
+ 				{
+-				  add_var_object(&var_obj, $1, $2);
++				  add_file_var_object(&var_obj, $1, $2);
+ 				}
+-	|			var_object_list OBJ_NAME obj_mode
++	;
++
++var_object_cap:			CAP_NAME AUDIT
++				{
++                                add_cap_var_object(&var_obj, $1, $2);
++                                free($1);
++                                free($2);
++                               }
++       |                       CAP_NAME
++                               {
++                                add_cap_var_object(&var_obj, $1, NULL);
++				 free($1);
++				}
++	;
++
++
++var_object_net:			CONNECT invert_socket IPADDR ip_netmask ip_ports ip_typeproto
++				{
++				 ip.addr = $3;
++				 ip.netmask = $4;
++				 add_net_var_object(&var_obj, &ip, GR_IP_CONNECT | $2, NULL);
++				 memset(&ip, 0, sizeof(ip));
++				}
++	|			CONNECT invert_socket HOSTNAME ip_netmask ip_ports ip_typeproto
++				{
++				 ip.netmask = $4;
++				 add_net_var_object(&var_obj, &ip, GR_IP_CONNECT | $2, $3);
++				 memset(&ip, 0, sizeof(ip));
++				 free($3);
++				}
++	|
++				CONNECT DISABLED
++				{
++				 add_net_var_object(&var_obj, &ip, GR_IP_CONNECT, NULL);
++				}
++	|			BIND invert_socket IPADDR ip_netmask ip_ports ip_typeproto
++				{
++				 ip.addr = $3;
++				 ip.netmask = $4;
++				 add_net_var_object(&var_obj, &ip, GR_IP_BIND | $2, NULL);
++				 memset(&ip, 0, sizeof(ip));
++				}
++	|			BIND invert_socket HOSTNAME ip_netmask ip_ports ip_typeproto
++				{
++				 ip.netmask = $4;
++				 add_net_var_object(&var_obj, &ip, GR_IP_BIND | $2, $3);
++				 memset(&ip, 0, sizeof(ip));
++				 free($3);
++				}
++	|			BIND invert_socket INTERFACE ip_ports ip_typeproto
++				{
++				 ip.iface = $3;
++				 add_net_var_object(&var_obj, &ip, GR_IP_BIND | $2, NULL);
++				 memset(&ip, 0, sizeof(ip));
++				}
++	|
++				BIND DISABLED
+ 				{
+-				  add_var_object(&var_obj, $2, $3);
++				 add_net_var_object(&var_obj, &ip, GR_IP_BIND, NULL);
+ 				}
+ 	;
+ 
++var_object_list:		var_object_file
++	|			var_object_net
++	|			var_object_cap
++	|			var_object_list var_object_file
++	|			var_object_list var_object_net
++	|			var_object_list var_object_cap
++	;
++
+ domain_label:			DOMAIN ROLE_NAME DOMAIN_TYPE 
+ 				{
+ 				 add_role_acl(&current_role, $2, GR_ROLE_DOMAIN | role_mode_conv($3), 1);
+diff --git a/gradm_defs.h b/gradm_defs.h
+index fc91c3b..cc0a457 100644
+--- a/gradm_defs.h
++++ b/gradm_defs.h
+@@ -303,9 +303,29 @@ struct file_acl {
+ 	struct file_acl *next;
+ };
+ 
++enum {
++	VAR_FILE_OBJECT = 0,
++	VAR_NET_OBJECT = 1,
++	VAR_CAP_OBJECT = 2
++};
++
+ struct var_object {
+-	char *filename;
+-	u_int32_t mode;
++	union {
++		struct {
++			char *filename;
++			u_int32_t mode;
++		} file_obj;
++		struct {
++			struct ip_acl ip;
++			u_int8_t mode;
++			char *host;
++		} net_obj;
++		struct {
++			char *cap;
++			char *audit;
++		} cap_obj;
++	};
++	unsigned int type;
+ 
+ 	struct var_object *prev;
+ 	struct var_object *next;
+diff --git a/gradm_func.h b/gradm_func.h
+index 90446d1..f830932 100644
+--- a/gradm_func.h
++++ b/gradm_func.h
+@@ -67,7 +67,10 @@ void start_grlearn(char *logfile);
+ void stop_grlearn(void);
+ void sym_store(char *symname, struct var_object *object);
+ struct var_object *sym_retrieve(char *symname);
+-void add_var_object(struct var_object **object, char *name, u_int32_t mode);
++void add_file_var_object(struct var_object **object, char *name, u_int32_t mode);
++void add_var_object(struct var_object **object, struct var_object *var);
++void add_net_var_object(struct var_object **object, struct ip_acl *ip, u_int8_t mode, char *host);
++void add_cap_var_object(struct var_object **object, char *name, char *audit);
+ void interpret_variable(struct var_object *var);
+ struct var_object *union_objects(struct var_object *var1, struct var_object *var2);
+ struct var_object *intersect_objects(struct var_object *var1, struct var_object *var2);
+diff --git a/gradm_sym.c b/gradm_sym.c
+index 16b71bf..a644ca6 100644
+--- a/gradm_sym.c
++++ b/gradm_sym.c
+@@ -15,7 +15,22 @@ void interpret_variable(struct var_object *var)
+ 		;
+ 
+ 	for (; tmp; tmp = tmp->next) {
+-		add_proc_object_acl(current_subject, tmp->filename, tmp->mode, GR_FEXIST);
++		switch (tmp->type) {
++		case VAR_FILE_OBJECT:
++			add_proc_object_acl(current_subject, tmp->file_obj.filename, tmp->file_obj.mode, GR_FEXIST);
++			break;
++		case VAR_NET_OBJECT:
++			if (tmp->net_obj.host)
++				add_host_acl(current_subject, tmp->net_obj.mode, tmp->net_obj.host, &tmp->net_obj.ip);
++			else
++				add_ip_acl(current_subject, tmp->net_obj.mode, &tmp->net_obj.ip);
++			break;
++		case VAR_CAP_OBJECT:
++			add_cap_acl(current_subject, tmp->cap_obj.cap, tmp->cap_obj.audit);
++			break;
++		default:
++			break;
++		}
+ 	}
+ 
+ 	return;
+@@ -26,11 +41,23 @@ struct var_object * intersect_objects(struct var_object *var1, struct var_object
+ 	struct var_object *tmpvar1, *tmpvar2, *retvar = NULL;
+ 
+ 	for (tmpvar1 = var1; tmpvar1; tmpvar1 = tmpvar1->prev) {
+-		for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
+-			if (!strcmp(tmpvar1->filename, tmpvar2->filename)) {
+-				add_var_object(&retvar, tmpvar1->filename, tmpvar1->mode & tmpvar2->mode);
+-				break;
++		switch (tmpvar1->type) {
++		case VAR_FILE_OBJECT:
++			for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
++				switch (tmpvar2->type) {
++				case VAR_FILE_OBJECT:
++					if (!strcmp(tmpvar1->file_obj.filename, tmpvar2->file_obj.filename)) {
++						add_file_var_object(&retvar, tmpvar1->file_obj.filename, tmpvar1->file_obj.mode & tmpvar2->file_obj.mode);
++						break;
++					}
++					break;
++				default:
++					break;
++				}
+ 			}
++			break;
++		default:
++			break;
+ 		}
+ 	}
+ 
+@@ -43,28 +70,53 @@ struct var_object * union_objects(struct var_object *var1, struct var_object *va
+ 	int found_dupe = 0;
+ 
+ 	for (tmpvar1 = var1; tmpvar1; tmpvar1 = tmpvar1->prev) {
+-		found_dupe = 0;
+-		for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
+-			if (!strcmp(tmpvar1->filename, tmpvar2->filename)) {
+-				add_var_object(&retvar, tmpvar1->filename, tmpvar1->mode | tmpvar2->mode);
+-				found_dupe = 1;
+-				break;
++		switch (tmpvar1->type) {
++		case VAR_FILE_OBJECT:
++			found_dupe = 0;
++			for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
++				switch (tmpvar2->type) {
++				case VAR_FILE_OBJECT:
++					if (!strcmp(tmpvar1->file_obj.filename, tmpvar2->file_obj.filename)) {
++						add_file_var_object(&retvar, tmpvar1->file_obj.filename, tmpvar1->file_obj.mode | tmpvar2->file_obj.mode);
++						found_dupe = 1;
++						break;
++					}
++					break;
++				default:
++					break;
++				}
+ 			}
++			if (!found_dupe)
++				add_file_var_object(&retvar, tmpvar1->file_obj.filename, tmpvar1->file_obj.mode);
++			break;
++		default:
++			break;
+ 		}
+-		if (!found_dupe)
+-			add_var_object(&retvar, tmpvar1->filename, tmpvar1->mode);
+ 	}
+ 
+ 	for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
+-		found_dupe = 0;
+-		for (tmpvar1 = var1; tmpvar1; tmpvar1 = tmpvar1->prev) {
+-			if (!strcmp(tmpvar1->filename, tmpvar2->filename)) {
+-				found_dupe = 1;
+-				break;
++		switch (tmpvar2->type) {
++		case VAR_FILE_OBJECT:
++			found_dupe = 0;
++			for (tmpvar1 = var1; tmpvar1; tmpvar1 = tmpvar1->prev) {
++				switch (tmpvar1->type) {
++				case VAR_FILE_OBJECT:
++					if (!strcmp(tmpvar1->file_obj.filename, tmpvar2->file_obj.filename)) {
++						found_dupe = 1;
++						break;
++					}
++					break;
++				default:
++					break;
++				}
+ 			}
++
++			if (!found_dupe)
++				add_file_var_object(&retvar, tmpvar2->file_obj.filename, tmpvar2->file_obj.mode);
++			break;
++		default:
++			break;
+ 		}
+-		if (!found_dupe)
+-			add_var_object(&retvar, tmpvar2->filename, tmpvar2->mode);
+ 	}
+ 
+ 	return retvar;
+@@ -77,30 +129,42 @@ struct var_object * differentiate_objects(struct var_object *var1, struct var_ob
+ 	char *path;
+ 
+ 	for (tmpvar1 = var1; tmpvar1; tmpvar1 = tmpvar1->prev) {
+-		path = calloc(strlen(tmpvar1->filename) + 1, sizeof(char));
+-		if (!path)
+-			failure("calloc");
+-		strcpy(path, tmpvar1->filename);
+-		found_dupe = 0;
+-		do {
+-			for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
+-				if (!strcmp(path, tmpvar2->filename)) {
+-					found_dupe = 1;
+-					add_var_object(&retvar, tmpvar1->filename, tmpvar1->mode &= ~tmpvar2->mode);
+-					goto done;
++		switch (tmpvar1->type) {
++		case VAR_FILE_OBJECT:
++			path = calloc(strlen(tmpvar1->file_obj.filename) + 1, sizeof(char));
++			if (!path)
++				failure("calloc");
++			strcpy(path, tmpvar1->file_obj.filename);
++			found_dupe = 0;
++			do {
++				for (tmpvar2 = var2; tmpvar2; tmpvar2 = tmpvar2->prev) {
++					switch (tmpvar2->type) {
++					case VAR_FILE_OBJECT:
++						if (!strcmp(path, tmpvar2->file_obj.filename)) {
++							found_dupe = 1;
++							add_file_var_object(&retvar, tmpvar1->file_obj.filename, tmpvar1->file_obj.mode &= ~tmpvar2->file_obj.mode);
++							goto done;
++						}
++						break;
++					default:
++						break;
++					}
+ 				}
+-			}
+-		} while(parent_dir(tmpvar1->filename, &path));
++			} while(parent_dir(tmpvar1->file_obj.filename, &path));
+ done:
+-		if (!found_dupe)
+-			add_var_object(&retvar, tmpvar1->filename, tmpvar1->mode);
+-		free(path);
++			if (!found_dupe)
++				add_file_var_object(&retvar, tmpvar1->file_obj.filename, tmpvar1->file_obj.mode);
++			free(path);
++			break;
++		default:
++			break;
++		}
+ 	}
+ 
+ 	return retvar;
+ }
+ 
+-void add_var_object(struct var_object **object, char *name, u_int32_t mode)
++void add_var_object(struct var_object **object, struct var_object *var)
+ {
+ 	struct var_object *v;
+ 
+@@ -112,16 +176,50 @@ void add_var_object(struct var_object **object, char *name, u_int32_t mode)
+ 	if (*object)
+ 		(*object)->next = v;
+ 
+-	v->prev = *object;
++	memcpy(v, var, sizeof(struct var_object));
+ 
+-	v->filename = name;
+-	v->mode = mode;
++	v->prev = *object;
++	v->next = NULL;
+ 
+ 	*object = v;
+ 
+ 	return;
+ }
+ 
++void add_file_var_object(struct var_object **object, char *name, u_int32_t mode)
++{
++	struct var_object var;
++
++	var.type = VAR_FILE_OBJECT;
++	var.file_obj.filename = name;
++	var.file_obj.mode = mode;
++
++	add_var_object(object, &var);
++}
++
++void add_net_var_object(struct var_object **object, struct ip_acl *ip, u_int8_t mode, char *host)
++{
++	struct var_object var;
++
++	var.type = VAR_NET_OBJECT;
++	memcpy(&var.net_obj.ip, ip, sizeof(struct ip_acl));
++	var.net_obj.mode = mode;
++	var.net_obj.host = host ? gr_strdup(host) : NULL;
++
++	add_var_object(object, &var);	
++}
++
++void add_cap_var_object(struct var_object **object, char *name, char *audit)
++{
++	struct var_object var;
++
++	var.type = VAR_CAP_OBJECT;
++	var.cap_obj.cap = name ? gr_strdup(name) : NULL;
++	var.cap_obj.audit = audit ? gr_strdup(audit) : NULL;
++
++	add_var_object(object, &var);
++}
++
+ struct var_object * sym_retrieve(char *symname)
+ {
+ 	unsigned int i;
+diff --git a/policy b/policy
+index f8c368a..df21c6d 100644
+--- a/policy
++++ b/policy
+@@ -236,6 +236,8 @@
+ # Commonly-used objects can be defined and used in multiple subjects
+ # As an example, we'll create a variable out of a list of objects
+ # and their associated permissions that RBAC enforces
++# files, connect/bind rules, and capabilities can currently be added to a define
++
+ define grsec_denied {
+ 	/boot		h
+ 	/dev/grsec	h

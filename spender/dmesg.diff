@@ -1,0 +1,15 @@
+diff --git a/kernel/printk.c b/kernel/printk.c
+index dda2a5c..317a063 100644
+--- a/kernel/printk.c
++++ b/kernel/printk.c
+@@ -618,6 +618,10 @@ static int devkmsg_open(struct inode *inode, struct file *file)
+ 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
+ 		return 0;
+ 
++	err = check_syslog_permissions(SYSLOG_ACTION_OPEN, true);
++	if (err)
++		return err;
++
+ 	err = security_syslog(SYSLOG_ACTION_READ_ALL);
+ 	if (err)
+ 		return err;

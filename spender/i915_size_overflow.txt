@@ -1,0 +1,8 @@
+[   87.118093] PAX: size overflow detected in function i915_gem_execbuffer_relocate_slow 
+drivers/gpu/drm/i915/i915_gem_execbuffer.c:529 cicus.214_181 max, count: 57
+[   87.118098] Pid: 3107, comm: a.out Not tainted 3.8.2-grsec #2
+[   87.118099] Call Trace:
+[   87.118105]  [<ffffffff81145054>] ? report_size_overflow+0x24/0x30
+[   87.118109]  [<ffffffff81419bd2>] ? i915_gem_execbuffer_relocate_slow+0x692/0xc90
+[   87.118111]  [<ffffffff814191b6>] ? i915_gem_execbuffer_reserve_object.isra.13+0x126/0x190
+[   87.118113]  [<ffffffff8141a9ba>] ? i915_gem_do_execbuffer.isra.16+0x7ea/0xff0

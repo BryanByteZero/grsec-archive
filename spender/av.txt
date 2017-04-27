@@ -1,0 +1,39 @@
+Hi Dave,
+
+How to avoid repeating the mistake of AV: this is a difficult problem.
+I don't have much experience in defense, so if I were to ponder a
+solution to this problem, I would look toward the paradigm-shifters in
+the infosec industry.  Being an avid reader of Wired and other such
+online magazines, my immediate thought was Google's Project Zero.
+
+We've learned from the failure of AV that ex post facto detection
+and remediation of single pieces of malware is a losing battle given
+the ever increasing number of malware samples in the wild.  It seems
+like for every malware detected, two more take its place.
+
+That's why I really admire Project Zero's approach -- it took these
+lessons to heart, producing a real game-changer.  They're focused
+on ex post facto detection and remediation of single bugs, a highly
+effective approach given the ever increasing number of bugs in the
+software today.
+
+What's really unique about Project Zero's approach though, is that
+unlike AV, Project Zero pairs its work with copious quantities of
+self-advertisement -- because when one's goal is making the world
+a safer place, one needs to make sure everyone knows it.
+
+We need to change course.  Let's resolve to put the monetary focus
+of the industry to where it really belongs: bug bounties.  Let's
+ensure fuzzers are employed for the next decade while we reap the
+bountiful rewards of their endless trickle of bugs.  If we make
+sure this strategy dominates, we can be sure we don't hamstring
+the industry by focusing efforts on what produces real improvement.
+We know bug bounties work because their associated monetary offerings
+continue to increase -- the market has spoken.
+
+If we take our cues from such visionaries, I think we can avoid the
+parasitic growth of the infosec industry and break the chain of
+strategies that haven't worked for their entire reign.
+
+Respectfully submitted for your consideration,
+-Brad

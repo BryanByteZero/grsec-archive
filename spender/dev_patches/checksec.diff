@@ -1,0 +1,139 @@
+--- checksec.sh	2009-12-27 06:12:51.000000000 -0500
++++ checksec-new.sh	2010-01-01 19:08:15.576305631 -0500
+@@ -141,8 +141,27 @@ proccheck() {
+     fi
+   fi
+ 
+-  # check for NX support
+-  if readelf -l $1/exe 2>/dev/null | grep 'GNU_STACK' | grep -q 'RWE'; then
++  # first check for PaX support
++  if cat $1/status 2> /dev/null | grep -q 'PaX:'; then
++    pageexec=( $(cat $1/status 2> /dev/null | grep 'PaX:' | cut -b6) )
++    segmexec=( $(cat $1/status 2> /dev/null | grep 'PaX:' | cut -b10) )
++    mprotect=( $(cat $1/status 2> /dev/null | grep 'PaX:' | cut -b8) )
++    randmmap=( $(cat $1/status 2> /dev/null | grep 'PaX:' | cut -b9) )
++    if [[ "$pageexec" = "P" || "$segmexec" = "S" ]] && [[ "$mprotect" = "M" && "$randmmap" = "R" ]]; then
++      echo -n -e '\033[32mPaX enabled\033[m   '
++    elif [[ "$pageexec" = "p" && "$segmexec" = "s" && "$randmmap" = "R" ]]; then
++      echo -n -e '\033[33mPaX ASLR only\033[m '
++    elif [[ "$pageexec" = "P" || "$segmexec" = "S" ]] && [[ "$mprotect" = "m" && "$randmmap" = "R" ]]; then
++      echo -n -e '\033[33mPaX mprot off \033[m'
++    elif [[ "$pageexec" = "P" || "$segmexec" = "S" ]] && [[ "$mprotect" = "M" && "$randmmap" = "r" ]]; then
++      echo -n -e '\033[33mPaX ASLR off\033[m  '
++    elif [[ "$pageexec" = "P" || "$segmexec" = "S" ]] && [[ "$mprotect" = "m" && "$randmmap" = "r" ]]; then
++      echo -n -e '\033[33mPaX NX only\033[m   '
++    else
++      echo -n -e '\033[31mPaX disabled\033[m  '
++    fi
++  # fallback check for NX support
++  elif readelf -l $1/exe 2>/dev/null | grep 'GNU_STACK' | grep -q 'RWE'; then
+     echo -n -e '\033[31mNX disabled\033[m   '
+   else
+     echo -n -e '\033[32mNX enabled \033[m   '
+@@ -180,21 +199,32 @@ libcheck() {
+ # check for system-wide ASLR support (kernel.randomize_va_space)
+ # (see the kernel file 'Documentation/sysctl/kernel.txt' for a detailed description)
+ aslrcheck() {
+-  if /sbin/sysctl -a 2>/dev/null | grep -q 'kernel.randomize_va_space = 1'; then
+-    echo -n -e '\033[33mOn (Setting: 1)\033[m\n\n'
++  if cat /proc/1/status 2> /dev/null | grep -q 'PaX:'; then
++    printf ": "
++    if cat /proc/1/status 2> /dev/null | grep 'PaX:' | grep -q 'R'; then
++      echo -n -e '\033[32mPaX ASLR Enabled\033[m\n\n'
++    else
++      echo -n -e '\033[31mPaX ASLR Disabled\033[m\n\n'
++    fi
++  else
++    printf " (kernel.randomize_va_space): "
++    if /sbin/sysctl -a 2>/dev/null | grep -q 'kernel.randomize_va_space = 1'; then
++        echo -n -e '\033[33mOn (Setting: 1)\033[m\n\n'
+ 	printf "  Description - Make the addresses of mmap base, stack and VDSO page randomized.\n"
+-    printf "  This, among other things, implies that shared libraries will be loaded to \n"
++        printf "  This, among other things, implies that shared libraries will be loaded to \n"
+ 	printf "  random addresses. Also for PIE-linked binaries, the location of code start\n"
+ 	printf "  is randomized. Heap addresses are *not* randomized.\n\n"
+-  elif /sbin/sysctl -a 2>/dev/null | grep -q 'kernel.randomize_va_space = 2'; then
+-    echo -n -e '\033[32mOn (Setting: 2)\033[m\n\n'
++    elif /sbin/sysctl -a 2>/dev/null | grep -q 'kernel.randomize_va_space = 2'; then
++        echo -n -e '\033[32mOn (Setting: 2)\033[m\n\n'
+ 	printf "  Description - Make the addresses of mmap base, heap, stack and VDSO page randomized.\n"
+-    printf "  This, among other things, implies that shared libraries will be loaded to random \n"
++        printf "  This, among other things, implies that shared libraries will be loaded to random \n"
+ 	printf "  addresses. Also for PIE-linked binaries, the location of code start is randomized.\n\n"
+-  elif /sbin/sysctl -a 2>/dev/null | grep -q 'kernel.randomize_va_space = 0'; then
+-    echo -n -e '\033[31mOff (Setting: 0)\033[m\n'
+-  else
+-    echo -n -e '\033[32mNot supported\033[m\n'
++    elif /sbin/sysctl -a 2>/dev/null | grep -q 'kernel.randomize_va_space = 0'; then
++        echo -n -e '\033[31mOff (Setting: 0)\033[m\n'
++    else
++        echo -n -e '\033[32mNot supported\033[m\n'
++    fi
++    printf "  See the kernel file 'Documentation/sysctl/kernel.txt' for more details.\n\n"
+   fi 
+ }
+ 
+@@ -209,7 +239,7 @@ nxcheck() {
+ 
+ if [ "$1" = "--dir" ]; then
+   cd $2
+-  printf "RELRO           STACK CANARY      NX            PIE                     FILE\n"
++  printf "RELRO           STACK CANARY      NX/PaX        PIE                     FILE\n"
+   for N in [a-z]*; do
+     if [ "$N" != "[a-z]*" ]; then
+       filecheck $N
+@@ -225,7 +255,7 @@ if [ "$1" = "--dir" ]; then
+ fi
+ 
+ if [ "$1" = "--file" ]; then
+-  printf "RELRO           STACK CANARY      NX            PIE                     FILE\n"		
++  printf "RELRO           STACK CANARY      NX/PaX        PIE                     FILE\n"		
+   filecheck $2
+   if [ `find $2 \( -perm -004000 -o -perm -002000 \) -type f -print` ]; then
+     printf "\033[37;41m%s%s\033[m" $2 $N
+@@ -238,12 +268,11 @@ fi
+ 
+ if [ "$1" = "--proc-all" ]; then
+   cd /proc
+-  printf "* System-wide ASLR (kernel.randomize_va_space): "
++  printf "* System-wide ASLR"
+   aslrcheck
+-  printf "  See the kernel file 'Documentation/sysctl/kernel.txt' for more details.\n\n"
+   printf "* Does the CPU support NX: "
+   nxcheck 
+-  printf "         COMMAND    PID RELRO             STACK CANARY           NX            PIE\n"
++  printf "         COMMAND    PID RELRO             STACK CANARY           NX/PaX        PIE\n"
+   for N in [1-9]*; do
+     if [ $N != $$ ] && readlink -q $N/exe > /dev/null; then
+       printf "%16s" `head -1 $N/status | cut -b 7-`
+@@ -257,12 +286,11 @@ fi
+ 
+ if [ "$1" = "--proc" ]; then
+   cd /proc
+-  printf "* System-wide ASLR (kernel.randomize_va_space): "
++  printf "* System-wide ASLR"
+   aslrcheck
+-  printf "  See the kernel file 'Documentation/sysctl/kernel.txt' for a detailed description.\n\n"
+   printf "* Does the CPU support NX: "
+   nxcheck
+-  printf "         COMMAND    PID RELRO             STACK CANARY           NX            PIE\n"
++  printf "         COMMAND    PID RELRO             STACK CANARY           NX/PaX        PIE\n"
+   for N in `pidof $2`; do
+     if [ -d $N ]; then
+       printf "%16s" `head -1 $N/status | cut -b 7-`
+@@ -275,13 +303,12 @@ fi
+ 
+ if [ "$1" = "--proc-libs" ]; then
+   cd /proc
+-  printf "* System-wide ASLR (kernel.randomize_va_space): "
++  printf "* System-wide ASLR"
+   aslrcheck
+-  printf "  See the kernel file 'Documentation/sysctl/kernel.txt' for a detailed description.\n\n"
+   printf "* Does the CPU support NX: "
+   nxcheck
+   printf "* Process information:\n\n"
+-  printf "         COMMAND    PID RELRO             STACK CANARY           NX            PIE\n"
++  printf "         COMMAND    PID RELRO             STACK CANARY           NX/PaX        PIE\n"
+   N=$2
+   if [ -d $N ]; then
+       printf "%16s" `head -1 $N/status | cut -b 7-`

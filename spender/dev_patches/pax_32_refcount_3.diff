@@ -1,0 +1,36 @@
+diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
+index 05ef538..dc9c857 100644
+--- a/arch/sparc/Kconfig
++++ b/arch/sparc/Kconfig
+@@ -32,6 +32,7 @@ config SPARC
+ 
+ config SPARC32
+ 	def_bool !64BIT
++	select GENERIC_ATOMIC64
+ 
+ config SPARC64
+ 	def_bool 64BIT
+diff --git a/arch/sparc/include/asm/atomic.h b/arch/sparc/include/asm/atomic.h
+index 8ff83d8..4a459c2 100644
+--- a/arch/sparc/include/asm/atomic.h
++++ b/arch/sparc/include/asm/atomic.h
+@@ -4,5 +4,6 @@
+ #include <asm/atomic_64.h>
+ #else
+ #include <asm/atomic_32.h>
++#include <asm-generic/atomic64.h>
+ #endif
+ #endif
+diff --git a/arch/sparc/include/asm/page_32.h b/arch/sparc/include/asm/page_32.h
+index 156707b..aefa786 100644
+--- a/arch/sparc/include/asm/page_32.h
++++ b/arch/sparc/include/asm/page_32.h
+@@ -8,6 +8,8 @@
+ #ifndef _SPARC_PAGE_H
+ #define _SPARC_PAGE_H
+ 
++#include <linux/const.h>
++
+ #define PAGE_SHIFT   12
+ 
+ #ifndef __ASSEMBLY__

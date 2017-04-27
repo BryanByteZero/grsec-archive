@@ -1,0 +1,629 @@
+diff -u linux-2.6.29.4/arch/x86/include/asm/uaccess_32.h linux-2.6.29.4-devel/arch/x86/include/asm/uaccess_32.h
+--- linux-2.6.29.4/arch/x86/include/asm/uaccess_32.h	2009-05-27 04:31:25.000000000 -0400
++++ linux-2.6.29.4-devel/arch/x86/include/asm/uaccess_32.h	2009-05-27 03:37:55.000000000 -0400
+@@ -22,6 +22,10 @@
+ unsigned long __must_check __copy_from_user_ll_nocache_nozero
+ 		(void *to, const void __user *from, unsigned long n);
+ 
++#ifdef CONFIG_PAX_FORTIFY_SOURCE
++extern void __chk_fail(void);
++#endif
++
+ /**
+  * __copy_to_user_inatomic: - Copy a block of data into user space, with less checking.
+  * @to:   Destination address, in user space.
+@@ -62,6 +66,10 @@
+ 			return ret;
+ 		}
+ 	}
++#ifdef CONFIG_PAX_FORTIFY_SOURCE
++	if (__bos0 (from) != (size_t) -1 && n > __bos0 (from))
++		__chk_fail();
++#endif
+ 	if (!__builtin_constant_p(n))
+ 		check_object_size(from, n, true);
+ 	return __copy_to_user_ll(to, from, n);
+@@ -229,6 +237,10 @@
+ static __always_inline unsigned long __must_check
+ copy_from_user(void *to, const void __user *from, unsigned long n)
+ {
++#ifdef CONFIG_PAX_FORTIFY_SOURCE
++	if (__bos0 (to) != (size_t) -1 && n > __bos0 (to))
++		__chk_fail();
++#endif
+ 	if (access_ok(VERIFY_READ, from, n))
+ 		n = __copy_from_user(to, from, n);
+ 	else if ((long)n > 0)
+diff -u linux-2.6.29.4/include/linux/slub_def.h linux-2.6.29.4-devel/include/linux/slub_def.h
+--- linux-2.6.29.4/include/linux/slub_def.h	2009-05-27 04:31:30.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/slub_def.h	2009-05-27 02:26:36.000000000 -0400
+@@ -202,14 +202,14 @@
+ #endif
+ 
+ void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+-void *__kmalloc(size_t size, gfp_t flags);
++__attribute__((malloc)) void *__kmalloc(size_t size, gfp_t flags);
+ 
+ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+ {
+ 	return (void *)__get_free_pages(flags | __GFP_COMP, get_order(size));
+ }
+ 
+-static __always_inline void *kmalloc(size_t size, gfp_t flags)
++static __always_inline __attribute__((malloc)) void *kmalloc(size_t size, gfp_t flags)
+ {
+ 	if (__builtin_constant_p(size)) {
+ 		if (size > PAGE_SIZE)
+diff -u linux-2.6.29.4/security/Kconfig linux-2.6.29.4-devel/security/Kconfig
+--- linux-2.6.29.4/security/Kconfig	2009-05-27 04:31:31.000000000 -0400
++++ linux-2.6.29.4-devel/security/Kconfig	2009-05-27 03:08:50.000000000 -0400
+@@ -442,6 +442,14 @@
+ 	  Since this has a negligible performance impact, you should enable
+ 	  this feature.
+ 
++config PAX_FORTIFY_SOURCE
++	bool "Enable limited buffer overflow checking"
++	depends on GRKERNSEC && X86_32
++	help
++	  By saying Y here the kernel will use a recent gcc feature that
++	  allows several key kernel string/memory copying routines to
++	  check for buffer overflows when dealing with static buffers.
++
+ config PAX_USERCOPY
+ 	bool "Bounds check heap object copies between kernel and userland"
+ 	depends on X86
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/include/linux/compiler-gcc3.h	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/compiler-gcc3.h	2009-05-27 02:35:56.000000000 -0400
+@@ -16,6 +16,11 @@
+ #define __must_check		__attribute__((warn_unused_result))
+ #endif
+ 
++#if  defined(__GNUC_RH_RELEASE__) && __GNUC_MINOR__ >= 4 && __GNUC_PATCHLEVEL__ >=2 
++#define __bos(ptr) __builtin_object_size (ptr, 1)
++#define __bos0(ptr) __builtin_object_size (ptr, 0)
++#endif
++
+ /*
+  * A trick to suppress uninitialized variable warning without generating any
+  * code
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/include/linux/compiler-gcc4.h	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/compiler-gcc4.h	2009-05-27 02:37:04.000000000 -0400
+@@ -12,6 +12,11 @@
+ #define __compiler_offsetof(a,b) __builtin_offsetof(a,b)
+ #define __always_inline		inline __attribute__((always_inline))
+ 
++#if defined(__GNUC_RH_RELEASE__) || __GNUC_MINOR__ >= 1
++#define __bos(ptr) __builtin_object_size (ptr, 1)
++#define __bos0(ptr) __builtin_object_size (ptr, 0)
++#endif
++
+ /*
+  * A trick to suppress uninitialized variable warning without generating any
+  * code
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/include/linux/compiler.h	2009-05-27 00:30:00.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/compiler.h	2009-05-27 02:08:05.000000000 -0400
+@@ -275,4 +275,13 @@ void ftrace_likely_update(struct ftrace_
+  */
+ #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+ 
++#ifndef __bos
++#define __bos(x) -1
++#endif
++
++#ifndef __bos0
++#define __bos0(x) -1
++#endif
++
++
+ #endif /* __LINUX_COMPILER_H */
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/include/linux/slab_def.h	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/slab_def.h	2009-05-27 02:31:00.000000000 -0400
+@@ -26,9 +26,9 @@ struct cache_sizes {
+ extern struct cache_sizes malloc_sizes[];
+ 
+ void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+-void *__kmalloc(size_t size, gfp_t flags);
++__attribute__((malloc)) void *__kmalloc(size_t size, gfp_t flags);
+ 
+-static inline void *kmalloc(size_t size, gfp_t flags)
++static inline __attribute__((malloc)) void *kmalloc(size_t size, gfp_t flags)
+ {
+ 	if (__builtin_constant_p(size)) {
+ 		int i = 0;
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/include/linux/slob_def.h	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/slob_def.h	2009-05-27 02:28:40.000000000 -0400
+@@ -23,12 +23,12 @@ static inline void *kmalloc_node(size_t 
+  * kmalloc is the normal method of allocating memory
+  * in the kernel.
+  */
+-static inline void *kmalloc(size_t size, gfp_t flags)
++static inline __attribute((malloc)) void *kmalloc(size_t size, gfp_t flags)
+ {
+ 	return __kmalloc_node(size, flags, -1);
+ }
+ 
+-static inline void *__kmalloc(size_t size, gfp_t flags)
++static inline __attribute__((malloc)) void *__kmalloc(size_t size, gfp_t flags)
+ {
+ 	return kmalloc(size, flags);
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/include/linux/string.h	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/include/linux/string.h	2009-05-27 03:10:42.000000000 -0400
+@@ -102,6 +102,94 @@ extern int memcmp(const void *,const voi
+ extern void * memchr(const void *,int,__kernel_size_t);
+ #endif
+ 
++#ifdef CONFIG_PAX_FORTIFY_SOURCE
++
++/*
++ * "fortified" variants of some of these functions that for certain cases make
++ * gcc emit code that checks for buffer overflows.
++ */
++
++#undef strcpy
++#undef __HAVE_ARCH_STRCPY
++#define strcpy(dest, src) \
++  ((__bos (dest) != (size_t) -1)                                        \
++   ? __builtin___strcpy_chk (dest, src, __bos (dest))                   \
++   : __strcpy_ichk (dest, src))
++static __always_inline char *
++__strcpy_ichk (char * __dest, const char * __src)
++{
++  return __builtin___strcpy_chk (__dest, __src, __bos (__dest));
++}
++
++#undef strncpy
++#undef __HAVE_ARCH_STRNCPY
++#define strncpy(dest, src, len) \
++  ((__bos (dest) != (size_t) -1)                                        \
++   ? __builtin___strncpy_chk (dest, src, len, __bos (dest))             \
++   : __strncpy_ichk (dest, src, len))
++static __always_inline char *
++__strncpy_ichk (char * __dest, const char * __src, size_t __len)
++{
++  return __builtin___strncpy_chk (__dest, __src, __len, __bos (__dest));
++}
++
++#undef strcat
++#undef __HAVE_ARCH_STRCAT
++#define strcat(dest, src) \
++  ((__bos (dest) != (size_t) -1)                                        \
++   ? __builtin___strcat_chk (dest, src, __bos (dest))                   \
++   : __strcat_ichk (dest, src))
++static __always_inline char *
++__strcat_ichk (char * __dest, const char * __src)
++{
++  return __builtin___strcat_chk (__dest, __src, __bos (__dest));
++}
++
++#undef strncat
++#undef __HAVE_ARCH_STRNCAT
++#define strncat(dest, src, len) \
++  ((__bos (dest) != (size_t) -1)                                        \
++   ? __builtin___strncat_chk (dest, src, len, __bos (dest))             \
++   : __strncat_ichk (dest, src, len))
++static __always_inline char *
++__strncat_ichk (char * __dest, const char * __src, size_t __len)
++{
++  return __builtin___strncat_chk (__dest, __src, __len, __bos (__dest));
++}
++
++#undef memcpy
++#define memcpy(dest, src, len) \
++  ((__bos0 (dest) != (size_t) -1)                                       \
++   ? __builtin___memcpy_chk (dest, src, len, __bos0 (dest))             \
++   : __memcpy_ichk (dest, src, len))
++static __always_inline void *
++__memcpy_ichk (void * __dest, const void *__src, size_t __len)
++{
++  return __builtin___memcpy_chk (__dest, __src, __len, __bos0 (__dest));
++}
++
++/* memset(x,y,0) is a common typo; this dummy non-existent function is
++ * there to create a linker error in that case
++ */
++extern void __warn_memset_zero_len(void);
++
++#undef memset
++#define memset(dest, ch, len) \
++  (__builtin_constant_p (len) && (len) == 0 && (!__builtin_constant_p(ch) || ((ch)!=0)) \
++   ? (__warn_memset_zero_len (), (void) (ch), (void) (len), (void *) (dest))  \
++   : ((__bos0 (dest) != (size_t) -1)                                          \
++      ? __builtin___memset_chk (dest, ch, len, __bos0 (dest))                 \
++      : __memset_ichk (dest, ch, len)))
++
++static __always_inline void *
++__memset_ichk (void *__dest, int __ch, size_t __len)
++{
++  return __builtin___memset_chk (__dest, __ch, __len, __bos0 (__dest));
++}
++
++
++#endif
++
+ extern char *kstrdup(const char *s, gfp_t gfp);
+ extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
+ extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
+@@ -116,3 +204,4 @@ extern ssize_t memory_read_from_buffer(v
+ 
+ #endif
+ #endif /* _LINUX_STRING_H_ */
++
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/lib/fortify.c	1969-12-31 19:00:00.000000000 -0500
++++ linux-2.6.29.4-devel/lib/fortify.c	2009-05-27 03:49:07.000000000 -0400
+@@ -0,0 +1,291 @@
++/*
++ * Copyright (C) 1991, 1997, 2003, 2004 Free Software Foundation, Inc.
++ * Reporting enhancement by Brad Spengler <spender@grsecurity.net>
++ * Portions Copyright (C) 2005 Arjan van de Ven <arjan@infreadead.org>
++ * Portions Copyright (C) 1991, 1992  Linus Torvalds
++ *
++ * (Several of these functions were copied from various FSF projects)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2, or (at
++ * your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ */
++
++#include <linux/types.h>
++#include <linux/string.h>
++#include <linux/ctype.h>
++#include <linux/module.h>
++#include <linux/sched.h>
++
++void __chk_fail(void) 
++{
++	if (current->signal->curr_ip)
++		printk(KERN_ALERT "PAX: From %u.%u.%u.%u: %s:%d, uid/euid: %u/%u, attempted to overflow a kernel buffer\n",
++			NIPQUAD(current->signal->curr_ip), current->comm, task_pid_nr(current), current_uid(), current_euid());
++	else
++		printk(KERN_ALERT "PAX: %s:%d, uid/euid: %u/%u, attempted to overflow a kernel buffer\n",
++			current->comm, task_pid_nr(current), current_uid(), current_euid());
++	BUG();
++}
++EXPORT_SYMBOL(__chk_fail);
++
++void * __memcpy_chk (void *dstpp, const void* srcpp, size_t len, size_t dstlen)
++{
++	char *d = (char *) dstpp, *s = (char *) srcpp;
++
++	if (unlikely(dstlen < len))
++		__chk_fail ();
++
++        while (len--)
++                *d++ = *s++;
++
++        return d;
++}
++
++EXPORT_SYMBOL(__memcpy_chk);
++
++void * __memset_chk (void *dst, const int c, size_t len, size_t dstlen)
++{
++	char *d = (char *) dst;
++
++	if (unlikely(dstlen < len))
++		__chk_fail ();
++
++        while (len--)
++                *d++ = c;
++
++        return d;
++}
++
++EXPORT_SYMBOL(__memset_chk);
++
++/* Copy SRC to DEST with checking of destination buffer overflow.  */
++char * __strcpy_chk (char *dest, const char *src, size_t destlen)
++{
++  char c;
++  char *s = (char *) src;
++  const ptrdiff_t off = dest - s;
++
++  while (__builtin_expect (destlen >= 4, 0))
++    {
++      c = s[0];
++      s[off] = c;
++      if (c == '\0')
++        return dest;
++      c = s[1];
++      s[off + 1] = c;
++      if (c == '\0')
++        return dest;
++      c = s[2];
++      s[off + 2] = c;
++      if (c == '\0')
++        return dest;
++      c = s[3];
++      s[off + 3] = c;
++      if (c == '\0')
++        return dest;
++      destlen -= 4;
++      s += 4;
++    }
++
++  do
++    {
++      if (__builtin_expect (destlen-- == 0, 0))
++        __chk_fail ();
++      c = *s;
++      *(s++ + off) = c;
++    }
++  while (c != '\0');
++
++  return dest;
++}
++
++EXPORT_SYMBOL(__strcpy_chk);
++
++
++char * __strcat_chk (char *dest, const char *src, size_t destlen)
++{
++  char *s1 = dest;
++  const char *s2 = src;
++  char c;
++
++  /* Find the end of the string.  */
++  do
++    {
++      if (__builtin_expect (destlen-- == 0, 0))
++        __chk_fail ();
++      c = *s1++;
++    }
++  while (c != '\0');
++
++  /* Make S1 point before the next character, so we can increment
++     it while memory is read (wins on pipelined cpus).  */
++  ++destlen;
++  s1 -= 2;
++
++  do
++    {
++      if (__builtin_expect (destlen-- == 0, 0))
++        __chk_fail ();
++      c = *s2++;
++      *++s1 = c;
++    }
++  while (c != '\0');
++
++  return dest;
++}
++
++EXPORT_SYMBOL(__strcat_chk);
++
++char * __strncat_chk (char *s1, const char *s2, size_t n, size_t s1len)
++{
++  char c;
++  char *s = s1;
++
++  /* Find the end of S1.  */
++  do
++    {
++      if (__builtin_expect (s1len-- == 0, 0))
++	__chk_fail ();
++      c = *s1++;
++    }
++  while (c != '\0');
++
++  /* Make S1 point before next character, so we can increment
++     it while memory is read (wins on pipelined cpus).  */
++  ++s1len;
++  s1 -= 2;
++
++  if (n >= 4)
++    {
++      size_t n4 = n >> 2;
++      do
++	{
++	  if (__builtin_expect (s1len-- == 0, 0))
++	    __chk_fail ();
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    return s;
++	  if (__builtin_expect (s1len-- == 0, 0))
++	    __chk_fail ();
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    return s;
++	  if (__builtin_expect (s1len-- == 0, 0))
++	    __chk_fail ();
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    return s;
++	  if (__builtin_expect (s1len-- == 0, 0))
++	    __chk_fail ();
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    return s;
++	} while (--n4 > 0);
++      n &= 3;
++    }
++
++  while (n > 0)
++    {
++      if (__builtin_expect (s1len-- == 0, 0))
++	__chk_fail ();
++      c = *s2++;
++      *++s1 = c;
++      if (c == '\0')
++	return s;
++      n--;
++    }
++
++  if (c != '\0')
++    {
++      if (__builtin_expect (s1len-- == 0, 0))
++	__chk_fail ();
++      *++s1 = '\0';
++    }
++
++  return s;
++}
++
++EXPORT_SYMBOL(__strncat_chk);
++
++
++char * __strncpy_chk (char *s1, const char *s2, size_t n, size_t s1len)
++{
++  char c;
++  char *s = s1;
++
++  if (__builtin_expect (s1len < n, 0))
++    __chk_fail ();
++
++  --s1;
++
++  if (n >= 4)
++    {
++      size_t n4 = n >> 2;
++
++      for (;;)
++	{
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    break;
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    break;
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    break;
++	  c = *s2++;
++	  *++s1 = c;
++	  if (c == '\0')
++	    break;
++	  if (--n4 == 0)
++	    goto last_chars;
++	}
++      n = n - (s1 - s) - 1;
++      if (n == 0)
++	return s;
++      goto zero_fill;
++    }
++
++ last_chars:
++  n &= 3;
++  if (n == 0)
++    return s;
++
++  do
++    {
++      c = *s2++;
++      *++s1 = c;
++      if (--n == 0)
++	return s;
++    }
++  while (c != '\0');
++
++ zero_fill:
++  do
++    *++s1 = '\0';
++  while (--n > 0);
++
++  return s;
++}
++
++EXPORT_SYMBOL(__strncpy_chk);
++
++
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/lib/Makefile	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/lib/Makefile	2009-05-27 03:09:46.000000000 -0400
+@@ -44,6 +44,7 @@ obj-$(CONFIG_PLIST) += plist.o
+ obj-$(CONFIG_DEBUG_PREEMPT) += smp_processor_id.o
+ obj-$(CONFIG_DEBUG_LIST) += list_debug.o
+ obj-$(CONFIG_DEBUG_OBJECTS) += debugobjects.o
++lib-$(CONFIG_PAX_FORTIFY_SOURCE) += fortify.o
+ 
+ ifneq ($(CONFIG_HAVE_DEC_LOCK),y)
+   lib-y += dec_and_lock.o
+only in patch2:
+unchanged:
+--- linux-2.6.29.4/lib/string.c	2009-05-08 18:47:21.000000000 -0400
++++ linux-2.6.29.4-devel/lib/string.c	2009-05-27 02:20:38.000000000 -0400
+@@ -95,7 +95,7 @@ EXPORT_SYMBOL(strncasecmp);
+  * @src: Where to copy the string from
+  */
+ #undef strcpy
+-char *strcpy(char *dest, const char *src)
++char * __attribute__((weak)) strcpy(char *dest, const char *src)
+ {
+ 	char *tmp = dest;
+ 
+@@ -120,7 +120,8 @@ EXPORT_SYMBOL(strcpy);
+  * count, the remainder of @dest will be padded with %NUL.
+  *
+  */
+-char *strncpy(char *dest, const char *src, size_t count)
++#undef strncpy
++char * __attribute__((weak)) strncpy(char *dest, const char *src, size_t count)
+ {
+ 	char *tmp = dest;
+ 
+@@ -168,7 +169,7 @@ EXPORT_SYMBOL(strlcpy);
+  * @src: The string to append to it
+  */
+ #undef strcat
+-char *strcat(char *dest, const char *src)
++char * __attribute__((weak)) strcat(char *dest, const char *src)
+ {
+ 	char *tmp = dest;
+ 
+@@ -191,7 +192,8 @@ EXPORT_SYMBOL(strcat);
+  * Note that in contrast to strncpy(), strncat() ensures the result is
+  * terminated.
+  */
+-char *strncat(char *dest, const char *src, size_t count)
++#undef strncat
++char * __attribute__((weak)) strncat(char *dest, const char *src, size_t count)
+ {
+ 	char *tmp = dest;
+ 
+@@ -529,6 +531,7 @@ EXPORT_SYMBOL(sysfs_streq);
+  *
+  * Do not use memset() to access IO space, use memset_io() instead.
+  */
++#undef memset
+ void *memset(void *s, int c, size_t count)
+ {
+ 	char *xs = s;
+@@ -550,6 +553,7 @@ EXPORT_SYMBOL(memset);
+  * You should not use this function to access IO space, use memcpy_toio()
+  * or memcpy_fromio() instead.
+  */
++#undef memcpy
+ void *memcpy(void *dest, const void *src, size_t count)
+ {
+ 	char *tmp = dest;

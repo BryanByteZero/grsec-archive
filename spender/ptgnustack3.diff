@@ -1,0 +1,173 @@
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 989dbf2..bdd04df 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -2691,6 +2691,9 @@ out:
+  * The checks favour ld-linux.so behaviour which operates on a per ELF segment
+  * basis because we want to allow the common case and not the special ones.
+  */
++
++extern int grsec_enable_log_rwxmaps;
++
+ static void elf_handle_mprotect(struct vm_area_struct *vma, unsigned long newflags)
+ {
+ 	struct elfhdr elf_h;
+@@ -2717,7 +2720,7 @@ static void elf_handle_mprotect(struct vm_area_struct *vma, unsigned long newfla
+ 	/* possible RELRO */
+ 	is_relro = vma->vm_file && vma->anon_vma && oldflags == (VM_MAYWRITE | VM_MAYREAD | VM_READ) && newflags == (VM_MAYWRITE | VM_MAYREAD | VM_READ);
+ 
+-	if (!is_textrel_rw && !is_textrel_rx && !is_relro)
++	if (!is_textrel_rw && !is_textrel_rx && !is_relro && (!grsec_enable_log_rwxmaps || !vma->vm_file))
+ 		return;
+ 
+ 	if (sizeof(elf_h) != kernel_read(vma->vm_file, 0UL, (char *)&elf_h, sizeof(elf_h)) ||
+@@ -2765,6 +2768,11 @@ static void elf_handle_mprotect(struct vm_area_struct *vma, unsigned long newfla
+ 			is_textrel_rx = false;
+ 			continue;
+ 
++		case PT_GNU_STACK:
++			if (elf_p.p_flags & PF_X)
++				gr_log_ptgnustack(vma->vm_file);
++			continue;
++
+ 		case PT_GNU_RELRO:
+ 			if (!is_relro)
+ 				continue;
+diff --git a/grsecurity/Kconfig b/grsecurity/Kconfig
+index c9c4ac3..712a85d 100644
+--- a/grsecurity/Kconfig
++++ b/grsecurity/Kconfig
+@@ -708,22 +708,11 @@ config GRKERNSEC_RWXMAP_LOG
+ 	help
+ 	  If you say Y here, calls to mmap() and mprotect() with explicit
+ 	  usage of PROT_WRITE and PROT_EXEC together will be logged when
+-	  denied by the PAX_MPROTECT feature.  If the sysctl option is
+-	  enabled, a sysctl option with name "rwxmap_logging" is created.
+-
+-config GRKERNSEC_AUDIT_TEXTREL
+-	bool 'ELF text relocations logging (READ HELP)'
+-	depends on PAX_MPROTECT
+-	help
+-	  If you say Y here, text relocations will be logged with the filename
+-	  of the offending library or binary.  The purpose of the feature is
+-	  to help Linux distribution developers get rid of libraries and
+-	  binaries that need text relocations which hinder the future progress
+-	  of PaX.  Only Linux distribution developers should say Y here, and
+-	  never on a production machine, as this option creates an information
+-	  leak that could aid an attacker in defeating the randomization of
+-	  a single memory region.  If the sysctl option is enabled, a sysctl
+-	  option with name "audit_textrel" is created.
++	  denied by the PAX_MPROTECT feature.  This feature will also
++	  log other problematic scenarios that can occur when PAX_MPROTECT
++	  is enabled on a binary, like textrels and PT_GNU_STACK.  If the 
++          sysctl option is enabled, a sysctl option with name "rwxmap_logging"
++	  is created.
+ 
+ endmenu
+ 
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index a862e9f..ab2d875 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -21,7 +21,6 @@ int grsec_enable_signal;
+ int grsec_enable_forkfail;
+ int grsec_enable_audit_ptrace;
+ int grsec_enable_time;
+-int grsec_enable_audit_textrel;
+ int grsec_enable_group;
+ kgid_t grsec_audit_gid;
+ int grsec_enable_chdir;
+@@ -153,9 +152,6 @@ grsecurity_init(void)
+ 	grsec_lock = 1;
+ #endif
+ 
+-#ifdef CONFIG_GRKERNSEC_AUDIT_TEXTREL
+-	grsec_enable_audit_textrel = 1;
+-#endif
+ #ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
+ 	grsec_enable_log_rwxmaps = 1;
+ #endif
+diff --git a/grsecurity/grsec_pax.c b/grsecurity/grsec_pax.c
+index a3b12a0..3270c67 100644
+--- a/grsecurity/grsec_pax.c
++++ b/grsecurity/grsec_pax.c
+@@ -8,9 +8,18 @@
+ void
+ gr_log_textrel(struct vm_area_struct * vma)
+ {
+-#ifdef CONFIG_GRKERNSEC_AUDIT_TEXTREL
+-	if (grsec_enable_audit_textrel)
+-		gr_log_textrel_ulong_ulong(GR_DO_AUDIT, GR_TEXTREL_AUDIT_MSG, vma->vm_file, vma->vm_start, vma->vm_pgoff);
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++	if (grsec_enable_log_rwxmaps)
++		gr_log_textrel_ulong_ulong(GR_DONT_AUDIT, GR_TEXTREL_AUDIT_MSG, vma->vm_file, vma->vm_start, vma->vm_pgoff);
++#endif
++	return;
++}
++
++void gr_log_ptgnustack(struct file *file)
++{
++#ifdef CONFIG_GRKERNSEC_RWXMAP_LOG
++	if (grsec_enable_log_rwxmaps)
++		gr_log_rwxmap(GR_DONT_AUDIT, GR_PTGNUSTACK_MSG, file);
+ #endif
+ 	return;
+ }
+diff --git a/grsecurity/grsec_sysctl.c b/grsecurity/grsec_sysctl.c
+index f55ef0f..7624d1c 100644
+--- a/grsecurity/grsec_sysctl.c
++++ b/grsecurity/grsec_sysctl.c
+@@ -391,15 +391,6 @@ struct ctl_table grsecurity_table[] = {
+ 		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
+-#ifdef CONFIG_GRKERNSEC_AUDIT_TEXTREL
+-	{
+-		.procname	= "audit_textrel",
+-		.data		= &grsec_enable_audit_textrel,
+-		.maxlen		= sizeof(int),
+-		.mode		= 0600,
+-		.proc_handler	= &proc_dointvec,
+-	},
+-#endif
+ #ifdef CONFIG_GRKERNSEC_DMESG
+ 	{
+ 		.procname	= "dmesg",
+diff --git a/include/linux/grinternal.h b/include/linux/grinternal.h
+index 12994b5..c9dd641 100644
+--- a/include/linux/grinternal.h
++++ b/include/linux/grinternal.h
+@@ -73,7 +73,6 @@ extern int grsec_enable_socket_server;
+ extern kgid_t grsec_socket_server_gid;
+ extern kgid_t grsec_audit_gid;
+ extern int grsec_enable_group;
+-extern int grsec_enable_audit_textrel;
+ extern int grsec_enable_log_rwxmaps;
+ extern int grsec_enable_mount;
+ extern int grsec_enable_chdir;
+diff --git a/include/linux/grmsg.h b/include/linux/grmsg.h
+index 2f159b5..a4396b5 100644
+--- a/include/linux/grmsg.h
++++ b/include/linux/grmsg.h
+@@ -101,7 +101,8 @@
+ #define GR_RESOURCE_MSG "denied resource overstep by requesting %lu for %.16s against limit %lu for "
+ #define GR_RWXMMAP_MSG "denied RWX mmap of %.950s by "
+ #define GR_RWXMPROTECT_MSG "denied RWX mprotect of %.950s by "
+-#define GR_TEXTREL_AUDIT_MSG "text relocation in %s, VMA:0x%08lx 0x%08lx by "
++#define GR_TEXTREL_AUDIT_MSG "denied text relocation in %.950s, VMA:0x%08lx 0x%08lx by "
++#define GR_PTGNUSTACK_MSG "denied marking stack executable as requested by PT_GNU_STACK marking in %.950s by "
+ #define GR_VM86_MSG "denied use of vm86 by "
+ #define GR_PTRACE_AUDIT_MSG "process %.950s(%.16s:%d) attached to via ptrace by "
+ #define GR_PTRACE_READEXEC_MSG "denied ptrace of unreadable binary %.950s by "
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index d957f6d..8f2d130 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -75,6 +75,7 @@ void gr_log_remount(const char *devname, const int retval);
+ void gr_log_unmount(const char *devname, const int retval);
+ void gr_log_mount(const char *from, const char *to, const int retval);
+ void gr_log_textrel(struct vm_area_struct *vma);
++void gr_log_ptgnustack(struct file *file);
+ void gr_log_rwxmmap(struct file *file);
+ void gr_log_rwxmprotect(struct file *file);
+ 

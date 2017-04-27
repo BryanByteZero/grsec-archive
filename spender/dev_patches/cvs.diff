@@ -1,0 +1,28 @@
+Index: gracl.c
+===================================================================
+RCS file: /home/cvs/grsecurity2/grsecurity/gracl.c,v
+retrieving revision 1.5
+retrieving revision 1.6
+diff -u -r1.5 -r1.6
+--- gracl.c	22 Dec 2005 14:55:53 -0000	1.5
++++ gracl.c	30 Dec 2005 02:01:05 -0000	1.6
+@@ -2957,6 +2957,8 @@
+ 	struct acl_object_label *obj;
+ 	struct task_struct *task;
+ 	struct file *filp;
++	struct acl_role_label *role = current->role;
++	__u16 acl_role_id = current->acl_role_id;
+ 
+ 	read_lock(&tasklist_lock);
+ 	read_lock(&grsec_exec_file_lock);
+@@ -2965,8 +2967,8 @@
+ 		   if so, only replace ACLs that have inherited the admin
+ 		   ACL */
+ 
+-		if (type && (task->role != current->role ||
+-			     task->acl_role_id != current->acl_role_id))
++		if (type && (task->role != role ||
++			     task->acl_role_id != acl_role_id))
+ 			continue;
+ 
+ 		task->acl_role_id = 0;

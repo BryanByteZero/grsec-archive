@@ -1,0 +1,489 @@
+diff --git a/fs/namei.c b/fs/namei.c
+index 09cc61e..2ec69cd 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -2828,7 +2828,7 @@ static long do_rmdir(int dfd, const char __user *pathname)
+ 	char * name;
+ 	struct dentry *dentry;
+ 	struct nameidata nd;
+-	ino_t saved_ino = 0;
++	u64 saved_ino = 0;
+ 	dev_t saved_dev = 0;
+ 
+ 	error = user_path_parent(dfd, pathname, &nd, &name);
+@@ -2859,7 +2859,7 @@ static long do_rmdir(int dfd, const char __user *pathname)
+ 		goto exit3;
+ 	}
+ 
+-	saved_ino = dentry->d_inode->i_ino;
++	saved_ino = gr_get_ino_from_dentry(dentry);
+ 	saved_dev = gr_get_dev_from_dentry(dentry);
+ 
+ 	if (!gr_acl_handle_rmdir(dentry, nd.path.mnt)) {
+@@ -2938,7 +2938,7 @@ static long do_unlinkat(int dfd, const char __user *pathname)
+ 	struct dentry *dentry;
+ 	struct nameidata nd;
+ 	struct inode *inode = NULL;
+-	ino_t saved_ino = 0;
++	u64 saved_ino = 0;
+ 	dev_t saved_dev = 0;
+ 
+ 	error = user_path_parent(dfd, pathname, &nd, &name);
+@@ -2964,7 +2964,7 @@ static long do_unlinkat(int dfd, const char __user *pathname)
+ 		ihold(inode);
+ 
+ 		if (inode->i_nlink <= 1) {
+-			saved_ino = inode->i_ino;
++			saved_ino = gr_get_ino_from_dentry(dentry);
+ 			saved_dev = gr_get_dev_from_dentry(dentry);
+ 		}
+ 		if (!gr_acl_handle_unlink(dentry, nd.path.mnt)) {
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index d6dc950..1b75b8a 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -109,11 +109,26 @@ static inline dev_t __get_dev(const struct dentry *dentry)
+ 		return dentry->d_sb->s_dev;
+ }
+ 
++static inline u64 __get_ino(const struct dentry *dentry)
++{
++#if defined(CONFIG_BTRFS_FS) || defined(CONFIG_BTRFS_FS_MODULE)
++	if (dentry->d_sb->s_magic == BTRFS_SUPER_MAGIC)
++		return btrfs_ino(dentry->d_inode);
++	else
++#endif
++		return dentry->d_inode->i_ino;
++}
++
+ dev_t gr_get_dev_from_dentry(struct dentry *dentry)
+ {
+ 	return __get_dev(dentry);
+ }
+ 
++u64 gr_get_ino_from_dentry(struct dentry *dentry)
++{
++	return __get_ino(dentry);
++}
++
+ static char gr_task_roletype_to_char(struct task_struct *task)
+ {
+ 	switch (task->role->roletype &
+@@ -450,7 +465,7 @@ lookup_acl_role_label(const struct task_struct *task, const uid_t uid,
+ }
+ 
+ struct acl_subject_label *
+-lookup_acl_subj_label(const ino_t ino, const dev_t dev,
++lookup_acl_subj_label(const u64 ino, const dev_t dev,
+ 		      const struct acl_role_label *role)
+ {
+ 	unsigned int index = gr_fhash(ino, dev, role->subj_hash_size);
+@@ -470,7 +485,7 @@ lookup_acl_subj_label(const ino_t ino, const dev_t dev,
+ }
+ 
+ struct acl_subject_label *
+-lookup_acl_subj_label_deleted(const ino_t ino, const dev_t dev,
++lookup_acl_subj_label_deleted(const u64 ino, const dev_t dev,
+ 			  const struct acl_role_label *role)
+ {
+ 	unsigned int index = gr_fhash(ino, dev, role->subj_hash_size);
+@@ -490,7 +505,7 @@ lookup_acl_subj_label_deleted(const ino_t ino, const dev_t dev,
+ }
+ 
+ static struct acl_object_label *
+-lookup_acl_obj_label(const ino_t ino, const dev_t dev,
++lookup_acl_obj_label(const u64 ino, const dev_t dev,
+ 		     const struct acl_subject_label *subj)
+ {
+ 	unsigned int index = gr_fhash(ino, dev, subj->obj_hash_size);
+@@ -510,7 +525,7 @@ lookup_acl_obj_label(const ino_t ino, const dev_t dev,
+ }
+ 
+ static struct acl_object_label *
+-lookup_acl_obj_label_create(const ino_t ino, const dev_t dev,
++lookup_acl_obj_label_create(const u64 ino, const dev_t dev,
+ 		     const struct acl_subject_label *subj)
+ {
+ 	unsigned int index = gr_fhash(ino, dev, subj->obj_hash_size);
+@@ -591,7 +606,7 @@ lookup_name_entry_create(const char *name)
+ }
+ 
+ static struct inodev_entry *
+-lookup_inodev_entry(const ino_t ino, const dev_t dev)
++lookup_inodev_entry(const u64 ino, const dev_t dev)
+ {
+ 	unsigned int index = gr_fhash(ino, dev, running_polstate.inodev_set.i_size);
+ 	struct inodev_entry *match;
+@@ -816,7 +831,7 @@ chk_glob_label(struct acl_object_label *globbed,
+ 
+ static struct acl_object_label *
+ __full_lookup(const struct dentry *orig_dentry, const struct vfsmount *orig_mnt,
+-	    const ino_t curr_ino, const dev_t curr_dev,
++	    const u64 curr_ino, const dev_t curr_dev,
+ 	    const struct acl_subject_label *subj, char **path, const int checkglob)
+ {
+ 	struct acl_subject_label *tmpsubj;
+@@ -847,7 +862,7 @@ full_lookup(const struct dentry *orig_dentry, const struct vfsmount *orig_mnt,
+ 	    const struct acl_subject_label *subj, char **path, const int checkglob)
+ {
+ 	int newglob = checkglob;
+-	ino_t inode;
++	u64 inode;
+ 	dev_t device;
+ 
+ 	/* if we aren't checking a subdirectory of the original path yet, don't do glob checking
+@@ -859,7 +874,7 @@ full_lookup(const struct dentry *orig_dentry, const struct vfsmount *orig_mnt,
+ 		newglob = GR_NO_GLOB;
+ 
+ 	spin_lock(&curr_dentry->d_lock);
+-	inode = curr_dentry->d_inode->i_ino;
++	inode = __get_ino(curr_dentry);
+ 	device = __get_dev(curr_dentry);
+ 	spin_unlock(&curr_dentry->d_lock);
+ 
+@@ -975,7 +990,7 @@ chk_subj_label(const struct dentry *l_dentry, const struct vfsmount *l_mnt,
+ 			spin_lock(&dentry->d_lock);
+ 			read_lock(&gr_inode_lock);
+ 			retval =
+-				lookup_acl_subj_label(dentry->d_inode->i_ino,
++				lookup_acl_subj_label(__get_ino(dentry),
+ 						__get_dev(dentry), role);
+ 			read_unlock(&gr_inode_lock);
+ 			spin_unlock(&dentry->d_lock);
+@@ -989,7 +1004,7 @@ chk_subj_label(const struct dentry *l_dentry, const struct vfsmount *l_mnt,
+ 
+ 		spin_lock(&dentry->d_lock);
+ 		read_lock(&gr_inode_lock);
+-		retval = lookup_acl_subj_label(dentry->d_inode->i_ino,
++		retval = lookup_acl_subj_label(__get_ino(dentry),
+ 					  __get_dev(dentry), role);
+ 		read_unlock(&gr_inode_lock);
+ 		parent = dentry->d_parent;
+@@ -1003,7 +1018,7 @@ chk_subj_label(const struct dentry *l_dentry, const struct vfsmount *l_mnt,
+ 
+ 	spin_lock(&dentry->d_lock);
+ 	read_lock(&gr_inode_lock);
+-	retval = lookup_acl_subj_label(dentry->d_inode->i_ino,
++	retval = lookup_acl_subj_label(__get_ino(dentry),
+ 				  __get_dev(dentry), role);
+ 	read_unlock(&gr_inode_lock);
+ 	spin_unlock(&dentry->d_lock);
+@@ -1011,7 +1026,7 @@ chk_subj_label(const struct dentry *l_dentry, const struct vfsmount *l_mnt,
+ 	if (unlikely(retval == NULL)) {
+ 		/* gr_real_root is pinned, we don't need to hold a reference */
+ 		read_lock(&gr_inode_lock);
+-		retval = lookup_acl_subj_label(gr_real_root.dentry->d_inode->i_ino,
++		retval = lookup_acl_subj_label(__get_ino(gr_real_root.dentry),
+ 					  __get_dev(gr_real_root.dentry), role);
+ 		read_unlock(&gr_inode_lock);
+ 	}
+@@ -1827,7 +1842,7 @@ skip_check:
+ 
+ /* always called with valid inodev ptr */
+ static void
+-do_handle_delete(struct inodev_entry *inodev, const ino_t ino, const dev_t dev)
++do_handle_delete(struct inodev_entry *inodev, const u64 ino, const dev_t dev)
+ {
+ 	struct acl_object_label *matchpo;
+ 	struct acl_subject_label *matchps;
+@@ -1855,7 +1870,7 @@ do_handle_delete(struct inodev_entry *inodev, const ino_t ino, const dev_t dev)
+ }
+ 
+ void
+-gr_handle_delete(const ino_t ino, const dev_t dev)
++gr_handle_delete(const u64 ino, const dev_t dev)
+ {
+ 	struct inodev_entry *inodev;
+ 
+@@ -1872,8 +1887,8 @@ gr_handle_delete(const ino_t ino, const dev_t dev)
+ }
+ 
+ static void
+-update_acl_obj_label(const ino_t oldinode, const dev_t olddevice,
+-		     const ino_t newinode, const dev_t newdevice,
++update_acl_obj_label(const u64 oldinode, const dev_t olddevice,
++		     const u64 newinode, const dev_t newdevice,
+ 		     struct acl_subject_label *subj)
+ {
+ 	unsigned int index = gr_fhash(oldinode, olddevice, subj->obj_hash_size);
+@@ -1911,8 +1926,8 @@ update_acl_obj_label(const ino_t oldinode, const dev_t olddevice,
+ }
+ 
+ static void
+-update_acl_subj_label(const ino_t oldinode, const dev_t olddevice,
+-		      const ino_t newinode, const dev_t newdevice,
++update_acl_subj_label(const u64 oldinode, const dev_t olddevice,
++		      const u64 newinode, const dev_t newdevice,
+ 		      struct acl_role_label *role)
+ {
+ 	unsigned int index = gr_fhash(oldinode, olddevice, role->subj_hash_size);
+@@ -1950,8 +1965,8 @@ update_acl_subj_label(const ino_t oldinode, const dev_t olddevice,
+ }
+ 
+ static void
+-update_inodev_entry(const ino_t oldinode, const dev_t olddevice,
+-		    const ino_t newinode, const dev_t newdevice)
++update_inodev_entry(const u64 oldinode, const dev_t olddevice,
++		    const u64 newinode, const dev_t newdevice)
+ {
+ 	unsigned int index = gr_fhash(oldinode, olddevice, running_polstate.inodev_set.i_size);
+ 	struct inodev_entry *match;
+@@ -1987,7 +2002,7 @@ update_inodev_entry(const ino_t oldinode, const dev_t olddevice,
+ }
+ 
+ static void
+-__do_handle_create(const struct name_entry *matchn, ino_t ino, dev_t dev)
++__do_handle_create(const struct name_entry *matchn, u64 ino, dev_t dev)
+ {
+ 	struct acl_subject_label *subj;
+ 	struct acl_role_label *role;
+@@ -2020,7 +2035,7 @@ static void
+ do_handle_create(const struct name_entry *matchn, const struct dentry *dentry,
+ 		 const struct vfsmount *mnt)
+ {
+-	ino_t ino = dentry->d_inode->i_ino;
++	u64 ino = __get_ino(dentry);
+ 	dev_t dev = __get_dev(dentry);
+ 
+ 	__do_handle_create(matchn, ino, dev);	
+@@ -2079,7 +2094,7 @@ gr_handle_rename(struct inode *old_dir, struct inode *new_dir,
+ 	struct name_entry *matchn;
+ 	struct inodev_entry *inodev;
+ 	struct inode *inode = new_dentry->d_inode;
+-	ino_t old_ino = old_dentry->d_inode->i_ino;
++	u64 old_ino = __get_ino(old_dentry);
+ 	dev_t old_dev = __get_dev(old_dentry);
+ 
+ 	/* vfs_rename swaps the name and parent link for old_dentry and
+@@ -2102,7 +2117,7 @@ gr_handle_rename(struct inode *old_dir, struct inode *new_dir,
+ 
+ 	write_lock(&gr_inode_lock);
+ 	if (unlikely(replace && inode)) {
+-		ino_t new_ino = inode->i_ino;
++		u64 new_ino = __get_ino(new_dentry);
+ 		dev_t new_dev = __get_dev(new_dentry);
+ 
+ 		inodev = lookup_inodev_entry(new_ino, new_dev);
+@@ -2756,7 +2771,7 @@ int gr_acl_enable_at_secure(void)
+ 	return 0;
+ }
+ 	
+-int gr_acl_handle_filldir(const struct file *file, const char *name, const unsigned int namelen, const ino_t ino)
++int gr_acl_handle_filldir(const struct file *file, const char *name, const unsigned int namelen, const u64 ino)
+ {
+ 	struct task_struct *task = current;
+ 	struct dentry *dentry = file->f_path.dentry;
+diff --git a/grsecurity/gracl_policy.c b/grsecurity/gracl_policy.c
+index 94ef7e60..7627d8c 100644
+--- a/grsecurity/gracl_policy.c
++++ b/grsecurity/gracl_policy.c
+@@ -76,8 +76,8 @@ extern void insert_acl_obj_label(struct acl_object_label *obj, struct acl_subjec
+ extern void insert_acl_subj_label(struct acl_subject_label *obj, struct acl_role_label *role);
+ extern struct name_entry * __lookup_name_entry(const struct gr_policy_state *state, const char *name);
+ extern char *gr_to_filename_rbac(const struct dentry *dentry, const struct vfsmount *mnt);
+-extern struct acl_subject_label *lookup_acl_subj_label(const ino_t ino, const dev_t dev, const struct acl_role_label *role);
+-extern struct acl_subject_label *lookup_acl_subj_label_deleted(const ino_t ino, const dev_t dev, const struct acl_role_label *role);
++extern struct acl_subject_label *lookup_acl_subj_label(const u64 ino, const dev_t dev, const struct acl_role_label *role);
++extern struct acl_subject_label *lookup_acl_subj_label_deleted(const u64 ino, const dev_t dev, const struct acl_role_label *role);
+ extern void assign_special_role(const char *rolename);
+ extern struct acl_subject_label *chk_subj_label(const struct dentry *l_dentry, const struct vfsmount *l_mnt, const struct acl_role_label *role);
+ extern int gr_rbac_disable(void *unused);
+@@ -346,7 +346,7 @@ insert_acl_role_label(struct acl_role_label *role)
+ }
+ 					
+ static int
+-insert_name_entry(char *name, const ino_t inode, const dev_t device, __u8 deleted)
++insert_name_entry(char *name, const u64 inode, const dev_t device, __u8 deleted)
+ {
+ 	struct name_entry **curr, *nentry;
+ 	struct inodev_entry *ientry;
+diff --git a/grsecurity/gracl_segv.c b/grsecurity/gracl_segv.c
+index 266766a..275df2d 100644
+--- a/grsecurity/gracl_segv.c
++++ b/grsecurity/gracl_segv.c
+@@ -28,7 +28,7 @@ static unsigned short uid_used;
+ static DEFINE_SPINLOCK(gr_uid_lock);
+ extern rwlock_t gr_inode_lock;
+ extern struct acl_subject_label *
+-	lookup_acl_subj_label(const ino_t inode, const dev_t dev,
++	lookup_acl_subj_label(const u64 inode, const dev_t dev,
+ 			      struct acl_role_label *role);
+ 
+ static inline dev_t __get_dev(const struct dentry *dentry)
+@@ -41,6 +41,16 @@ static inline dev_t __get_dev(const struct dentry *dentry)
+ 		return dentry->d_sb->s_dev;
+ }
+ 
++static inline u64 __get_ino(const struct dentry *dentry)
++{
++#if defined(CONFIG_BTRFS_FS) || defined(CONFIG_BTRFS_FS_MODULE)
++	if (dentry->d_sb->s_magic == BTRFS_SUPER_MAGIC)
++		return btrfs_ino(dentry->d_inode);
++	else
++#endif
++		return dentry->d_inode->i_ino;
++}
++
+ int
+ gr_init_uidset(void)
+ {
+@@ -257,13 +267,14 @@ int
+ gr_check_crash_exec(const struct file *filp)
+ {
+ 	struct acl_subject_label *curr;
++	struct dentry *dentry;
+ 
+ 	if (unlikely(!gr_acl_is_enabled()))
+ 		return 0;
+ 
+ 	read_lock(&gr_inode_lock);
+-	curr = lookup_acl_subj_label(filp->f_path.dentry->d_inode->i_ino,
+-				     __get_dev(filp->f_path.dentry),
++	dentry = filp->f_path.dentry;
++	curr = lookup_acl_subj_label(__get_ino(dentry), __get_dev(dentry),
+ 				     current->role);
+ 	read_unlock(&gr_inode_lock);
+ 
+diff --git a/grsecurity/grsec_disabled.c b/grsecurity/grsec_disabled.c
+index a9ab1fe..3e4ae4d 100644
+--- a/grsecurity/grsec_disabled.c
++++ b/grsecurity/grsec_disabled.c
+@@ -126,7 +126,7 @@ gr_set_proc_label(const struct dentry *dentry, const struct vfsmount *mnt,
+ }
+ 
+ void
+-gr_handle_delete(const ino_t ino, const dev_t dev)
++gr_handle_delete(const u64 ino, const dev_t dev)
+ {
+ 	return;
+ }
+@@ -326,7 +326,7 @@ gr_acl_handle_rename(const struct dentry *new_dentry,
+ 
+ int
+ gr_acl_handle_filldir(const struct file *file, const char *name,
+-		      const int namelen, const ino_t ino)
++		      const int namelen, const u64 ino)
+ {
+ 	return 1;
+ }
+diff --git a/include/linux/gracl.h b/include/linux/gracl.h
+index edb2cb6..ea8eaab 100644
+--- a/include/linux/gracl.h
++++ b/include/linux/gracl.h
+@@ -9,8 +9,8 @@
+ 
+ /* Major status information */
+ 
+-#define GR_VERSION  "grsecurity 3.0"
+-#define GRSECURITY_VERSION 0x3000
++#define GR_VERSION  "grsecurity 3.1"
++#define GRSECURITY_VERSION 0x3100
+ 
+ enum {
+ 	GR_SHUTDOWN = 0,
+@@ -55,7 +55,7 @@ struct sprole_pw {
+ 
+ struct name_entry {
+ 	__u32 key;
+-	ino_t inode;
++	u64 inode;
+ 	dev_t device;
+ 	char *name;
+ 	__u16 len;
+@@ -103,7 +103,7 @@ struct gr_hash_struct {
+ 
+ struct acl_subject_label {
+ 	char *filename;
+-	ino_t inode;
++	u64 inode;
+ 	dev_t device;
+ 	__u32 mode;
+ 	kernel_cap_t cap_mask;
+@@ -191,7 +191,7 @@ struct user_acl_role_db {
+ 
+ struct acl_object_label {
+ 	char *filename;
+-	ino_t inode;
++	u64 inode;
+ 	dev_t device;
+ 	__u32 mode;
+ 
+@@ -227,7 +227,7 @@ struct gr_arg {
+ 	unsigned char sp_role[GR_SPROLE_LEN];
+ 	struct sprole_pw *sprole_pws;
+ 	dev_t segv_device;
+-	ino_t segv_inode;
++	u64 segv_inode;
+ 	uid_t segv_uid;
+ 	__u16 num_sprole_pws;
+ 	__u16 mode;
+@@ -299,7 +299,7 @@ gr_shash(const struct acl_subject_label *userp, const unsigned int sz)
+ }
+ 
+ static __inline__ unsigned int
+-gr_fhash(const ino_t ino, const dev_t dev, const unsigned int sz)
++gr_fhash(const u64 ino, const dev_t dev, const unsigned int sz)
+ {
+ 	return (((ino + dev) ^ ((ino << 13) + (ino << 23) + (dev << 9))) % sz);
+ }
+diff --git a/include/linux/gracl_compat.h b/include/linux/gracl_compat.h
+index 33ebd1f..5c80b42 100644
+--- a/include/linux/gracl_compat.h
++++ b/include/linux/gracl_compat.h
+@@ -21,7 +21,7 @@ struct gr_hash_struct_compat {
+ 
+ struct acl_subject_label_compat {
+ 	compat_uptr_t filename;
+-	compat_ino_t inode;
++	u64 inode;
+ 	__u32 device;
+ 	__u32 mode;
+ 	kernel_cap_t cap_mask;
+@@ -109,7 +109,7 @@ struct user_acl_role_db_compat {
+ 
+ struct acl_object_label_compat {
+ 	compat_uptr_t filename;
+-	compat_ino_t inode;
++	u64 inode;
+ 	__u32 device;
+ 	__u32 mode;
+ 
+@@ -141,7 +141,7 @@ struct gr_arg_compat {
+ 	unsigned char sp_role[GR_SPROLE_LEN];
+ 	compat_uptr_t sprole_pws;
+ 	__u32 segv_device;
+-	compat_ino_t segv_inode;
++	u64 segv_inode;
+ 	uid_t segv_uid;
+ 	__u16 num_sprole_pws;
+ 	__u16 mode;
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index 083dbf1..a9066b5 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -164,7 +164,7 @@ __u32 gr_acl_handle_mkdir(const struct dentry *new_dentry,
+ 				 const struct vfsmount *parent_mnt);
+ __u32 gr_acl_handle_rmdir(const struct dentry *dentry,
+ 				 const struct vfsmount *mnt);
+-void gr_handle_delete(const ino_t ino, const dev_t dev);
++void gr_handle_delete(const u64 ino, const dev_t dev);
+ __u32 gr_acl_handle_unlink(const struct dentry *dentry,
+ 				  const struct vfsmount *mnt);
+ __u32 gr_acl_handle_symlink(const struct dentry *new_dentry,
+@@ -193,7 +193,7 @@ __u32 gr_check_link(const struct dentry *new_dentry,
+ 			   const struct dentry *old_dentry,
+ 			   const struct vfsmount *old_mnt);
+ int gr_acl_handle_filldir(const struct file *file, const char *name,
+-				 const unsigned int namelen, const ino_t ino);
++				 const unsigned int namelen, const u64 ino);
+ 
+ __u32 gr_acl_handle_unix(const struct dentry *dentry,
+ 				const struct vfsmount *mnt);
+@@ -204,6 +204,7 @@ int gr_handle_rofs_mount(struct dentry *dentry, struct vfsmount *mnt, int mnt_fl
+ int gr_handle_rofs_blockwrite(struct dentry *dentry, struct vfsmount *mnt, int acc_mode);
+ void gr_audit_ptrace(struct task_struct *task);
+ dev_t gr_get_dev_from_dentry(struct dentry *dentry);
++u64 gr_get_ino_from_dentry(struct dentry *dentry);
+ void gr_put_exec_file(struct task_struct *task);
+ 
+ int gr_ptrace_readexec(struct file *file, int unsafe_flags);

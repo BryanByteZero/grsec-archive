@@ -1,0 +1,12 @@
+diff -urp kernel.orig/nv_uvm_interface.h kernel/nv_uvm_interface.h
+--- kernel.orig/nv_uvm_interface.h	2013-10-31 01:15:05.000000000 +0100
++++ kernel/nv_uvm_interface.h	2013-11-26 21:03:48.430062759 +0100
+@@ -292,7 +292,7 @@ struct UvmGpuProvider
+     uvmGpuCopyEngineAllocate_t             copyEngineAllocate;
+     uvmGpuQueryCaps_t                      queryCaps;
+     uvmGpuGetAttachedUuids_t               getAttachedUuids;
+-};
++} __no_const;
+ 
+ 
+ /*******************************************************************************

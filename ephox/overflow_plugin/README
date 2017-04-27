@@ -1,0 +1,2 @@
+The kernel patches required by the plugin are maintained in PaX (http://www.grsecurity.net/~paxguy1/) and grsecurity (http://grsecurity.net/).
+size_overflow plugin src: https://github.com/ephox-gcc-plugins/size_overflow

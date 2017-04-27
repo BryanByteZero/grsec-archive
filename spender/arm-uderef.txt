@@ -1,0 +1,24 @@
+root:~$ ./test
+PaX: Kernel tried to access userland memory at 0x00008010, fsr=00000206
+Internal error: : 206 [#1] PREEMPT SMP ARM
+Modules linked in:
+CPU: 0    Not tainted  (3.7.1-grsec-00071-gac214bd-dirty #49)
+pc : [<c02296a4>]    lr : [<c02295b4>]    psr: 60000013
+sp : ee847f90  ip : 30c7387d  fp : 00000000
+r10: 00000000  r9 : ee846000  r8 : c0206128
+r7 : 000000d5  r6 : 00007a69  r5 : b390a788  r4 : 00000000
+r3 : 00008000  r2 : 40003000  r1 : b390a8c4  r0 : 00007a69
+Flags: nZCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
+Control: 30c5387d  Table: 40003000  DAC: fffffffd
+Process test (pid: 2450, stack limit = 0xee846238)
+Stack: (0xee847f90 to 0xee848000)
+7f80:                                     00000000 b390a788 0000831d 000000d5
+7fa0: c0206128 c0205f80 00000000 b390a788 00007a69 b390a8c4 b390a8cc 00000000
+7fc0: 00000000 b390a788 0000831d 000000d5 00000000 00000000 a241f000 00000000
+7fe0: 000000d5 b390a748 a238c721 a2335276 80000030 00007a69 00000000 00000000
+[<c02296a4>] (c02296a4) from [<c0205f80>] (c0205f80)
+Code: e1a00007 e8bd41f0 ea0041fd e3a03902 (e5934010)
+---[ end trace da62d510cd352d2f ]---
+Kernel panic - not syncing: grsec: halting the system due to suspicious kernel crash 
+caused by root
+

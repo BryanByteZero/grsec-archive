@@ -1,0 +1,219 @@
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 67b34b9..3b1c6d3 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -3781,9 +3781,15 @@ gr_handle_proc_ptrace(struct task_struct *task)
+ 
+ 	if (!filp || (tmp->pid == 0 && ((grsec_enable_harden_ptrace && current_uid() && !(gr_status & GR_READY)) ||
+ 				((gr_status & GR_READY)	&& !(current->acl->mode & GR_RELAXPTRACE))))) {
+-		read_unlock(&grsec_exec_file_lock);
+-		read_unlock(&tasklist_lock);
+-		return 1;
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++		if (!gr_is_ptrace_exemption(current, thread_group_leader(task) ? task : task->group_leader)) {
++#endif
++			read_unlock(&grsec_exec_file_lock);
++			read_unlock(&tasklist_lock);
++			return 1;
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++		}
++#endif
+ 	}
+ 
+ #ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
+@@ -3843,9 +3849,15 @@ gr_handle_ptrace(struct task_struct *task, const long request)
+ 
+ 	if (tmp->pid == 0 && ((grsec_enable_harden_ptrace && current_uid() && !(gr_status & GR_READY)) ||
+ 				((gr_status & GR_READY)	&& !(current->acl->mode & GR_RELAXPTRACE)))) {
+-		read_unlock(&tasklist_lock);
+-		gr_log_ptrace(GR_DONT_AUDIT, GR_PTRACE_ACL_MSG, task);
+-		return 1;
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++		if (!gr_is_ptrace_exemption(current, thread_group_leader(task) ? task : task->group_leader)) {
++#endif
++			read_unlock(&tasklist_lock);
++			gr_log_ptrace(GR_DONT_AUDIT, GR_PTRACE_ACL_MSG, task);
++			return 1;
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++		}
++#endif
+ 	}
+ 	read_unlock(&tasklist_lock);
+ 
+diff --git a/grsecurity/grsec_ptrace.c b/grsecurity/grsec_ptrace.c
+index 78f8733..c38c664 100644
+--- a/grsecurity/grsec_ptrace.c
++++ b/grsecurity/grsec_ptrace.c
+@@ -3,6 +3,84 @@
+ #include <linux/grinternal.h>
+ #include <linux/security.h>
+ 
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++struct ptrace_relation {
++	struct list_head node;
++	struct task_struct *tracer;
++	struct task_struct *tracee;
++};
++
++static LIST_HEAD(ptracer_relations);
++static DEFINE_SPINLOCK(ptracer_relations_lock);
++
++int gr_ptracer_add(struct task_struct *tracer, struct task_struct *tracee)
++{
++	struct ptrace_relation *added;
++	struct ptrace_relation *entry, *relation = NULL;
++	int rc = 0;
++
++	added = kmalloc(sizeof(*added), GFP_KERNEL);
++	spin_lock_bh(&ptracer_relations_lock);
++	list_for_each_entry(entry, &ptracer_relations, node) {
++		if (entry->tracee == tracee) {
++			relation = entry;
++			break;
++		}
++	}
++	if (!relation) {
++		relation = added;
++		if (!relation) {
++			rc = -ENOMEM;
++			goto unlock_out;
++		}
++		relation->tracee = tracee;
++		list_add(&relation->node, &ptracer_relations);
++	}
++	relation->tracer = tracer;
++
++unlock_out:
++	spin_unlock_bh(&ptracer_relations_lock);
++	if (added && added != relation)
++		kfree(added);
++
++	return rc;
++}
++
++void gr_ptracer_del(struct task_struct *tracer, struct task_struct *tracee)
++{
++	struct ptrace_relation *relation;
++	struct list_head *list, *safe;
++
++	spin_lock_bh(&ptracer_relations_lock);
++	list_for_each_safe(list, safe, &ptracer_relations) {
++		relation = list_entry(list, struct ptrace_relation, node);
++		if (relation->tracee == tracee ||
++		    relation->tracer == tracer) {
++			list_del(&relation->node);
++			kfree(relation);
++		}
++	}
++	spin_unlock_bh(&ptracer_relations_lock);
++}
++
++/* call with tasklist_lock held for read */
++int gr_is_ptrace_exemption(struct task_struct *tracer, struct task_struct *tracee)
++{
++	struct ptrace_relation *relation;
++	int ret = 0;
++	spin_lock_bh(&ptracer_relations_lock);
++	list_for_each_entry(relation, &ptracer_relations, node) {
++		if (relation->tracee == tracee) {
++			ret = 1;
++			break;
++		}
++	}			
++	spin_unlock_bh(&ptracer_relations_lock);
++
++	return ret;
++}
++#endif
++
+ void
+ gr_audit_ptrace(struct task_struct *task)
+ {
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index c1793ae..3b18499 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -25,6 +25,12 @@ void gr_handle_brute_check(void);
+ void gr_handle_kernel_exploit(void);
+ int gr_process_user_ban(void);
+ 
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++int gr_ptracer_add(struct task_struct *tracer, struct task_struct *tracee);
++void gr_ptracer_del(struct task_struct *tracer, struct task_struct *tracee);
++int gr_is_ptrace_exemption(struct task_struct *tracer, struct task_struct *tracee);
++#endif
++
+ char gr_roletype_to_char(void);
+ 
+ int gr_acl_enable_at_secure(void);
+diff --git a/include/linux/prctl.h b/include/linux/prctl.h
+index a3baeb2..fb49034 100644
+--- a/include/linux/prctl.h
++++ b/include/linux/prctl.h
+@@ -102,4 +102,10 @@
+ 
+ #define PR_MCE_KILL_GET 34
+ 
++/*
++ * Set specific pid that is allowed to PTRACE the current task.
++ * A value of 0 mean "no process".
++ */
++#define PR_SET_PTRACER (0x4c414d45 ^ 0x15202024)
++
+ #endif /* _LINUX_PRCTL_H */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 8976a8f..ec8a2a3 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -163,6 +163,9 @@ void __put_task_struct(struct task_struct *tsk)
+ 	WARN_ON(tsk == current);
+ 
+ 	exit_creds(tsk);
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++	gr_ptracer_del(tsk, tsk);
++#endif
+ 	delayacct_tsk_free(tsk);
+ 
+ 	if (!profile_handoff_task(tsk))
+diff --git a/kernel/sys.c b/kernel/sys.c
+index f07185f..88c0366 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1615,6 +1615,37 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 			else
+ 				error = PR_MCE_KILL_DEFAULT;
+ 			break;
++#ifdef CONFIG_GRKERNSEC_HARDEN_PTRACE
++		case PR_SET_PTRACER:
++			{
++				struct task_struct *myself = current, *tracer;
++				rcu_read_lock();
++				if (!thread_group_leader(myself))
++					myself = myself->group_leader;
++				get_task_struct(myself);
++				rcu_read_unlock();
++
++				if (arg2 == 0) {
++					gr_ptracer_del(NULL, myself);
++				} else {
++					rcu_read_lock();
++					tracer = find_task_by_vpid(arg2);
++					if (tracer == NULL) {
++						rcu_read_unlock();
++						put_task_struct(myself);
++						return -EINVAL;
++					}
++					get_task_struct(tracer);
++					rcu_read_unlock();
++					error = gr_ptracer_add(tracer, myself);
++					put_task_struct(tracer);
++				}
++
++				put_task_struct(myself);
++			}
++			error = 0;
++			break;
++#endif
+ 		default:
+ 			error = -EINVAL;
+ 			break;

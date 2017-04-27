@@ -1,0 +1,28 @@
+Signed-off-by: Brad Spengler <spender@grsecurity.net>
+
+diff --git a/net/netfilter/nf_queue.c b/net/netfilter/nf_queue.c
+index b3a7db6..6d70533 100644
+--- a/net/netfilter/nf_queue.c
++++ b/net/netfilter/nf_queue.c
+@@ -233,7 +233,7 @@ int nf_queue(struct sk_buff *skb,
+ 	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to mean
+ 	 * 'ignore this hook'.
+ 	 */
+-	if (IS_ERR(segs))
++	if (IS_ERR_OR_NULL(segs))
+ 		return -EINVAL;
+ 
+ 	queued = 0;
+diff --git a/net/xfrm/xfrm_output.c b/net/xfrm/xfrm_output.c
+index 47bacd8..e49d5f4 100644
+--- a/net/xfrm/xfrm_output.c
++++ b/net/xfrm/xfrm_output.c
+@@ -151,6 +151,8 @@ static int xfrm_output_gso(struct sk_buff *skb)
+ 	kfree_skb(skb);
+ 	if (IS_ERR(segs))
+ 		return PTR_ERR(segs);
++	if (segs == NULL)
++		return -EINVAL;
+ 
+ 	do {
+ 		struct sk_buff *nskb = segs->next;

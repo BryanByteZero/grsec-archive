@@ -1,0 +1,52 @@
+diff -u linux-2.6.38.6/fs/namei.c linux-2.6.38.6/fs/namei.c
+--- linux-2.6.38.6/fs/namei.c	2011-05-16 21:47:08.000000000 -0400
++++ linux-2.6.38.6/fs/namei.c	2011-05-22 16:14:10.000000000 -0400
+@@ -229,17 +229,27 @@
+ 	 * Searching includes executable on directories, else just read.
+ 	 */
+ 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
+-	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
++	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE))) {
++#ifdef CONFIG_GRKERNSEC
++		if (flags & IPERM_FLAG_RCU)
++			return -ECHILD;
++#endif
+ 		if (capable(CAP_DAC_READ_SEARCH))
+ 			return 0;
++	}
+ 
+ 	/*
+ 	 * Read/write DACs are always overridable.
+ 	 * Executable DACs are overridable if at least one exec bit is set.
+ 	 */
+-	if (!(mask & MAY_EXEC) || execute_ok(inode))
++	if (!(mask & MAY_EXEC) || execute_ok(inode)) {
++#ifdef CONFIG_GRKERNSEC
++		if (flags & IPERM_FLAG_RCU)
++			return -ECHILD;
++#endif
+ 		if (capable(CAP_DAC_OVERRIDE))
+ 			return 0;
++	}
+ 
+ 	return -EACCES;
+ }
+@@ -687,9 +697,17 @@
+ 	if (ret == -ECHILD)
+ 		return ret;
+ 
+-	if (capable_nolog(CAP_DAC_OVERRIDE) || capable(CAP_DAC_READ_SEARCH) ||
++	if (capable_nolog(CAP_DAC_OVERRIDE))
++		goto ok;
++	else {
++#ifdef CONFIG_GRKERNSEC
++		if (flags & IPERM_FLAG_RCU)
++			return -ECHILD;
++#endif
++		if (capable(CAP_DAC_READ_SEARCH) ||
+ 			capable(CAP_DAC_OVERRIDE))
+ 		goto ok;
++	}
+ 
+ 	return ret;
+ ok:

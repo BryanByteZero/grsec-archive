@@ -1,0 +1,119 @@
+2003-08-28 06:52  paxguy1
+
+	* arch/ppc/mm/fault.c: Whitespace.
+
+2003-08-26 14:12  paxguy1
+
+	* include/linux/mm.h: Simplified previous change.
+
+2003-08-22 17:02  paxguy1
+
+	* include/linux/mm.h: Fixed MPROTECT/VMMIRROR bug with executable
+	stacks.
+
+2003-08-10 15:04  paxguy1
+
+	* arch/parisc/mm/fault.c: Get EMUPLT to work on a 64 bit kernel as
+	well, thanks to pappy for the hint.
+
+2003-08-08 11:10  paxguy1
+
+	* arch/i386/kernel/traps.c: Fixed potential KERNEXEC oops.
+
+2003-08-05 15:56  paxguy1
+
+	* arch/i386/kernel/traps.c: More consistent KERNEXEC read-only area
+	handling.
+
+2003-07-28 14:43  paxguy1
+
+	* include/: asm-alpha/a.out.h, asm-i386/hw_irq.h, linux/elf.h:
+	Cleanup.
+
+2003-07-28 14:43  paxguy1
+
+	* arch/: parisc/kernel/sys_parisc32.c,
+	sparc64/kernel/sys_sparc32.c: Switch to the new PRNG.
+
+2003-07-26 14:31  paxguy1
+
+	* drivers/char/random.c, fs/binfmt_elf.c, fs/exec.c,
+	include/linux/random.h: New PRNG for ASLR, puts less load on the
+	kernel entropy pool.
+
+2003-07-22 06:52  paxguy1
+
+	* include/asm-i386/page_offset.h: oops, forgot about this one...
+
+2003-07-14 09:44  paxguy1
+
+	* arch/i386/vmlinux.lds.S: Initial import plus put more data into
+	the proper sections.
+
+2003-07-14 09:27  paxguy1
+
+	* fs/binfmt_elf.c: Added extra heap randomization, applies to
+	ET_EXEC files as well.
+
+2003-07-02 11:05  paxguy1
+
+	* arch/i386/: kernel/pci-pc.c, mm/init.c: Fixed problem with
+	KERNEXEC and PCI BIOS accesses during SMP boot.
+
+2003-06-21 18:42  paxguy1
+
+	* arch/alpha/mm/fault.c, arch/i386/mm/fault.c,
+	arch/parisc/mm/fault.c, arch/ppc/mm/fault.c, arch/sparc/mm/fault.c,
+	arch/sparc64/mm/fault.c, fs/exec.c, include/linux/binfmts.h:
+	Unified pax_report_fault.
+
+2003-06-21 15:09  paxguy1
+
+	* fs/binfmt_elf.c, include/linux/mm.h, mm/mmap.c: More consistent
+	behaviour when MPROTECT is disabled.
+
+2003-06-21 13:30  paxguy1
+
+	* Documentation/Configure.help, arch/alpha/config.in,
+	arch/alpha/kernel/osf_sys.c, arch/alpha/mm/fault.c,
+	arch/i386/Makefile, arch/i386/config.in, arch/i386/kernel/apm.c,
+	arch/i386/kernel/entry.S, arch/i386/kernel/head.S,
+	arch/i386/kernel/i386_ksyms.c, arch/i386/kernel/ldt.c,
+	arch/i386/kernel/pci-pc.c, arch/i386/kernel/process.c,
+	arch/i386/kernel/setup.c, arch/i386/kernel/sys_i386.c,
+	arch/i386/kernel/trampoline.S, arch/i386/kernel/traps.c,
+	arch/i386/mm/fault.c, arch/i386/mm/init.c, arch/parisc/config.in,
+	arch/parisc/kernel/sys_parisc.c, arch/parisc/kernel/sys_parisc32.c,
+	arch/parisc/kernel/traps.c, arch/parisc/mm/fault.c,
+	arch/ppc/config.in, arch/ppc/kernel/syscalls.c,
+	arch/ppc/mm/fault.c, arch/sparc/config.in,
+	arch/sparc/kernel/sys_sparc.c, arch/sparc/kernel/sys_sunos.c,
+	arch/sparc/mm/fault.c, arch/sparc/mm/init.c, arch/sparc/mm/srmmu.c,
+	arch/sparc64/config.in, arch/sparc64/kernel/itlb_base.S,
+	arch/sparc64/kernel/sys_sparc.c, arch/sparc64/kernel/sys_sparc32.c,
+	arch/sparc64/kernel/sys_sunos32.c, arch/sparc64/mm/fault.c,
+	drivers/char/mem.c, fs/binfmt_aout.c, fs/binfmt_elf.c, fs/exec.c,
+	fs/proc/array.c, include/asm-alpha/a.out.h,
+	include/asm-alpha/elf.h, include/asm-alpha/mman.h,
+	include/asm-alpha/pgtable.h, include/asm-i386/a.out.h,
+	include/asm-i386/desc.h, include/asm-i386/elf.h,
+	include/asm-i386/hw_irq.h, include/asm-i386/mman.h,
+	include/asm-i386/page.h, include/asm-i386/pgtable.h,
+	include/asm-i386/processor.h, include/asm-i386/system.h,
+	include/asm-parisc/a.out.h, include/asm-parisc/elf.h,
+	include/asm-parisc/mman.h, include/asm-parisc/pgtable.h,
+	include/asm-ppc/a.out.h, include/asm-ppc/elf.h,
+	include/asm-ppc/mman.h, include/asm-ppc/pgtable.h,
+	include/asm-sparc/a.out.h, include/asm-sparc/elf.h,
+	include/asm-sparc/mman.h, include/asm-sparc/pgtable.h,
+	include/asm-sparc/pgtsrmmu.h, include/asm-sparc/uaccess.h,
+	include/asm-sparc64/a.out.h, include/asm-sparc64/elf.h,
+	include/asm-sparc64/mman.h, include/asm-sparc64/pgtable.h,
+	include/linux/a.out.h, include/linux/elf.h, include/linux/mm.h,
+	include/linux/sched.h, mm/filemap.c, mm/memory.c, mm/mlock.c,
+	mm/mmap.c, mm/mprotect.c, mm/mremap.c: Initial import of PaX.
+
+2003-06-21 13:30  paxguy1
+
+	* arch/i386/vmlinux.lds: Replaced by vmlinux.lds.S
+

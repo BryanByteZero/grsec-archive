@@ -1,0 +1,358 @@
+diff -u linux-2.6.38.1-new/grsecurity/gracl.c linux-2.6.38.1-new/grsecurity/gracl.c
+--- linux-2.6.38.1-new/grsecurity/gracl.c	2011-03-25 18:58:16.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/gracl.c	2011-03-26 17:50:26.000000000 -0400
+@@ -2090,6 +2090,26 @@
+ 	currobj = chk_obj_label(dentry, mnt, curracl);
+ 	retval = currobj->mode & mode;
+ 
++	/* if we're opening a specified transfer file for writing
++	   (e.g. /dev/initctl), then transfer our role to init
++	*/
++	if (unlikely(currobj->mode & GR_INIT_TRANSFER && retval & GR_WRITE &&
++		     current->role->roletype & GR_ROLE_PERSIST)) {
++		struct task_struct *task = init_pid_ns.child_reaper;
++
++		if (task->role != current->role) {
++			task->acl_sp_role = 0;
++			task->acl_role_id = current->acl_role_id;
++			task->role = current->role;
++			rcu_read_lock();
++			read_lock(&grsec_exec_file_lock);
++			gr_apply_subject_to_task(task);
++			read_unlock(&grsec_exec_file_lock);
++			rcu_read_unlock();
++			gr_log_noargs(GR_DONT_AUDIT_GOOD, GR_INIT_TRANSFER_MSG);
++		}
++	}
++
+ 	if (unlikely
+ 	    ((curracl->mode & (GR_LEARN | GR_INHERITLEARN)) && !(mode & GR_NOPTRACE)
+ 	     && (retval != (mode & ~(GR_AUDITS | GR_SUPPRESS))))) {
+@@ -3214,18 +3234,85 @@
+ 	return error;
+ }
+ 
++/* must be called with
++	rcu_read_lock();
++	read_lock(&tasklist_lock);
++	read_lock(&grsec_exec_file_lock);
++*/
++int gr_apply_subject_to_task(struct task_struct *task)
++{
++	struct acl_object_label *obj;
++	char *tmpname;
++	struct acl_subject_label *tmpsubj;
++	struct file *filp;
++	struct name_entry *nmatch;
++
++	filp = task->exec_file;
++	if (filp == NULL)
++		return 0;
++
++	/* the following is to apply the correct subject 
++	   on binaries running when the RBAC system 
++	   is enabled, when the binaries have been 
++	   replaced or deleted since their execution
++	   -----
++	   when the RBAC system starts, the inode/dev
++	   from exec_file will be one the RBAC system
++	   is unaware of.  It only knows the inode/dev
++	   of the present file on disk, or the absence
++	   of it.
++	*/
++	preempt_disable();
++	tmpname = gr_to_filename_rbac(filp->f_path.dentry, filp->f_path.mnt);
++			
++	nmatch = lookup_name_entry(tmpname);
++	preempt_enable();
++	tmpsubj = NULL;
++	if (nmatch) {
++		if (nmatch->deleted)
++			tmpsubj = lookup_acl_subj_label_deleted(nmatch->inode, nmatch->device, task->role);
++		else
++			tmpsubj = lookup_acl_subj_label(nmatch->inode, nmatch->device, task->role);
++		if (tmpsubj != NULL)
++			task->acl = tmpsubj;
++	}
++	if (tmpsubj == NULL)
++		task->acl = chk_subj_label(filp->f_path.dentry, filp->f_path.mnt,
++					   task->role);
++	if (task->acl) {
++		struct acl_subject_label *curr;
++		curr = task->acl;
++
++		task->is_writable = 0;
++		/* ignore additional mmap checks for processes that are writable 
++		   by the default ACL */
++		obj = chk_obj_label(filp->f_path.dentry, filp->f_path.mnt, default_role->root_label);
++		if (unlikely(obj->mode & GR_WRITE))
++			task->is_writable = 1;
++		obj = chk_obj_label(filp->f_path.dentry, filp->f_path.mnt, task->role->root_label);
++		if (unlikely(obj->mode & GR_WRITE))
++			task->is_writable = 1;
++
++		gr_set_proc_res(task);
++
++#ifdef CONFIG_GRKERNSEC_RBAC_DEBUG
++		printk(KERN_ALERT "gr_set_acls for (%s:%d): role:%s, subject:%s\n", task->comm, task->pid, task->role->rolename, task->acl->filename);
++#endif
++	} else {
++		return 1;
++	}
++
++	return 0;
++}
++
+ int
+ gr_set_acls(const int type)
+ {
+-	struct acl_object_label *obj;
+ 	struct task_struct *task, *task2;
+-	struct file *filp;
+ 	struct acl_role_label *role = current->role;
+ 	__u16 acl_role_id = current->acl_role_id;
+ 	const struct cred *cred;
+-	char *tmpname;
+-	struct name_entry *nmatch;
+-	struct acl_subject_label *tmpsubj;
++	int ret;
+ 
+ 	rcu_read_lock();
+ 	read_lock(&tasklist_lock);
+@@ -3242,63 +3329,16 @@
+ 		task->acl_role_id = 0;
+ 		task->acl_sp_role = 0;
+ 
+-		if ((filp = task->exec_file)) {
++		if (task->exec_file) {
+ 			cred = __task_cred(task);
+ 			task->role = lookup_acl_role_label(task, cred->uid, cred->gid);
+-
+-			/* the following is to apply the correct subject 
+-			   on binaries running when the RBAC system 
+-			   is enabled, when the binaries have been 
+-			   replaced or deleted since their execution
+-			   -----
+-			   when the RBAC system starts, the inode/dev
+-			   from exec_file will be one the RBAC system
+-			   is unaware of.  It only knows the inode/dev
+-			   of the present file on disk, or the absence
+-			   of it.
+-			*/
+-			preempt_disable();
+-			tmpname = gr_to_filename_rbac(filp->f_path.dentry, filp->f_path.mnt);
+-			
+-			nmatch = lookup_name_entry(tmpname);
+-			preempt_enable();
+-			tmpsubj = NULL;
+-			if (nmatch) {
+-				if (nmatch->deleted)
+-					tmpsubj = lookup_acl_subj_label_deleted(nmatch->inode, nmatch->device, task->role);
+-				else
+-					tmpsubj = lookup_acl_subj_label(nmatch->inode, nmatch->device, task->role);
+-				if (tmpsubj != NULL)
+-					task->acl = tmpsubj;
+-			}
+-			if (tmpsubj == NULL)
+-				task->acl = chk_subj_label(filp->f_path.dentry, filp->f_path.mnt,
+-							   task->role);
+-			if (task->acl) {
+-				struct acl_subject_label *curr;
+-				curr = task->acl;
+-
+-				task->is_writable = 0;
+-				/* ignore additional mmap checks for processes that are writable 
+-				   by the default ACL */
+-				obj = chk_obj_label(filp->f_path.dentry, filp->f_path.mnt, default_role->root_label);
+-				if (unlikely(obj->mode & GR_WRITE))
+-					task->is_writable = 1;
+-				obj = chk_obj_label(filp->f_path.dentry, filp->f_path.mnt, task->role->root_label);
+-				if (unlikely(obj->mode & GR_WRITE))
+-					task->is_writable = 1;
+-
+-				gr_set_proc_res(task);
+-
+-#ifdef CONFIG_GRKERNSEC_RBAC_DEBUG
+-				printk(KERN_ALERT "gr_set_acls for (%s:%d): role:%s, subject:%s\n", task->comm, task->pid, task->role->rolename, task->acl->filename);
+-#endif
+-			} else {
++			ret = gr_apply_subject_to_task(task);
++			if (ret) {
+ 				read_unlock(&grsec_exec_file_lock);
+ 				read_unlock(&tasklist_lock);
+ 				rcu_read_unlock();
+ 				gr_log_str_int(GR_DONT_AUDIT_GOOD, GR_DEFACL_MSG, task->comm, task->pid);
+-				return 1;
++				return ret;
+ 			}
+ 		} else {
+ 			// it's a kernel process
+diff -u linux-2.6.38.1-new/grsecurity/gracl_fs.c linux-2.6.38.1-new/grsecurity/gracl_fs.c
+--- linux-2.6.38.1-new/grsecurity/gracl_fs.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/gracl_fs.c	2011-03-26 14:32:42.000000000 -0400
+@@ -401,7 +401,8 @@
+ 	char *rolename;
+ 	struct file *exec_file;
+ 
+-	if (unlikely(current->acl_sp_role && gr_acl_is_enabled())) {
++	if (unlikely(current->acl_sp_role && gr_acl_is_enabled() &&
++	    !(current->role->roletype & GR_ROLE_PERSIST))) {
+ 		id = current->acl_role_id;
+ 		rolename = current->role->rolename;
+ 		gr_set_acls(1);
+diff -u linux-2.6.38.1-new/grsecurity/grsec_mem.c linux-2.6.38.1-new/grsecurity/grsec_mem.c
+--- linux-2.6.38.1-new/grsecurity/grsec_mem.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/grsec_mem.c	2011-03-26 14:40:33.000000000 -0400
+@@ -76,7 +76,19 @@
+ void
+ gr_log_nonroot_mod_load(const char *modname)
+ {
+-        gr_log_str(GR_DONT_AUDIT, GR_NONROOT_MODLOAD_MSG, modname);
++	if (1
++#if !defined(CONFIG_IPV6) && !defined(CONFIG_IPV6_MODULE)
++		/* There are known knowns.  These are things we know
++		   that we know.  There are known unknowns.  That is to say,
++		   there are things that we know we don't know.  But there are
++		   also unknown unknowns.  There are things we don't know
++		   we don't know.
++		   This here is a known unknown.
++		*/
++		&& strcmp(modname, "net-pf-10")
++#endif
++	)
++	        gr_log_str(GR_DONT_AUDIT, GR_NONROOT_MODLOAD_MSG, modname);
+         return;
+ }
+ 
+diff -u linux-2.6.38.1-new/grsecurity/grsec_sig.c linux-2.6.38.1-new/grsecurity/grsec_sig.c
+--- linux-2.6.38.1-new/grsecurity/grsec_sig.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/grsec_sig.c	2011-03-26 16:20:57.000000000 -0400
+@@ -28,7 +28,7 @@
+ }
+ 
+ int
+-gr_handle_signal(const struct task_struct *p, const int sig)
++gr_handle_signal(struct task_struct *p, const int sig)
+ {
+ #ifdef CONFIG_GRKERNSEC
+ 	if (current->pid > 1 && gr_check_protected_task(p)) {
+diff -u linux-2.6.38.1-new/grsecurity/Kconfig linux-2.6.38.1-new/grsecurity/Kconfig
+--- linux-2.6.38.1-new/grsecurity/Kconfig	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/Kconfig	2011-03-26 14:38:56.000000000 -0400
+@@ -334,6 +334,9 @@
+ menu "Role Based Access Control Options"
+ depends on GRKERNSEC
+ 
++config GRKERNSEC_RBAC_DEBUG
++	bool
++
+ config GRKERNSEC_NO_RBAC
+ 	bool "Disable RBAC system"
+ 	help
+diff -u linux-2.6.38.1-new/include/linux/gracl.h linux-2.6.38.1-new/include/linux/gracl.h
+--- linux-2.6.38.1-new/include/linux/gracl.h	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/gracl.h	2011-03-26 14:27:27.000000000 -0400
+@@ -9,8 +9,8 @@
+ 
+ /* Major status information */
+ 
+-#define GR_VERSION  "grsecurity 2.2.1"
+-#define GRSECURITY_VERSION 0x2201
++#define GR_VERSION  "grsecurity 2.2.2"
++#define GRSECURITY_VERSION 0x2202
+ 
+ enum {
+ 	GR_SHUTDOWN = 0,
+diff -u linux-2.6.38.1-new/include/linux/grdefs.h linux-2.6.38.1-new/include/linux/grdefs.h
+--- linux-2.6.38.1-new/include/linux/grdefs.h	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/grdefs.h	2011-03-26 16:39:14.000000000 -0400
+@@ -23,7 +23,8 @@
+ 	GR_ROLE_LEARN = 0x0080,
+ 	GR_ROLE_TPE = 0x0100,
+ 	GR_ROLE_DOMAIN = 0x0200,
+-	GR_ROLE_PAM = 0x0400
++	GR_ROLE_PAM = 0x0400,
++	GR_ROLE_PERSIST = 0x0800
+ };
+ 
+ /* ACL Subject and Object mode flags */
+@@ -56,7 +57,8 @@
+ 	GR_PTRACERD 	= 0x00100000,
+ 	GR_NOPTRACE	= 0x00200000,
+ 	GR_SUPPRESS 	= 0x00400000,
+-	GR_NOLEARN 	= 0x00800000
++	GR_NOLEARN 	= 0x00800000,
++	GR_INIT_TRANSFER= 0x01000000
+ };
+ 
+ #define GR_AUDITS (GR_AUDIT_READ | GR_AUDIT_WRITE | GR_AUDIT_APPEND | GR_AUDIT_EXEC | \
+diff -u linux-2.6.38.1-new/include/linux/grinternal.h linux-2.6.38.1-new/include/linux/grinternal.h
+--- linux-2.6.38.1-new/include/linux/grinternal.h	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/grinternal.h	2011-03-26 16:51:07.000000000 -0400
+@@ -20,7 +20,7 @@
+ int gr_check_protected_task(const struct task_struct *task);
+ __u32 to_gr_audit(const __u32 reqmode);
+ int gr_set_acls(const int type);
+-
++int gr_apply_subject_to_task(struct task_struct *task);
+ int gr_acl_is_enabled(void);
+ char gr_roletype_to_char(void);
+ 
+@@ -134,6 +134,7 @@
+ enum {
+ 	GR_DO_AUDIT,
+ 	GR_DONT_AUDIT,
++	/* used for non-audit messages that we shouldn't kill the task on */
+ 	GR_DONT_AUDIT_GOOD
+ };
+ 
+diff -u linux-2.6.38.1-new/include/linux/grmsg.h linux-2.6.38.1-new/include/linux/grmsg.h
+--- linux-2.6.38.1-new/include/linux/grmsg.h	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/grmsg.h	2011-03-26 16:52:08.000000000 -0400
+@@ -111,0 +112 @@
++#define GR_INIT_TRANSFER_MSG "persistent special role transferred privilege to init by "
+diff -u linux-2.6.38.1-new/include/linux/grsecurity.h linux-2.6.38.1-new/include/linux/grsecurity.h
+--- linux-2.6.38.1-new/include/linux/grsecurity.h	2011-03-25 18:58:03.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/grsecurity.h	2011-03-26 16:01:53.000000000 -0400
+@@ -104,7 +104,7 @@
+ 			      const unsigned long wanted, const int gt);
+ void gr_copy_label(struct task_struct *tsk);
+ void gr_handle_crash(struct task_struct *task, const int sig);
+-int gr_handle_signal(const struct task_struct *p, const int sig);
++int gr_handle_signal(struct task_struct *p, const int sig);
+ int gr_check_crash_uid(const uid_t uid);
+ int gr_check_protected_task(const struct task_struct *task);
+ int gr_check_protected_task_fowner(struct pid *pid, enum pid_type type);
+diff -u linux-2.6.38.1-new/include/linux/sched.h linux-2.6.38.1-new/include/linux/sched.h
+--- linux-2.6.38.1-new/include/linux/sched.h	2011-03-21 23:47:41.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/sched.h	2011-03-26 17:18:15.000000000 -0400
+@@ -1524,6 +1524,7 @@
+ 	struct acl_role_label *role;
+ 	struct file *exec_file;
+ 	u16 acl_role_id;
++	/* is this the task that authenticated to the special role */
+ 	u8 acl_sp_role;
+ 	u8 is_writable;
+ 	u8 brute;
+diff -u linux-2.6.38.1-new/kernel/kmod.c linux-2.6.38.1-new/kernel/kmod.c
+--- linux-2.6.38.1-new/kernel/kmod.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/kernel/kmod.c	2011-03-26 13:28:34.000000000 -0400
+@@ -97,17 +97,7 @@
+ 	   auto-loaded
+ 	*/
+ 	if (current_uid()) {
+-#if !defined(CONFIG_IPV6) && !defined(CONFIG_IPV6_MODULE)
+-		/* There are known knowns.  These are things we know
+-		   that we know.  There are known unknowns.  That is to say,
+-		   there are things that we know we don't know.  But there are
+-		   also unknown unknowns.  There are things we don't know
+-		   we don't know.
+-		   This here is a known unknown.
+-		*/
+-		if (strcmp(module_name, "net-pf-10"))
+-#endif
+-			gr_log_nonroot_mod_load(module_name);
++		gr_log_nonroot_mod_load(module_name);
+ 		return -EPERM;
+ 	}
+ #endif

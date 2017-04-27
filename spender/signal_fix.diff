@@ -1,0 +1,411 @@
+diff -u b/fs/exec.c b/fs/exec.c
+--- b/fs/exec.c
++++ b/fs/exec.c
+@@ -854,7 +854,6 @@
+ 	struct signal_struct *sig = tsk->signal;
+ 	struct sighand_struct *oldsighand = tsk->sighand;
+ 	spinlock_t *lock = &oldsighand->siglock;
+-	int count;
+ 
+ 	if (thread_group_empty(tsk))
+ 		goto no_thread_group;
+@@ -871,13 +870,13 @@
+ 		spin_unlock_irq(lock);
+ 		return -EAGAIN;
+ 	}
++
+ 	sig->group_exit_task = tsk;
+-	zap_other_threads(tsk);
++	sig->notify_count = zap_other_threads(tsk);
++	if (!thread_group_leader(tsk))
++		sig->notify_count--;
+ 
+-	/* Account for the thread group leader hanging around: */
+-	count = thread_group_leader(tsk) ? 1 : 2;
+-	sig->notify_count = count;
+-	while (atomic_read(&sig->count) > count) {
++	while (sig->notify_count) {
+ 		__set_current_state(TASK_UNINTERRUPTIBLE);
+ 		spin_unlock_irq(lock);
+ 		schedule();
+diff -u b/fs/proc/array.c b/fs/proc/array.c
+--- b/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -264,7 +264,7 @@
+ 		shpending = p->signal->shared_pending.signal;
+ 		blocked = p->blocked;
+ 		collect_sigign_sigcatch(p, &ignored, &caught);
+-		num_threads = atomic_read(&p->signal->count);
++		num_threads = get_nr_threads(p);
+ 		qsize = atomic_read(&__task_cred(p)->user->sigpending);
+ 		qlim = p->signal->rlim[RLIMIT_SIGPENDING].rlim_cur;
+ 		unlock_task_sighand(p, &flags);
+@@ -430,7 +430,7 @@
+ 			tty_nr = new_encode_dev(tty_devnum(sig->tty));
+ 		}
+ 
+-		num_threads = atomic_read(&sig->count);
++		num_threads = get_nr_threads(task);
+ 		collect_sigign_sigcatch(task, &sigign, &sigcatch);
+ 
+ 		cmin_flt = sig->cmin_flt;
+@@ -600,13 +600,5 @@
+ int proc_pid_ipaddr(struct task_struct *task, char *buffer)
+ {
+-	u32 curr_ip = 0;
+-	unsigned long flags;
+-
+-	if (lock_task_sighand(task, &flags)) {
+-		curr_ip = task->signal->curr_ip;
+-		unlock_task_sighand(task, &flags);
+-	}
+-
+-	return sprintf(buffer, "%pI4\n", &curr_ip);
++	return sprintf(buffer, "%pI4\n", &task->signal->curr_ip);
+ }
+ #endif
+diff -u b/fs/proc/base.c b/fs/proc/base.c
+--- b/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -181,18 +181,6 @@
+ 	return result;
+ }
+ 
+-static int get_nr_threads(struct task_struct *tsk)
+-{
+-	unsigned long flags;
+-	int count = 0;
+-
+-	if (lock_task_sighand(tsk, &flags)) {
+-		count = atomic_read(&tsk->signal->count);
+-		unlock_task_sighand(tsk, &flags);
+-	}
+-	return count;
+-}
+-
+ static int proc_cwd_link(struct inode *inode, struct path *path)
+ {
+ 	struct task_struct *task = get_proc_task(inode);
+diff -u b/include/linux/init_task.h b/include/linux/init_task.h
+--- b/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -16,7 +16,7 @@
+ extern struct fs_struct init_fs;
+ 
+ #define INIT_SIGNALS(sig) {						\
+-	.count		= ATOMIC_INIT(1), 				\
++	.nr_threads	= 1,						\
+ 	.wait_chldexit	= __WAIT_QUEUE_HEAD_INITIALIZER(sig.wait_chldexit),\
+ 	.shared_pending	= { 						\
+ 		.list = LIST_HEAD_INIT(sig.shared_pending.list),	\
+diff -u b/include/linux/sched.h b/include/linux/sched.h
+--- b/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -564,8 +564,9 @@
+  * the locking of signal_struct.
+  */
+ struct signal_struct {
+-	atomic_t		count;
++	atomic_t		sigcnt;
+ 	atomic_t		live;
++	int			nr_threads;
+ 
+ 	wait_queue_head_t	wait_chldexit;	/* for wait4() */
+ 
+@@ -2179,7 +2180,7 @@
+ extern void force_sig(int, struct task_struct *);
+ extern void force_sig_specific(int, struct task_struct *);
+ extern int send_sig(int, struct task_struct *, int);
+-extern void zap_other_threads(struct task_struct *p);
++extern int zap_other_threads(struct task_struct *p);
+ extern struct sigqueue *sigqueue_alloc(void);
+ extern void sigqueue_free(struct sigqueue *);
+ extern int send_sigqueue(struct sigqueue *,  struct task_struct *, int group);
+@@ -2249,7 +2250,6 @@
+ extern void exit_thread(void);
+ 
+ extern void exit_files(struct task_struct *);
+-extern void __cleanup_signal(struct signal_struct *);
+ extern void __cleanup_sighand(struct sighand_struct *);
+ 
+ extern void exit_itimers(struct signal_struct *);
+@@ -2298,6 +2298,11 @@
+ #define while_each_thread(g, t) \
+ 	while ((t = next_thread(t)) != g)
+ 
++static inline int get_nr_threads(struct task_struct *tsk)
++{
++	return tsk->signal->nr_threads;
++}
++
+ /* de_thread depends on thread_group_leader not being a pid based check */
+ #define thread_group_leader(p)	(p == p->group_leader)
+ 
+diff -u b/kernel/exit.c b/kernel/exit.c
+--- b/kernel/exit.c
++++ b/kernel/exit.c
+@@ -61,11 +61,11 @@
+ 
+ static void exit_mm(struct task_struct * tsk);
+ 
+-static void __unhash_process(struct task_struct *p)
++static void __unhash_process(struct task_struct *p, bool group_dead)
+ {
+ 	nr_threads--;
+ 	detach_pid(p, PIDTYPE_PID);
+-	if (thread_group_leader(p)) {
++	if (group_dead) {
+ 		detach_pid(p, PIDTYPE_PGID);
+ 		detach_pid(p, PIDTYPE_SID);
+ 
+@@ -82,18 +82,19 @@
+ static void __exit_signal(struct task_struct *tsk)
+ {
+ 	struct signal_struct *sig = tsk->signal;
++	bool group_dead = thread_group_leader(tsk);
+ 	struct sighand_struct *sighand;
+-
+-	BUG_ON(!sig);
+-	BUG_ON(!atomic_read(&sig->count));
++	struct tty_struct *uninitialized_var(tty);
+ 
+ 	sighand = rcu_dereference(tsk->sighand);
+ 	spin_lock(&sighand->siglock);
+ 
+ 	posix_cpu_timers_exit(tsk);
+-	if (atomic_dec_and_test(&sig->count))
++	if (group_dead) {
+ 		posix_cpu_timers_exit_group(tsk);
+-	else {
++		tty = sig->tty;
++		sig->tty = NULL;
++	} else {
+ 		/*
+ 		 * This can only happen if the caller is de_thread().
+ 		 * FIXME: this is the temporary hack, we should teach
+@@ -106,7 +107,7 @@
+ 		 * If there is any task waiting for the group exit
+ 		 * then notify it:
+ 		 */
+-		if (sig->group_exit_task && atomic_read(&sig->count) == sig->notify_count)
++		if (sig->notify_count > 0 && !--sig->notify_count)
+ 			wake_up_process(sig->group_exit_task);
+ 
+ 		if (tsk == sig->curr_target)
+@@ -132,32 +133,24 @@
+ 		sig->oublock += task_io_get_oublock(tsk);
+ 		task_io_accounting_add(&sig->ioac, &tsk->ioac);
+ 		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
+-		sig = NULL; /* Marker for below. */
+ 	}
+ 
+-	__unhash_process(tsk);
++	sig->nr_threads--;
++	__unhash_process(tsk, group_dead);
+ 
+ 	/*
+ 	 * Do this under ->siglock, we can race with another thread
+ 	 * doing sigqueue_free() if we have SIGQUEUE_PREALLOC signals.
+ 	 */
+ 	flush_sigqueue(&tsk->pending);
+-
+-	tsk->signal = NULL;
+ 	tsk->sighand = NULL;
+ 	spin_unlock(&sighand->siglock);
+ 
+ 	__cleanup_sighand(sighand);
+ 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
+-	if (sig) {
++	if (group_dead) {
+ 		flush_sigqueue(&sig->shared_pending);
+-		taskstats_tgid_free(sig);
+-		/*
+-		 * Make sure ->signal can't go away under rq->lock,
+-		 * see account_group_exec_runtime().
+-		 */
+-		task_rq_unlock_wait(tsk);
+-		__cleanup_signal(sig);
++		tty_kref_put(tty);
+ 	}
+ }
+ 
+@@ -871,12 +864,9 @@
+ 
+ 	tsk->exit_state = signal == DEATH_REAP ? EXIT_DEAD : EXIT_ZOMBIE;
+ 
+-	/* mt-exec, de_thread() is waiting for us */
+-	if (thread_group_leader(tsk) &&
+-	    tsk->signal->group_exit_task &&
+-	    tsk->signal->notify_count < 0)
++	/* mt-exec, de_thread() is waiting for group leader */
++	if (unlikely(tsk->signal->notify_count < 0))
+ 		wake_up_process(tsk->signal->group_exit_task);
+-
+ 	write_unlock_irq(&tasklist_lock);
+ 
+ 	tracehook_report_death(tsk, signal, cookie, group_dead);
+diff -u b/kernel/fork.c b/kernel/fork.c
+--- b/kernel/fork.c
++++ b/kernel/fork.c
+@@ -156,6 +156,18 @@
+ }
+ EXPORT_SYMBOL(free_task);
+ 
++static inline void free_signal_struct(struct signal_struct *sig)
++{
++	taskstats_tgid_free(sig);
++	kmem_cache_free(signal_cachep, sig);
++}
++
++static inline void put_signal_struct(struct signal_struct *sig)
++{
++	if (atomic_dec_and_test(&sig->sigcnt))
++		free_signal_struct(sig);
++}
++
+ void __put_task_struct(struct task_struct *tsk)
+ {
+ 	WARN_ON(!tsk->exit_state);
+@@ -164,6 +176,7 @@
+ 
+ 	exit_creds(tsk);
+ 	delayacct_tsk_free(tsk);
++	put_signal_struct(tsk->signal);
+ 
+ 	if (!profile_handoff_task(tsk))
+ 		free_task(tsk);
+@@ -895,8 +908,9 @@
+ 	if (!sig)
+ 		return -ENOMEM;
+ 
+-	atomic_set(&sig->count, 1);
++	sig->nr_threads = 1;
+ 	atomic_set(&sig->live, 1);
++	atomic_set(&sig->sigcnt, 1);
+ 	init_waitqueue_head(&sig->wait_chldexit);
+ 	sig->flags = 0;
+ 	if (clone_flags & CLONE_NEWPID)
+@@ -949,9 +963,2 @@
+ 
+-void __cleanup_signal(struct signal_struct *sig)
+-{
+-	thread_group_cputime_free(sig);
+-	tty_kref_put(sig->tty);
+-	kmem_cache_free(signal_cachep, sig);
+-}
+-
+ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
+@@ -1302,8 +1309,9 @@
+ 	}
+ 
+ 	if (clone_flags & CLONE_THREAD) {
+-		atomic_inc(&current->signal->count);
++		current->signal->nr_threads++;
+ 		atomic_inc(&current->signal->live);
++		atomic_inc(&current->signal->sigcnt);
+ 		p->group_leader = current->group_leader;
+ 		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
+ 	}
+@@ -1317,7 +1325,6 @@
+ 				p->nsproxy->pid_ns->child_reaper = p;
+ 
+ 			p->signal->leader_pid = pid;
+-			tty_kref_put(p->signal->tty);
+ 			p->signal->tty = tty_kref_get(current->signal->tty);
+ 			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));
+ 			attach_pid(p, PIDTYPE_SID, task_session(current));
+@@ -1349,7 +1356,7 @@
+ 		mmput(p->mm);
+ bad_fork_cleanup_signal:
+ 	if (!(clone_flags & CLONE_THREAD))
+-		__cleanup_signal(p->signal);
++		free_signal_struct(p->signal);
+ bad_fork_cleanup_sighand:
+ 	__cleanup_sighand(p->sighand);
+ bad_fork_cleanup_fs:
+@@ -1568,14 +1575,6 @@
+ 		*flags_ptr |= CLONE_SIGHAND;
+ 
+ 	/*
+-	 * If unsharing signal handlers and the task was created
+-	 * using CLONE_THREAD, then must unshare the thread
+-	 */
+-	if ((*flags_ptr & CLONE_SIGHAND) &&
+-	    (atomic_read(&current->signal->count) > 1))
+-		*flags_ptr |= CLONE_THREAD;
+-
+-	/*
+ 	 * If unsharing namespace, must also unshare filesystem information.
+ 	 */
+ 	if (*flags_ptr & CLONE_NEWNS)
+diff -u b/kernel/signal.c b/kernel/signal.c
+--- b/kernel/signal.c
++++ b/kernel/signal.c
+@@ -1054,23 +1054,24 @@
+ /*
+  * Nuke all other threads in the group.
+  */
+-void zap_other_threads(struct task_struct *p)
++int zap_other_threads(struct task_struct *p)
+ {
+-	struct task_struct *t;
++	struct task_struct *t = p;
++	int count = 0;
+ 
+ 	p->signal->group_stop_count = 0;
+ 
+-	for (t = next_thread(p); t != p; t = next_thread(t)) {
+-		/*
+-		 * Don't bother with already dead threads
+-		 */
++	while_each_thread(p, t) {
++		count++;
++
++		/* Don't bother with already dead threads */
+ 		if (t->exit_state)
+ 			continue;
+-
+-		/* SIGKILL will be handled before any pending SIGSTOP */
+ 		sigaddset(&t->pending.signal, SIGKILL);
+ 		signal_wake_up(t, 1);
+ 	}
++
++	return count;
+ }
+ 
+ struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long *flags)
+only in patch2:
+unchanged:
+--- a/kernel/sched_debug.c
++++ b/kernel/sched_debug.c
+@@ -369,15 +369,9 @@ __initcall(init_sched_debug_procfs);
+ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
+ {
+ 	unsigned long nr_switches;
+-	unsigned long flags;
+-	int num_threads = 1;
+ 
+-	if (lock_task_sighand(p, &flags)) {
+-		num_threads = atomic_read(&p->signal->count);
+-		unlock_task_sighand(p, &flags);
+-	}
+-
+-	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid, num_threads);
++	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid,
++						get_nr_threads(p));
+ 	SEQ_printf(m,
+ 		"---------------------------------------------------------\n");
+ #define __P(F) \
+only in patch2:
+unchanged:
+--- a/security/keys/keyctl.c
++++ b/security/keys/keyctl.c
+@@ -1270,7 +1270,7 @@ long keyctl_session_to_parent(void)
+ 		goto not_permitted;
+ 
+ 	/* the parent must be single threaded */
+-	if (atomic_read(&parent->signal->count) != 1)
++	if (!thread_group_empty(parent))
+ 		goto not_permitted;
+ 
+ 	/* the parent and the child must have different session keyrings or

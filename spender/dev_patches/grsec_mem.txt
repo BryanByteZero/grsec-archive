@@ -1,0 +1,45 @@
+static void
+__gr_check_mem(char *msg, char *to, unsigned long n)
+{
+	if (object_is_on_stack(to) && !object_is_on_stack(to + n))
+		goto exploit;
+	else {
+		struct page *page;
+
+		page = virt_to_head_page(to);
+
+		if (!PageSlab(page)) {
+			unsigned long max;
+			char *pagestart = page_address(page);
+
+			if ((!PageCompound(page) && ((to + n) > (pagestart + PAGE_SIZE))) ||
+			    (PageCompound(page) && ((to + n) > (pagestart + (PAGE_SIZE << compound_order(page))))))
+				goto exploit;
+		} else if (n > ksize(to))
+			goto exploit;
+	}
+	return;
+exploit:
+	{
+		char err_msg[128];
+		if (current->signal->curr_ip)
+			snprintf(err_msg, sizeof(err_msg) - 1, "grsec: From %u.%u.%u.%u: Attempted %s by %.16s:%d, UID:%d EUID:%d",
+				NIPQUAD(current->signal->curr_ip), msg, current->comm, current->pid, current_uid(), current_euid());
+		else
+			snprintf(err_msg, sizeof(err_msg) - 1, "grsec: Attempted %s by %.16s:%d, UID:%d EUID:%d",
+				msg, current->comm, current->pid, current_uid(), current_euid());
+		panic(err_msg);
+	}
+}
+
+void
+gr_check_mem_overflow(char *to, unsigned long n)
+{
+	__gr_check_mem("overflow", to, n);
+}
+
+void
+gr_check_mem_leak(char *to, unsigned long n)
+{
+	__gr_check_mem("information leak", to, n);
+}

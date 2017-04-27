@@ -1,0 +1,45 @@
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 71d4ab0..682ca98 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -583,19 +583,25 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
+ 	snprintf(dir_name, sizeof(dir_name), "%d-%d", task_pid_nr(current), fd);
+ 	kvm->debugfs_dentry = debugfs_create_dir(dir_name,
+ 						 kvm_debugfs_dir);
+-	if (!kvm->debugfs_dentry)
++	if (!kvm->debugfs_dentry) {
++		printk(KERN_ALERT "failed to create directory\n");
+ 		return -ENOMEM;
++	}
+ 
+ 	kvm->debugfs_stat_data = kcalloc(kvm_debugfs_num_entries,
+ 					 sizeof(*kvm->debugfs_stat_data),
+ 					 GFP_KERNEL);
+-	if (!kvm->debugfs_stat_data)
++	if (!kvm->debugfs_stat_data) {
++		printk(KERN_ALERT "failed to allocate stat data\n");
+ 		return -ENOMEM;
++	}
+ 
+ 	for (p = debugfs_entries; p->name; p++) {
+ 		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL);
+-		if (!stat_data)
++		if (!stat_data) {
++			printk(KERN_ALERT "failed to allocate per-entry stat data\n");
+ 			return -ENOMEM;
++		}
+ 
+ 		stat_data->kvm = kvm;
+ 		stat_data->offset = p->offset;
+@@ -603,8 +609,10 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
+ 		if (!debugfs_create_file(p->name, 0444,
+ 					 kvm->debugfs_dentry,
+ 					 stat_data,
+-					 stat_fops_per_vm[p->kind]))
++					 stat_fops_per_vm[p->kind])) {
++			printk(KERN_ALERT failed to create debugfs file for %s\n", p->name);
+ 			return -ENOMEM;
++		}
+ 	}
+ 	return 0;
+ }

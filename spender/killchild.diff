@@ -1,0 +1,33 @@
+diff --git a/grsecurity/grsec_sig.c b/grsecurity/grsec_sig.c
+index c6a07aa..ef9fe15 100644
+--- a/grsecurity/grsec_sig.c
++++ b/grsecurity/grsec_sig.c
+@@ -100,9 +100,28 @@ void gr_handle_brute_attach(unsigned long mm_flags)
+ 	read_lock(&tasklist_lock);
+ 	read_lock(&grsec_exec_file_lock);
+ 	if (p->real_parent && gr_is_same_file(p->real_parent->exec_file, p->exec_file)) {
++		struct task_struct *c;
++		u32 curr_ip = p->signal->curr_ip;
++		unsigned long flags;
++
+ 		p->real_parent->brute_expires = get_seconds() + GR_DAEMON_BRUTE_TIME;
+ 		p->real_parent->brute = 1;
+ 		daemon = 1;
++
++		/* now kill all existing children of the same IP */
++
++		if (!curr_ip)
++			goto unlock;
++		list_for_each_entry(c, &p->real_parent->children, sibling) {
++			int killit = 0;
++			if (lock_task_sighand(c, &flags)) {
++				if (curr_ip == c->signal->curr_ip)
++					killit = 1;
++				unlock_task_sighand(c, &flags);
++			}
++			if (killit)
++				gr_fake_force_sig(SIGKILL, c);
++		}
+ 	} else {
+ 		const struct cred *cred = __task_cred(p), *cred2;
+ 		struct task_struct *tsk, *tsk2;

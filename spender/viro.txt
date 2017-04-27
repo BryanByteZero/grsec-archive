@@ -1,0 +1,59 @@
+Date: Sat, 21 Mar 2015 00:32:42 +0000
+From viro@ftp.linux.org.uk  Fri Mar 20 20:56:51 2015
+From: Al Viro <viro@ZenIV.linux.org.uk>
+To: Brad Spengler <spender@grsecurity.net>
+Subject: Re: 4de930efc23b92ddf88ce91c405ee645fe6e27ea
+
+On Fri, Mar 20, 2015 at 07:08:59PM -0400, Brad Spengler wrote:
+> Hi Al,
+>
+> Nice commit message!  Are you sure there's nothing else you wanted to say about
+> it?  Clearly if you're adding a check that some paths of sendmsg handlers already
+> perform themselves by virtue of calling memcpy_iovec(), then you're aware of a path
+> that does not perform access_ok(), making this an exploitable and trivial arbitrary
+> kernel read/write.
+>
+> What purpose do you think you're serving exactly?
+
+WTF is unclear about "validate stuff containing userland pointers on the
+way in to syscall"?  I don't know about you (or the targets of your
+marketing), but for me that commit message is an absolutely clear indication
+of Very Bad Trouble(tm) being dealt with.
+
+Which it sure as hell is - this thing is closing an obvious roothole.
+My fuckup, spotted while reviewing the validation of iov_iter invariants
+(along with several more holes, all added after 3.19 and dealt with in
+the stuff that currently sits in my queue).  This obviously is the most
+urgent one, what with affecting a released kernel.
+
+Again, if "validate argument passed to system call" is not enough of a red
+flag, I don't know what is.  Especially when that argument of those syscalls
+determines the source and destination of data getting copied.
+
+If _that_ is supposed to be one of the examples of what you are describing
+as "coverup"... I think I'm insulted.  Just whom was it supposed to fool,
+in your opinion?  And if that was supposed to be an attempt to obfuscate,
+do you really think that I wouldn't be able to obfuscate things more
+effectively than _this_?
+
+Incidentally, this is an interim solution - minimal delta closing the hole
+and trivial to backport.  Next step is to merge rw_copy_check_vector() with
+iov_iter_init(), do the same for compat variant and provide a variant that
+does it by a pointer/size pair (doing the overflow and access_ok() checks).
+At which point iov_iter_init() is turned into a low-level primitive (and
+renamed to remove the temptation), with validation done at the point of
+creation in all the new primitives normally used to initialize iovec-backed
+instances.  iov_iter_init() is too low-level - it was a mistake that had
+been survivable while we had few users of that thing, but once it had moved
+to wider use, the shit had hit the fan pretty soon.  Invariants should be
+established as early as possible and in the primitives creating the object,
+not in the code using those.  Bloody basic API design mistake, with fairly
+usual outcome.  Fortunately, it hadn't been around long enough to grow too
+many users and the hole got caught relatively soon.  All of which is
+irrelevant for minimal backportable fix and yes, discussion of that thing
+_IS_ in commit messages of those next steps, where it is relevant.  And
+those will go into vfs.git#for-next once the damn pile gets through the
+current round of local tests (well, in the morning after that, actually -
+I don't think I'll manage to stay awake until they finish; ~4.5 hours of
+sleep tonight...)
+

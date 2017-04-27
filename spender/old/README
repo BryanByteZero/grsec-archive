@@ -1,0 +1,124 @@
+
+Glibc Security Patch
+
+Overview
+
+This is a simple patch for glibc that performs rather conservative
+environment variable sanitization for setUID/setGID applications, and
+also malloc chunk header overflow protection using random canaries.
+The environment variable sanitization prevents against information
+disclosure vulnerabilities in glibc, such as the recently publicized
+LD_DEBUG and LD_TRACE_PRELINKING holes, and also limits the ways in
+which users can interact with the libc internals by strictly limiting
+what environment variables can be seen by libc in security-critical
+situations. I claim little innovation in this work, almost all of the
+environment sanitization issues were addressed by the good people at 
+Owl (http://www.openwall.com/), my contribution was some minor pedantry
+regarding the sanitization of a few extra environment variables I thought 
+could involve information disclosure or could potentially influence the 
+execution of privileged code under unlikely but possible circumstances.
+The use of canaries for security was first widely touted by Crispin
+Cowan's Stackguard, and the use of canaries for heap chunks has been
+shown practical by researches the University of California, San Diego.
+I merely cleaned up the techniques used and covered a number of corner
+cases peculiar to GNU malloc that I felt were improperly or insecurely
+addressed in current works. This patch is less innovative and more a synthesis
+of current work regarding libc security, augmented to meet my standards
+of security.
+
+The heap protection approach uses random canaries, whose values are 
+chosen by using /dev/urandom, or if that fails the null terminator.
+There are different random values chosen for free and inuse chunks,
+thus we provide probabilistic protection against heap overflows and
+double free()'s, with the canary value for a given chunk checked each
+time a malloc-related function accesses it. We also extend this protection
+to malloc arenas. I will probably add trailing canaries in the future, just
+for the sake of completeness, if the real world performance overhead is not
+too large. Note that I don't use /dev/random for canaries because it's 
+conservative entropy estimates result in tremendous slowdown if you 
+use this library as your base system libc.  This could be averted if you
+selectively used the library only for critical applications that did
+not fork() at a frequent rate; however, I very seriously doubt that
+even in the most paranoid of situations that /dev/urandom will ever
+be anything remotely close to your weakest link. 
+
+Installation
+Download glibc-2.3.3 and glibc-linuxthreads-2.3.3 from ftp.gnu.org or 
+another trusted distribution source.  Unpack them, and then 
+
+patch -p0 < grsecurity-glibc-2.3.3-rc1.patch
+
+I had some issues bootstrapping glibc later, and had to create a quick manual
+hack to solve them. If you encounter any problems related to output-format.sed,
+please also apply the following patch:
+patch -p0 < glibc-output-format.patch
+
+If you have any difficulty during compilation, there is a documented issue
+regarding gcc 3.4.x and glibc 2.3.3, and there is a quick patch that
+can be found on google to fix the problem.  The error you see should be in 
+the elf subdirectory, and relate to using various __attribute__((regparm))
+specifiers in the function prototype for a few rtld functions.  
+
+Having successfully patched glibc, we must choose whether to replace
+your current glibc or install a local copy alongside your current libc.
+In the former case, *please* remember to back up, at the very least /etc,
+/lib, and /usr/lib.  A failed glibc installation _can_ render your system
+completely unusable. 
+
+Replacing your current libc
+I assume you are replacing a relatively current glibc. If you are upgrading
+from libc5, or a very old glibc, please see the copious documentation available
+at sites such as http://www.tdlp.org (The Linux Documentation Project), or
+the glibc homepage itself.  I upgraded from glibc-2.2.x to glibc-2.3.3 without
+issue.  Simply create a build directory and run the configure script from
+there like so:
+
+mkdir build-glibc
+cd build-glibc
+../glibc-2.3.3/configure --prefix=/usr --enable-add-ons=linuxthreads
+
+Should you require additional add-ons or configure options, augment
+the lines above.  Note that glibc still installs the primary C library
+components in /lib despite the use of --prefix=/usr, this is a special case
+that the configure script recognizes.  If you specify --prefix=/usr, your
+old glibc installation will be overwritten completely when we make install.
+
+Now you should be able to execute
+make 
+make install
+
+And a quick reboot later should hopefully verify that all dynamically linked
+programs are linked with your new libc, and are happy. For confirmation,
+you can write a quick program that frees an allocated memory region twice
+and see if the heap protection catches it. I'll be adding my testsuite
+for download soon.
+
+Installing glibc as a separate, companion library
+Should you wish the more conservative route, you can follow the steps
+above, changing only the configure line to
+
+../glibc-2.3.3/configure --prefix=INSTALL_DIR --enable-add-ons=linuxthreads
+
+where INSTALL_DIR is your designated installation directory. This does
+not require root access to do; you can simply install the new libc into your
+home directory should you desire.
+
+After you make install, there is only the matter of informing gcc that it
+should link with your new libc rather than the default system libc. This is
+accomplished by passing the following flags to gcc:
+
+gcc -Wl,-dynamic-linker=${INSTALL_DIR}/lib/ld-linux.so.2 -nodefaultlibs \
+        -L${INSTALL_DIR}/lib -lc -ldl 
+
+I recommend making a simple script wrapping gcc using these arguments.
+Then you can force packages to use this script rather than gcc by doing
+make "CC=YOUR_SCRIPT_HERE" when installing whatever package you wish to link
+with your new library.
+
+
+I hope this documentation has been of assistance. If you have any questions
+or comments, please contact me at michael@grsecurity.net or 
+mwdalton.edu.
+
+Michael Dalton
+

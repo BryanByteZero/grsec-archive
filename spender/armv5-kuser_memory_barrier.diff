@@ -1,0 +1,20 @@
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index 1a60561..03592fc 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -646,6 +646,15 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
+ 			regs->ARM_pc = regs->ARM_lr;
+ 			return;
+ 		}
++#if !defined(CONFIG_SMP) && __LINUX_ARM_ARCH__ < 6
++		else if (addr = 0xffff0fa0) {
++			/*
++			 * PaX: __kuser_memory_barrier emulation
++			 */
++			regs->ARM_pc = regs->ARM_lr;
++			return;
++		}
++#endif
+ 	}
+ 
+ #if defined(CONFIG_PAX_KERNEXEC) || defined(CONFIG_PAX_MEMORY_UDEREF)

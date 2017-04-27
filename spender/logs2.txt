@@ -1,0 +1,10 @@
+ [+] Found ->fs offset at 0x750
+ [+] Broke out of any chroots or fs namespaces
+ [+] Got root!
+sh-4.1# ls
+bin   cgroup  etc   lib    lost+found  misc  net  proc	sbin	 srv  tmp  var
+boot  dev     home  lib64  media       mnt   opt  root	selinux  sys  usr
+sh-4.1# id
+uid=0(root) gid=0(root) groups=0(root) context=system_u:system_r:kernel_t:s0
+sh-4.1# 
+

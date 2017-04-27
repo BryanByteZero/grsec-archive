@@ -1,0 +1,60 @@
+diff --git a/arch/arm/include/asm/cacheflush.h b/arch/arm/include/asm/cacheflush.h
+index d5d8d5c..ad92c96 100644
+--- a/arch/arm/include/asm/cacheflush.h
++++ b/arch/arm/include/asm/cacheflush.h
+@@ -108,7 +108,7 @@ struct cpu_cache_fns {
+ 	void (*dma_unmap_area)(const void *, size_t, int);
+ 
+ 	void (*dma_flush_range)(const void *, const void *);
+-};
++} __no_const;
+ 
+ /*
+  * Select the calling method
+diff --git a/arch/arm/include/asm/outercache.h b/arch/arm/include/asm/outercache.h
+index 53426c6..c7baff3 100644
+--- a/arch/arm/include/asm/outercache.h
++++ b/arch/arm/include/asm/outercache.h
+@@ -35,7 +35,7 @@ struct outer_cache_fns {
+ #endif
+ 	void (*set_debug)(unsigned long);
+ 	void (*resume)(void);
+-};
++} __no_const;
+ 
+ #ifdef CONFIG_OUTER_CACHE
+ 
+diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h
+index ca94653..6ac0d56 100644
+--- a/arch/arm/include/asm/page.h
++++ b/arch/arm/include/asm/page.h
+@@ -123,7 +123,7 @@ struct cpu_user_fns {
+ 	void (*cpu_clear_user_highpage)(struct page *page, unsigned long vaddr);
+ 	void (*cpu_copy_user_highpage)(struct page *to, struct page *from,
+ 			unsigned long vaddr, struct vm_area_struct *vma);
+-};
++} __no_const;
+ 
+ #ifdef MULTI_USER
+ extern struct cpu_user_fns cpu_user;
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index 8fc2c8f..064c150 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -108,13 +108,13 @@ struct processor processor __read_mostly;
+ struct cpu_tlb_fns cpu_tlb __read_mostly;
+ #endif
+ #ifdef MULTI_USER
+-struct cpu_user_fns cpu_user __read_mostly;
++struct cpu_user_fns cpu_user __read_only;
+ #endif
+ #ifdef MULTI_CACHE
+-struct cpu_cache_fns cpu_cache __read_mostly;
++struct cpu_cache_fns cpu_cache __read_only;
+ #endif
+ #ifdef CONFIG_OUTER_CACHE
+-struct outer_cache_fns outer_cache __read_mostly;
++struct outer_cache_fns outer_cache __read_only;
+ EXPORT_SYMBOL(outer_cache);
+ #endif
+ 

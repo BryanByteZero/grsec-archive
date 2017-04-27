@@ -1,0 +1,204 @@
+diff --git a/arch/sparc/kernel/module.c b/arch/sparc/kernel/module.c
+index 4435488..702a048 100644
+--- a/arch/sparc/kernel/module.c
++++ b/arch/sparc/kernel/module.c
+@@ -24,16 +24,16 @@
+ 
+ #include <linux/jump_label.h>
+ 
+-static void *module_map(unsigned long size)
++static void *__module_alloc(unsigned long size, pgprot_t prot)
+ {
+-	if (PAGE_ALIGN(size) > MODULES_LEN)
++	if (!size || PAGE_ALIGN(size) > MODULES_LEN)
+ 		return NULL;
+ 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+-				GFP_KERNEL, PAGE_KERNEL, -1,
++				GFP_KERNEL | GFP_ZERO, prot, -1,
+ 				__builtin_return_address(0));
+ }
+ #else
+-static void *module_map(unsigned long size)
++static void *__module_alloc(unsigned long size, pgprot_t prot)
+ {
+ 	return vmalloc(size);
+ }
+@@ -41,14 +41,28 @@ static void *module_map(unsigned long size)
+ 
+ void *module_alloc(unsigned long size)
+ {
+-	void *ret;
+ 
+-	ret = module_map(size);
+-	if (ret)
+-		memset(ret, 0, size);
++#ifdef CONFIG_PAX_KERNEXEC
++	return __module_alloc(size, PAGE_KERNEL);
++#else
++	return __module_alloc(size, PAGE_KERNEL_EXEC);
++#endif
++
++}
+ 
+-	return ret;
++#ifdef CONFIG_PAX_KERNEXEC
++void module_free_exec(struct module *mod, void *module_region)
++{
++	module_free(mod, module_region);
++}
++EXPORT_SYMOL(module_free_exec);
++
++void *module_alloc_exec(unsigned long size)
++{
++	return __module_alloc(size, PAGE_KERNEL_RX);
+ }
++EXPORT_SYMBOL(module_alloc_exec);
++#endif
+ 
+ /* Make generic code ignore STT_REGISTER dummy undefined symbols.  */
+ int module_frob_arch_sections(Elf_Ehdr *hdr,
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 82bbf04..d66f850 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -51,7 +51,7 @@
+ 
+ #include "init_64.h"
+ 
+-unsigned long kern_linear_pte_xor[4] __read_mostly;
++unsigned long kern_linear_pte_xor[4] __read_only;
+ 
+ /* A bitmap, two bits for every 256MB of physical memory.  These two
+  * bits determine what page size we use for kernel linear
+@@ -168,22 +168,22 @@ unsigned long sparc64_valid_addr_bitmap[VALID_ADDR_BITMAP_BYTES /
+ EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
+ 
+ /* Kernel physical address base and size in bytes.  */
+-unsigned long kern_base __read_mostly;
+-unsigned long kern_size __read_mostly;
++unsigned long kern_base __read_only;
++unsigned long kern_size __read_only;
+ 
+ /* Initial ramdisk setup */
+ extern unsigned long sparc_ramdisk_image64;
+ extern unsigned int sparc_ramdisk_image;
+ extern unsigned int sparc_ramdisk_size;
+ 
+-struct page *mem_map_zero __read_mostly;
++struct page *mem_map_zero __read_only;
+ EXPORT_SYMBOL(mem_map_zero);
+ 
+-unsigned int sparc64_highest_unlocked_tlb_ent __read_mostly;
++unsigned int sparc64_highest_unlocked_tlb_ent __read_only;
+ 
+-unsigned long sparc64_kern_pri_context __read_mostly;
+-unsigned long sparc64_kern_pri_nuc_bits __read_mostly;
+-unsigned long sparc64_kern_sec_context __read_mostly;
++unsigned long sparc64_kern_pri_context __read_only;
++unsigned long sparc64_kern_pri_nuc_bits __read_only;
++unsigned long sparc64_kern_sec_context __read_only;
+ 
+ int num_kernel_image_mappings;
+ 
+@@ -275,7 +275,7 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long
+ 	__tsb_insert(tsb_addr, tag, pte);
+ }
+ 
+-unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
++unsigned long _PAGE_ALL_SZ_BITS __read_only;
+ 
+ static void flush_dcache(unsigned long pfn)
+ {
+@@ -474,8 +474,8 @@ void mmu_info(struct seq_file *m)
+ #endif /* CONFIG_DEBUG_DCFLUSH */
+ }
+ 
+-struct linux_prom_translation prom_trans[512] __read_mostly;
+-unsigned int prom_trans_ents __read_mostly;
++struct linux_prom_translation prom_trans[512] __read_only;
++unsigned int prom_trans_ents __read_only;
+ 
+ unsigned long kern_locked_tte_data;
+ 
+@@ -2157,24 +2157,30 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+ #define __ACCESS_BITS_4U (_PAGE_ACCESSED_4U | _PAGE_READ_4U | _PAGE_R)
+ #define __ACCESS_BITS_4V (_PAGE_ACCESSED_4V | _PAGE_READ_4V | _PAGE_R)
+ 
+-pgprot_t PAGE_KERNEL __read_mostly;
++pgprot_t PAGE_KERNEL __read_only;
+ EXPORT_SYMBOL(PAGE_KERNEL);
+ 
+-pgprot_t PAGE_KERNEL_LOCKED __read_mostly;
+-pgprot_t PAGE_COPY __read_mostly;
++pgprot_t PAGE_KERNEL_EXEC __read_only;
++EXPORT_SYMBOL(PAGE_KERNEL_EXEC);
+ 
+-pgprot_t PAGE_SHARED __read_mostly;
++pgprot_t PAGE_KERNEL_RX __read_only;
++EXPORT_SYMBOL(PAGE_KERNEL_RX);
++
++pgprot_t PAGE_KERNEL_LOCKED __read_only;
++pgprot_t PAGE_COPY __read_only;
++
++pgprot_t PAGE_SHARED __read_only;
+ EXPORT_SYMBOL(PAGE_SHARED);
+ 
+-unsigned long pg_iobits __read_mostly;
++unsigned long pg_iobits __read_only;
+ 
+-unsigned long _PAGE_IE __read_mostly;
++unsigned long _PAGE_IE __read_only;
+ EXPORT_SYMBOL(_PAGE_IE);
+ 
+-unsigned long _PAGE_E __read_mostly;
++unsigned long _PAGE_E __read_only;
+ EXPORT_SYMBOL(_PAGE_E);
+ 
+-unsigned long _PAGE_CACHE __read_mostly;
++unsigned long _PAGE_CACHE __read_only;
+ EXPORT_SYMBOL(_PAGE_CACHE);
+ 
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+@@ -2274,8 +2280,12 @@ static void __init sun4u_pgprot_init(void)
+ 
+ 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
+ 				_PAGE_CACHE_4U | _PAGE_P_4U |
+-				__ACCESS_BITS_4U | __DIRTY_BITS_4U |
+-				_PAGE_EXEC_4U);
++				__ACCESS_BITS_4U | __DIRTY_BITS_4U);
++
++	PAGE_KERNEL_EXEC = PAGE_KERNEL | __pgprot(_PAGE_EXEC_4U)
++
++	PAGE_KERNEL_RX = PAGE_KERNEL_EXEC &~ __pgprot(__DIRTY_BITS_4U);
++
+ 	PAGE_KERNEL_LOCKED = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
+ 				       _PAGE_CACHE_4U | _PAGE_P_4U |
+ 				       __ACCESS_BITS_4U | __DIRTY_BITS_4U |
+@@ -2327,8 +2337,12 @@ static void __init sun4v_pgprot_init(void)
+ 
+ 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
+ 				_PAGE_CACHE_4V | _PAGE_P_4V |
+-				__ACCESS_BITS_4V | __DIRTY_BITS_4V |
+-				_PAGE_EXEC_4V);
++				__ACCESS_BITS_4V | __DIRTY_BITS_4V);
++
++	PAGE_KERNEL_EXEC = PAGE_KERNEL | __pgprot(_PAGE_EXEC_4V)
++
++	PAGE_KERNEL_RX = PAGE_KERNEL_EXEC &~ __pgprot(__DIRTY_BITS_4V);
++
+ 	PAGE_KERNEL_LOCKED = PAGE_KERNEL;
+ 
+ 	_PAGE_IE = _PAGE_IE_4V;
+diff --git a/security/Kconfig b/security/Kconfig
+index 4cb4ecc..fa22bf2 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -580,7 +580,7 @@ config PAX_DLRESOLVE
+ config PAX_KERNEXEC
+ 	bool "Enforce non-executable kernel pages"
+ 	default y if GRKERNSEC_CONFIG_AUTO && (GRKERNSEC_CONFIG_VIRT_NONE || (GRKERNSEC_CONFIG_VIRT_EPT && GRKERNSEC_CONFIG_VIRT_GUEST) || (GRKERNSEC_CONFIG_VIRT_EPT && GRKERNSEC_CONFIG_VIRT_KVM))
+-	depends on ((X86 && (!X86_32 || X86_WP_WORKS_OK)) || (ARM && (CPU_V6 || CPU_V7) && !(ARM_LPAE && MODULES))) && !XEN
++	depends on ((X86 && (!X86_32 || X86_WP_WORKS_OK)) || SPARC64 || (ARM && (CPU_V6 || CPU_V7) && !(ARM_LPAE && MODULES))) && !XEN
+ 	select PAX_PER_CPU_PGD if X86_64 || (X86_32 && X86_PAE)
+ 	select PAX_KERNEXEC_PLUGIN if X86_64
+ 	help

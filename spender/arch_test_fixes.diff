@@ -1,0 +1,536 @@
+diff --git a/Makefile b/Makefile
+index b8d23eb..079642c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -634,7 +634,7 @@ GCC_PLUGINS_CFLAGS += $(KERNEXEC_PLUGIN_CFLAGS) $(CHECKER_PLUGIN_CFLAGS) $(COLOR
+ GCC_PLUGINS_CFLAGS += $(SIZE_OVERFLOW_PLUGIN_CFLAGS) $(LATENT_ENTROPY_PLUGIN_CFLAGS) $(STRUCTLEAK_PLUGIN_CFLAGS)
+ GCC_PLUGINS_CFLAGS += $(RANDSTRUCT_PLUGIN_CFLAGS)
+ GCC_PLUGINS_AFLAGS := $(KERNEXEC_PLUGIN_AFLAGS)
+-export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGINS_AFLAGS CONSTIFY_PLUGIN
++export PLUGINCC GCC_PLUGINS_CFLAGS GCC_PLUGINS_AFLAGS CONSTIFY_PLUGIN LATENT_ENTROPY_PLUGIN_CFLAGS
+ ifeq ($(KBUILD_EXTMOD),)
+ gcc-plugins:
+ 	$(Q)$(MAKE) $(build)=tools/gcc
+diff --git a/arch/arm/include/asm/uaccess.h b/arch/arm/include/asm/uaccess.h
+index 9eba222..35acac1 100644
+--- a/arch/arm/include/asm/uaccess.h
++++ b/arch/arm/include/asm/uaccess.h
+@@ -256,6 +256,7 @@ static inline void set_fs(mm_segment_t fs)
+ 
+ #endif /* CONFIG_MMU */
+ 
++#define access_ok_noprefault(type,addr,size) access_ok((type),(addr),(size))
+ #define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
+ 
+ #define user_addr_max() \
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index 7ecc2b2..5e56c66 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -99,6 +99,7 @@ static inline void set_fs(mm_segment_t fs)
+ 	flag;								\
+ })
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)	__range_ok(addr, size)
+ 
+ /*
+diff --git a/arch/ia64/include/asm/uaccess.h b/arch/ia64/include/asm/uaccess.h
+index 18965fb..3d4b1e9 100644
+--- a/arch/ia64/include/asm/uaccess.h
++++ b/arch/ia64/include/asm/uaccess.h
+@@ -70,6 +70,7 @@
+ 	 && ((segment).seg == KERNEL_DS.seg						\
+ 	     || likely(REGION_OFFSET((unsigned long) (addr)) < RGN_MAP_LIMIT)));	\
+ })
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)	__access_ok((addr), (size), get_fs())
+ 
+ /*
+diff --git a/arch/mips/include/asm/ftrace.h b/arch/mips/include/asm/ftrace.h
+index ce35c9a..434321c 100644
+--- a/arch/mips/include/asm/ftrace.h
++++ b/arch/mips/include/asm/ftrace.h
+@@ -22,12 +22,12 @@ extern void _mcount(void);
+ #define safe_load(load, src, dst, error)		\
+ do {							\
+ 	asm volatile (					\
+-		"1: " load " %[" STR(dst) "], 0(%[" STR(src) "])\n"\
+-		"   li %[" STR(error) "], 0\n"		\
++		"1: " load " %[dest], 0(%[source])\n"	\
++		"   li %[err], 0\n"			\
+ 		"2:\n"					\
+ 							\
+ 		".section .fixup, \"ax\"\n"		\
+-		"3: li %[" STR(error) "], 1\n"		\
++		"3: li %[err], 1\n"			\
+ 		"   j 2b\n"				\
+ 		".previous\n"				\
+ 							\
+@@ -35,8 +35,8 @@ do {							\
+ 		STR(PTR) "\t1b, 3b\n\t"			\
+ 		".previous\n"				\
+ 							\
+-		: [dst] "=&r" (dst), [error] "=r" (error)\
+-		: [src] "r" (src)			\
++		: [dest] "=&r" (dst), [err] "=r" (error)\
++		: [source] "r" (src)			\
+ 		: "memory"				\
+ 	);						\
+ } while (0)
+@@ -44,12 +44,12 @@ do {							\
+ #define safe_store(store, src, dst, error)	\
+ do {						\
+ 	asm volatile (				\
+-		"1: " store " %[" STR(src) "], 0(%[" STR(dst) "])\n"\
+-		"   li %[" STR(error) "], 0\n"	\
++		"1: " store " %[source], 0(%[dest])\n"\
++		"   li %[err], 0\n"		\
+ 		"2:\n"				\
+ 						\
+ 		".section .fixup, \"ax\"\n"	\
+-		"3: li %[" STR(error) "], 1\n"	\
++		"3: li %[err], 1\n"		\
+ 		"   j 2b\n"			\
+ 		".previous\n"			\
+ 						\
+@@ -57,8 +57,8 @@ do {						\
+ 		STR(PTR) "\t1b, 3b\n\t"		\
+ 		".previous\n"			\
+ 						\
+-		: [error] "=r" (error)		\
+-		: [dst] "r" (dst), [src] "r" (src)\
++		: [err] "=r" (error)		\
++		: [dest] "r" (dst), [source] "r" (src)\
+ 		: "memory"			\
+ 	);					\
+ } while (0)
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 008324d..f67c239 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -20,6 +20,9 @@
+ #include <asm/io.h>
+ #include <asm/pgtable-bits.h>
+ 
++#define ktla_ktva(addr)		(addr)
++#define ktva_ktla(addr)		(addr)
++
+ struct mm_struct;
+ struct vm_area_struct;
+ 
+diff --git a/arch/mips/include/asm/syscall.h b/arch/mips/include/asm/syscall.h
+index 81c8913..81d8432 100644
+--- a/arch/mips/include/asm/syscall.h
++++ b/arch/mips/include/asm/syscall.h
+@@ -29,7 +29,7 @@ static inline long syscall_get_nr(struct task_struct *task,
+ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
+ 	struct task_struct *task, struct pt_regs *regs, unsigned int n)
+ {
+-	unsigned long usp = regs->regs[29];
++	unsigned long usp __maybe_unused = regs->regs[29];
+ 
+ 	switch (n) {
+ 	case 0: case 1: case 2: case 3:
+@@ -39,14 +39,14 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
+ 
+ #ifdef CONFIG_32BIT
+ 	case 4: case 5: case 6: case 7:
+-		return get_user(*arg, (int *)usp + 4 * n);
++		return get_user(*arg, (int *)usp + n);
+ #endif
+ 
+ #ifdef CONFIG_64BIT
+ 	case 4: case 5: case 6: case 7:
+ #ifdef CONFIG_MIPS32_O32
+ 		if (test_thread_flag(TIF_32BIT_REGS))
+-			return get_user(*arg, (int *)usp + 4 * n);
++			return get_user(*arg, (int *)usp + n);
+ 		else
+ #endif
+ 			*arg = regs->regs[4 + n];
+@@ -83,11 +83,10 @@ static inline void syscall_get_arguments(struct task_struct *task,
+ 					 unsigned int i, unsigned int n,
+ 					 unsigned long *args)
+ {
+-	unsigned long arg;
+ 	int ret;
+ 
+ 	while (n--)
+-		ret |= mips_get_syscall_arg(&arg, task, regs, i++);
++		ret |= mips_get_syscall_arg(args++, task, regs, i++);
+ 
+ 	/*
+ 	 * No way to communicate an error because this is a void function.
+diff --git a/arch/mips/include/asm/uaccess.h b/arch/mips/include/asm/uaccess.h
+index f3fa375..3af6637 100644
+--- a/arch/mips/include/asm/uaccess.h
++++ b/arch/mips/include/asm/uaccess.h
+@@ -128,6 +128,7 @@ extern u64 __ua_limit;
+ 	__ok == 0;							\
+ })
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)					\
+ 	likely(__access_ok((addr), (size), __access_mask))
+ 
+diff --git a/arch/mips/kernel/ftrace.c b/arch/mips/kernel/ftrace.c
+index 185ba25..374ed74 100644
+--- a/arch/mips/kernel/ftrace.c
++++ b/arch/mips/kernel/ftrace.c
+@@ -111,11 +111,10 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
+ 	safe_store_code(new_code1, ip, faulted);
+ 	if (unlikely(faulted))
+ 		return -EFAULT;
+-	ip += 4;
+-	safe_store_code(new_code2, ip, faulted);
++	safe_store_code(new_code2, ip + 4, faulted);
+ 	if (unlikely(faulted))
+ 		return -EFAULT;
+-	flush_icache_range(ip, ip + 8); /* original ip + 12 */
++	flush_icache_range(ip, ip + 8);
+ 	return 0;
+ }
+ #endif
+diff --git a/arch/powerpc/include/asm/local.h b/arch/powerpc/include/asm/local.h
+index b8da913..60b608a 100644
+--- a/arch/powerpc/include/asm/local.h
++++ b/arch/powerpc/include/asm/local.h
+@@ -9,15 +9,26 @@ typedef struct
+ 	atomic_long_t a;
+ } local_t;
+ 
++typedef struct
++{
++	atomic_long_unchecked_t a;
++} local_unchecked_t;
++
+ #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
+ 
+ #define local_read(l)	atomic_long_read(&(l)->a)
++#define local_read_unchecked(l)	atomic_long_read_unchecked(&(l)->a)
+ #define local_set(l,i)	atomic_long_set(&(l)->a, (i))
++#define local_set_unchecked(l,i)	atomic_long_set_unchecked(&(l)->a, (i))
+ 
+ #define local_add(i,l)	atomic_long_add((i),(&(l)->a))
++#define local_add_unchecked(i,l)	atomic_long_add_unchecked((i),(&(l)->a))
+ #define local_sub(i,l)	atomic_long_sub((i),(&(l)->a))
++#define local_sub_unchecked(i,l)	atomic_long_sub_unchecked((i),(&(l)->a))
+ #define local_inc(l)	atomic_long_inc(&(l)->a)
++#define local_inc_unchecked(l)	atomic_long_inc_unchecked(&(l)->a)
+ #define local_dec(l)	atomic_long_dec(&(l)->a)
++#define local_dec_unchecked(l)	atomic_long_dec_unchecked(&(l)->a)
+ 
+ static __inline__ long local_add_return(long a, local_t *l)
+ {
+@@ -35,6 +46,7 @@ static __inline__ long local_add_return(long a, local_t *l)
+ 
+ 	return t;
+ }
++#define local_add_return_unchecked(i, l) atomic_long_add_return_unchecked((i), (&(l)->a))
+ 
+ #define local_add_negative(a, l)	(local_add_return((a), (l)) < 0)
+ 
+@@ -54,6 +66,7 @@ static __inline__ long local_sub_return(long a, local_t *l)
+ 
+ 	return t;
+ }
++#define local_sub_return_unchecked(i, l) atomic_long_sub_return_unchecked((i), (&(l)->a))
+ 
+ static __inline__ long local_inc_return(local_t *l)
+ {
+@@ -101,6 +114,8 @@ static __inline__ long local_dec_return(local_t *l)
+ 
+ #define local_cmpxchg(l, o, n) \
+ 	(cmpxchg_local(&((l)->a.counter), (o), (n)))
++#define local_cmpxchg_unchecked(l, o, n) \
++	(cmpxchg_local(&((l)->a.counter), (o), (n)))
+ #define local_xchg(l, n) (xchg_local(&((l)->a.counter), (n)))
+ 
+ /**
+diff --git a/arch/powerpc/include/asm/uaccess.h b/arch/powerpc/include/asm/uaccess.h
+index 4718d50..3bd3c16 100644
+--- a/arch/powerpc/include/asm/uaccess.h
++++ b/arch/powerpc/include/asm/uaccess.h
+@@ -58,6 +58,7 @@
+ 
+ #endif
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size)		\
+ 	(__chk_user_ptr(addr),			\
+ 	 __access_ok((__force unsigned long)(addr), (size), get_fs()))
+diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
+index 445cb6e..4f80c5d 100644
+--- a/arch/powerpc/kernel/Makefile
++++ b/arch/powerpc/kernel/Makefile
+@@ -26,6 +26,8 @@ CFLAGS_REMOVE_ftrace.o = -pg -mno-sched-epilog
+ CFLAGS_REMOVE_time.o = -pg -mno-sched-epilog
+ endif
+ 
++CFLAGS_REMOVE_prom_init.o += $(LATENT_ENTROPY_PLUGIN_CFLAGS)
++
+ obj-y				:= cputable.o ptrace.o syscalls.o \
+ 				   irq.o align.o signal_32.o pmc.o vdso.o \
+ 				   process.o systbl.o idle.o \
+diff --git a/arch/powerpc/kvm/powerpc.c b/arch/powerpc/kvm/powerpc.c
+index 9ae9768..87c3448 100644
+--- a/arch/powerpc/kvm/powerpc.c
++++ b/arch/powerpc/kvm/powerpc.c
+@@ -1141,7 +1141,7 @@ void kvmppc_init_lpid(unsigned long nr_lpids_param)
+ }
+ EXPORT_SYMBOL_GPL(kvmppc_init_lpid);
+ 
+-int kvm_arch_init(void *opaque)
++int kvm_arch_init(const void *opaque)
+ {
+ 	return 0;
+ }
+diff --git a/arch/powerpc/mm/mmap.c b/arch/powerpc/mm/mmap.c
+index d770680..cde4bc7 100644
+--- a/arch/powerpc/mm/mmap.c
++++ b/arch/powerpc/mm/mmap.c
+@@ -53,7 +53,7 @@ static inline int mmap_is_legacy(void)
+ 	return sysctl_legacy_va_layout;
+ }
+ 
+-static unsigned long mmap_rnd(void)
++static unsigned long mmap_rnd(struct mm_struct *mm)
+ {
+ 	unsigned long rnd = 0;
+ 
+@@ -71,7 +71,7 @@ static unsigned long mmap_rnd(void)
+ 	return rnd << PAGE_SHIFT;
+ }
+ 
+-static inline unsigned long mmap_base(void)
++static inline unsigned long mmap_base(struct mm_struct *mm)
+ {
+ 	unsigned long gap = rlimit(RLIMIT_STACK);
+ 
+@@ -80,7 +80,7 @@ static inline unsigned long mmap_base(void)
+ 	else if (gap > MAX_GAP)
+ 		gap = MAX_GAP;
+ 
+-	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd());
++	return PAGE_ALIGN(TASK_SIZE - gap - mmap_rnd(mm));
+ }
+ 
+ /*
+@@ -103,7 +103,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
+ 
+ 		mm->get_unmapped_area = arch_get_unmapped_area;
+ 	} else {
+-		mm->mmap_base = mmap_base();
++		mm->mmap_base = mmap_base(mm);
+ 
+ #ifdef CONFIG_PAX_RANDMMAP
+ 		if (mm->pax_flags & MF_PAX_RANDMMAP)
+diff --git a/arch/powerpc/platforms/cell/celleb_scc_pciex.c b/arch/powerpc/platforms/cell/celleb_scc_pciex.c
+index 4278acf..67fd0e6 100644
+--- a/arch/powerpc/platforms/cell/celleb_scc_pciex.c
++++ b/arch/powerpc/platforms/cell/celleb_scc_pciex.c
+@@ -400,8 +400,8 @@ static int scc_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
+ }
+ 
+ static struct pci_ops scc_pciex_pci_ops = {
+-	scc_pciex_read_config,
+-	scc_pciex_write_config,
++	.read = scc_pciex_read_config,
++	.write = scc_pciex_write_config,
+ };
+ 
+ static void pciex_clear_intr_all(unsigned int __iomem *base)
+diff --git a/arch/s390/include/asm/uaccess.h b/arch/s390/include/asm/uaccess.h
+index a3a7b06..254cf37 100644
+--- a/arch/s390/include/asm/uaccess.h
++++ b/arch/s390/include/asm/uaccess.h
+@@ -59,6 +59,7 @@ static inline int __range_ok(unsigned long addr, unsigned long size)
+ 	__range_ok((unsigned long)(addr), (size));	\
+ })
+ 
++#define access_ok_noprefault(type, addr, size) access_ok((type), (addr), (size))
+ #define access_ok(type, addr, size) __access_ok(addr, size)
+ 
+ /*
+diff --git a/arch/sparc/include/asm/pgtable.h b/arch/sparc/include/asm/pgtable.h
+index 59ba6f6..4518128 100644
+--- a/arch/sparc/include/asm/pgtable.h
++++ b/arch/sparc/include/asm/pgtable.h
+@@ -5,4 +5,8 @@
+ #else
+ #include <asm/pgtable_32.h>
+ #endif
++
++#define ktla_ktva(addr)		(addr)
++#define ktva_ktla(addr)		(addr)
++
+ #endif
+diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+index 3ee58c9..451bcfc 100644
+--- a/arch/x86/include/asm/uaccess.h
++++ b/arch/x86/include/asm/uaccess.h
+@@ -84,7 +84,7 @@ void set_fs(mm_segment_t x);
+  * this function, memory access functions may still return -EFAULT.
+  */
+ extern int _cond_resched(void);
+-#define __access_ok(type, addr, size) (likely(__range_not_ok(addr, size, user_addr_max()) == 0))
++#define access_ok_noprefault(type, addr, size) (likely(__range_not_ok(addr, size, user_addr_max()) == 0))
+ #define access_ok(type, addr, size)					\
+ ({									\
+ 	long __size = size;						\
+diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
+index 8a80c2a..206c200 100644
+--- a/arch/x86/include/asm/uaccess_64.h
++++ b/arch/x86/include/asm/uaccess_64.h
+@@ -63,7 +63,7 @@ unsigned long __copy_from_user_nocheck(void *dst, const void __user *src, unsign
+ 	check_object_size(dst, size, false);
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+ #endif
+ 
+@@ -132,7 +132,7 @@ unsigned long __copy_to_user_nocheck(void __user *dst, const void *src, unsigned
+ 	check_object_size(src, size, true);
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_WRITE, dst, size))
++	if (!access_ok_noprefault(VERIFY_WRITE, dst, size))
+ 		return size;
+ #endif
+ 
+@@ -200,9 +200,9 @@ unsigned long __copy_in_user(void __user *dst, const void __user *src, unsigned
+ 		return size;
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+-	if (!__access_ok(VERIFY_WRITE, dst, size))
++	if (!access_ok_noprefault(VERIFY_WRITE, dst, size))
+ 		return size;
+ #endif
+ 
+@@ -277,7 +277,7 @@ __copy_from_user_nocache(void *dst, const void __user *src, unsigned long size)
+ 		return size;
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+ #endif
+ 
+@@ -292,7 +292,7 @@ __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
+ 		return size;
+ 
+ #ifdef CONFIG_PAX_MEMORY_UDEREF
+-	if (!__access_ok(VERIFY_READ, src, size))
++	if (!access_ok_noprefault(VERIFY_READ, src, size))
+ 		return size;
+ #endif
+ 
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+index 9de0b1c..5626789 100644
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -268,7 +268,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	addr = start;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+ 	end = start + len;
+-	if (unlikely(!__access_ok(write ? VERIFY_WRITE : VERIFY_READ,
++	if (unlikely(!access_ok_noprefault(write ? VERIFY_WRITE : VERIFY_READ,
+ 					(void __user *)start, len)))
+ 		return 0;
+ 
+@@ -344,7 +344,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 		goto slow_irqon;
+ #endif
+ 
+-	if (unlikely(!__access_ok(write ? VERIFY_WRITE : VERIFY_READ,
++	if (unlikely(!access_ok_noprefault(write ? VERIFY_WRITE : VERIFY_READ,
+ 					(void __user *)start, len)))
+ 		return 0;
+ 
+diff --git a/drivers/tty/hvc/hvsi.c b/drivers/tty/hvc/hvsi.c
+index 48f2920..06d5bfa 100644
+--- a/drivers/tty/hvc/hvsi.c
++++ b/drivers/tty/hvc/hvsi.c
+@@ -725,7 +725,7 @@ static int hvsi_open(struct tty_struct *tty, struct file *filp)
+ 
+ 	tty_port_tty_set(&hp->port, tty);
+ 	spin_lock_irqsave(&hp->lock, flags);
+-	hp->port.count++;
++	atomic_inc(&hp->port.count);
+ 	atomic_set(&hp->seqno, 0);
+ 	h_vio_signal(hp->vtermno, VIO_IRQ_ENABLE);
+ 	spin_unlock_irqrestore(&hp->lock, flags);
+@@ -782,7 +782,7 @@ static void hvsi_close(struct tty_struct *tty, struct file *filp)
+ 
+ 	spin_lock_irqsave(&hp->lock, flags);
+ 
+-	if (--hp->port.count == 0) {
++	if (atomic_dec_return(&hp->port.count) == 0) {
+ 		tty_port_tty_set(&hp->port, NULL);
+ 		hp->inbuf_end = hp->inbuf; /* discard remaining partial packets */
+ 
+@@ -815,9 +815,9 @@ static void hvsi_close(struct tty_struct *tty, struct file *filp)
+ 
+ 			spin_lock_irqsave(&hp->lock, flags);
+ 		}
+-	} else if (hp->port.count < 0)
++	} else if (atomic_read(&hp->port.count) < 0)
+ 		printk(KERN_ERR "hvsi_close %lu: oops, count is %d\n",
+-		       hp - hvsi_ports, hp->port.count);
++		       hp - hvsi_ports, atomic_read(&hp->port.count));
+ 
+ 	spin_unlock_irqrestore(&hp->lock, flags);
+ }
+@@ -832,7 +832,7 @@ static void hvsi_hangup(struct tty_struct *tty)
+ 	tty_port_tty_set(&hp->port, NULL);
+ 
+ 	spin_lock_irqsave(&hp->lock, flags);
+-	hp->port.count = 0;
++	atomic_set(&hp->port.count, 0);
+ 	hp->n_outbuf = 0;
+ 	spin_unlock_irqrestore(&hp->lock, flags);
+ }
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 364a9d7..e56396f 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -26,6 +26,7 @@
+ #include <linux/lglock.h>
+ #include <linux/hugetlb.h>
+ #include <linux/posix-timers.h>
++#include <linux/prefetch.h>
+ #if defined(CONFIG_BTRFS_FS) || defined(CONFIG_BTRFS_FS_MODULE)
+ #include <linux/magic.h>
+ #include <linux/pagemap.h>
+diff --git a/net/netfilter/ipvs/ip_vs_ctl.c b/net/netfilter/ipvs/ip_vs_ctl.c
+index dad174b..50f8834 100644
+--- a/net/netfilter/ipvs/ip_vs_ctl.c
++++ b/net/netfilter/ipvs/ip_vs_ctl.c
+@@ -3580,7 +3580,7 @@ out:
+ }
+ 
+ 
+-static const struct genl_ops ip_vs_genl_ops[] __read_mostly = {
++static const struct genl_ops ip_vs_genl_ops[] = {
+ 	{
+ 		.cmd	= IPVS_CMD_NEW_SERVICE,
+ 		.flags	= GENL_ADMIN_PERM,
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index d3cfc5c..a543c97 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -756,7 +756,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
+ 	/* We can read the guest memory with __xxx_user() later on. */
+ 	if ((mem->slot < KVM_USER_MEM_SLOTS) &&
+ 	    ((mem->userspace_addr & (PAGE_SIZE - 1)) ||
+-	     !__access_ok(VERIFY_WRITE,
++	     !access_ok_noprefault(VERIFY_WRITE,
+ 			(void __user *)(unsigned long)mem->userspace_addr,
+ 			mem->memory_size)))
+ 		goto out;

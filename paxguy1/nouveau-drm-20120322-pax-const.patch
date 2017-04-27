@@ -1,0 +1,101 @@
+diff -urp master.orig/drivers/gpu/drm/nouveau/nouveau_bios.c master/drivers/gpu/drm/nouveau/nouveau_bios.c
+--- master.orig/drivers/gpu/drm/nouveau/nouveau_bios.c	2012-03-22 15:10:26.000000000 +0100
++++ master/drivers/gpu/drm/nouveau/nouveau_bios.c	2012-04-20 20:03:43.346547461 +0200
+@@ -5328,7 +5328,7 @@ parse_bit_U_tbl_entry(struct drm_device
+ struct bit_table {
+ 	const char id;
+ 	int (* const parse_fn)(struct drm_device *, struct nvbios *, struct bit_entry *);
+-};
++} __no_const;
+ 
+ #define BIT_TABLE(id, funcid) ((struct bit_table){ id, parse_bit_##funcid##_tbl_entry })
+ 
+diff -urp master.orig/drivers/gpu/drm/nouveau/nouveau_drv.h master/drivers/gpu/drm/nouveau/nouveau_drv.h
+--- master.orig/drivers/gpu/drm/nouveau/nouveau_drv.h	2012-03-22 15:10:26.000000000 +0100
++++ master/drivers/gpu/drm/nouveau/nouveau_drv.h	2012-04-20 20:03:43.346547461 +0200
+@@ -321,7 +321,7 @@ struct nouveau_exec_engine {
+ 			   u32 handle, u16 class);
+ 	void (*set_tile_region)(struct drm_device *dev, int i);
+ 	void (*tlb_flush)(struct drm_device *, int engine);
+-};
++} __no_const;
+ 
+ struct nouveau_instmem_engine {
+ 	void	*priv;
+@@ -343,13 +343,13 @@ struct nouveau_instmem_engine {
+ struct nouveau_mc_engine {
+ 	int  (*init)(struct drm_device *dev);
+ 	void (*takedown)(struct drm_device *dev);
+-};
++} __no_const;
+ 
+ struct nouveau_timer_engine {
+ 	int      (*init)(struct drm_device *dev);
+ 	void     (*takedown)(struct drm_device *dev);
+ 	uint64_t (*read)(struct drm_device *dev);
+-};
++} __no_const;
+ 
+ struct nouveau_fb_engine {
+ 	int num_tiles;
+diff -urp master.orig/drivers/gpu/drm/nouveau/nv04_tv.c master/drivers/gpu/drm/nouveau/nv04_tv.c
+--- master.orig/drivers/gpu/drm/nouveau/nv04_tv.c	2012-03-22 15:10:26.000000000 +0100
++++ master/drivers/gpu/drm/nouveau/nv04_tv.c	2012-04-20 20:03:43.350547512 +0200
+@@ -186,7 +186,7 @@ nv04_tv_create(struct drm_connector *con
+ 	struct nouveau_encoder *nv_encoder;
+ 	struct drm_encoder *encoder;
+ 	struct drm_device *dev = connector->dev;
+-	struct drm_encoder_helper_funcs *hfuncs;
++	drm_encoder_helper_funcs_no_const *hfuncs;
+ 	struct drm_encoder_slave_funcs *sfuncs;
+ 	struct nouveau_i2c_chan *i2c =
+ 		nouveau_i2c_find(dev, entry->i2c_index);
+diff -urp master.orig/drivers/gpu/drm/nouveau/nv50_sor.c master/drivers/gpu/drm/nouveau/nv50_sor.c
+--- master.orig/drivers/gpu/drm/nouveau/nv50_sor.c	2012-03-22 15:10:26.000000000 +0100
++++ master/drivers/gpu/drm/nouveau/nv50_sor.c	2012-04-20 20:03:09.578549341 +0200
+@@ -304,7 +304,7 @@ nv50_sor_dpms(struct drm_encoder *encode
+ 	}
+ 
+ 	if (nv_encoder->dcb->type == OUTPUT_DP) {
+-		struct dp_train_func func = {
++		static struct dp_train_func func = {
+ 			.link_set = nv50_sor_dp_link_set,
+ 			.train_set = nv50_sor_dp_train_set,
+ 			.train_adj = nv50_sor_dp_train_adj
+Only in master/drivers/gpu/drm/nouveau: .nv50_sor.c.swp
+diff -urp master.orig/drivers/gpu/drm/nouveau/nvd0_display.c master/drivers/gpu/drm/nouveau/nvd0_display.c
+--- master.orig/drivers/gpu/drm/nouveau/nvd0_display.c	2012-03-22 15:10:26.000000000 +0100
++++ master/drivers/gpu/drm/nouveau/nvd0_display.c	2012-04-20 20:02:44.498550409 +0200
+@@ -1366,7 +1366,7 @@ nvd0_sor_dpms(struct drm_encoder *encode
+ 	nv_wait(dev, 0x61c030 + (or * 0x0800), 0x10000000, 0x00000000);
+ 
+ 	if (nv_encoder->dcb->type == OUTPUT_DP) {
+-		struct dp_train_func func = {
++		static struct dp_train_func func = {
+ 			.link_set = nvd0_sor_dp_link_set,
+ 			.train_set = nvd0_sor_dp_train_set,
+ 			.train_adj = nvd0_sor_dp_train_adj
+Only in master/drivers/gpu/drm/nouveau: .nvd0_display.c.swp
+diff -urp master.orig/include/drm/drm_crtc_helper.h master/include/drm/drm_crtc_helper.h
+--- master.orig/include/drm/drm_crtc_helper.h	2012-03-22 15:10:26.000000000 +0100
++++ master/include/drm/drm_crtc_helper.h	2012-04-20 20:03:43.350547512 +0200
+@@ -96,6 +96,7 @@ struct drm_encoder_helper_funcs {
+ 	/* disable encoder when not in use - more explicit than dpms off */
+ 	void (*disable)(struct drm_encoder *encoder);
+ };
++typedef struct drm_encoder_helper_funcs __no_const drm_encoder_helper_funcs_no_const;
+ 
+ struct drm_connector_helper_funcs {
+ 	int (*get_modes)(struct drm_connector *connector);
+diff -urp master.orig/include/drm/ttm/ttm_memory.h master/include/drm/ttm/ttm_memory.h
+--- master.orig/include/drm/ttm/ttm_memory.h	2012-03-22 15:10:26.000000000 +0100
++++ master/include/drm/ttm/ttm_memory.h	2012-04-20 20:03:43.350547512 +0200
+@@ -47,7 +47,7 @@
+ 
+ struct ttm_mem_shrink {
+ 	int (*do_shrink) (struct ttm_mem_shrink *);
+-};
++} __no_const;
+ 
+ /**
+  * struct ttm_mem_global - Global memory accounting structure.

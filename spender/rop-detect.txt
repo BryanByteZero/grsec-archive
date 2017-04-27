@@ -1,0 +1,13 @@
+https://twitter.com/grsecurity/status/301349238426705921
+
+spender@www:~$ ls -al huu.txt
+-rw-r--r-- 1 spender spender 200 Feb 12 10:14 huu.txt
+
+spender@www:~$ md5sum ./huu.txt
+51d4f0343e669c7abcda503260188209  ./huu.txt
+
+spender@www:~$ cat huu.txt
+after 5 minutes with the intel manual:
+http://software.intel.com/sites/products/documentation/doclib/stdxe/2013/amplifierxe/win/ug_docs/reference/pmn/events/br_misp_exec.html
+BR_MISP_EXEC.RETURN_NEAR
+

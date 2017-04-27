@@ -1,0 +1,19 @@
+usage for PFS:
+in modules.conf
+<openssl ... ciphers="TLSv1+HIGH+DH:!SSLv2:!aNULL:!eNULL:!NULL:!ADH:!3DES:!AES128:@STRENGTH">
+default behavior is preserved when ciphers attribute is omitted
+--- src/modules/extra/m_ssl_openssl.cpp	2011-06-23 21:21:01.000000000 -0400
++++ src/modules/extra/m_ssl_openssl.cpp	2011-08-31 23:53:44.000000000 -0400
+@@ -188,6 +193,12 @@ class ModuleSSLOpenSSL : public Module
+ 		use_sha = (hash == "sha1");
+ 
+ 
++		std::string ciphers = conf->getString("ciphers", "ALL");
++		if ((!SSL_CTX_set_cipher_list(ctx, ciphers.c_str())) || (!SSL_CTX_set_cipher_list(clictx, ciphers.c_str()))) {
++			ServerInstance->Logs->Log("m_ssl_openssl",DEFAULT, "m_ssl_openssl.so: Can't set cipher list to %s.", ciphers.c_str());
++			ERR_print_errors_cb(error_callback, this);
++		}
++
+ 		/* Load our keys and certificates
+ 		 * NOTE: OpenSSL's error logging API sucks, don't blame us for this clusterfuck.
+ 		 */

@@ -1,0 +1,32 @@
+Object permission flags:
+
+r  -  Allow reads for this path
+w  -  Allow writes for this path (implies allowed append)
+a  -  Allow appends for this path
+c  -  Allow creates for this path
+d  -  Allow deletions for this path
+m  -  Allow creation of setuid/setgid files and addition of the 
+      setuid/setgid bit for this path
+x  -  Allow executions for this path
+i  -  Inherit the current subject when executing for this path
+t  -  Reject only ptrace-writes for this path
+p  -  Reject all ptraces for this path
+h  -  Reject all access and hide this path
+
+Object auditing flags:
+
+R  -  Audit reads for this path
+W  -  Audit writes for this path (implies append auditing)
+A  -  Audit appends for this path
+C  -  Audit creates for this path
+D  -  Audit deletions for this path
+M  -  Audit creation of setuid/setgid files and addition of the
+      setuid/setgid bit for this path
+X  -  Audit executions for this path
+I  -  Audit inherits of the current subject when executing for this path
+F  -  Audit accesses that don't involve reading or writing for this path
+      (eg. stat, readdir, getdents, access)
+
+Other object flags:
+
+s  -  Suppress logs of denied access for this path

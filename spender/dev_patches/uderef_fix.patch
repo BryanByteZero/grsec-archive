@@ -1,0 +1,22 @@
+diff -u linux-2.6.32.16/arch/x86/include/asm/uaccess.h linux-2.6.32.16-new/arch/x86/include/asm/uaccess.h
+--- linux-2.6.32.16/arch/x86/include/asm/uaccess.h	2010-07-09 14:50:35.000000000 -0400
++++ linux-2.6.32.16-new/arch/x86/include/asm/uaccess.h	2010-07-11 20:46:01.000000000 -0400
+@@ -213,9 +213,18 @@
+ 	__ret_gu;							\
+ })
+ 
++#if defined(CONFIG_X86_64) && defined(CONFIG_PAX_MEMORY_UDEREF)
++#define __put_user_x(size, x, ptr, __ret_pu)				\
++	({								\
++		int __dummy;						\
++		asm volatile("call __put_user_" #size : "=a" (__ret_pu), "=c" (__dummy)	\
++			     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx", "ecx"); \
++	})
++#else
+ #define __put_user_x(size, x, ptr, __ret_pu)			\
+ 	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
+ 		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
++#endif
+ 
+ #ifdef CONFIG_X86_32
+ #define _ASM_LOAD_USER_DS(ds) "movw %w" #ds ",%%ds\n"

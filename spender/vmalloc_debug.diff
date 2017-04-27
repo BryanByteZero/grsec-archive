@@ -1,0 +1,21 @@
+diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+index 8ca8283..d2a9b4f 100644
+--- a/arch/x86/include/asm/page.h
++++ b/arch/x86/include/asm/page.h
+@@ -55,10 +55,15 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
+  * virt_to_page(kaddr) returns a valid pointer if and only if
+  * virt_addr_valid(kaddr) returns true.
+  */
+-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+ #define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
+ extern bool __virt_addr_valid(unsigned long kaddr);
+ #define virt_addr_valid(kaddr)	__virt_addr_valid((unsigned long) (kaddr))
++#define virt_to_page(kaddr)	\
++	({ \
++		const void *__kaddr = (const void *)(kaddr); \
++		BUG_ON(!virt_addr_valid(__kaddr)); \
++		pfn_to_page(__pa(__kaddr) >> PAGE_SHIFT); \
++	})
+ 
+ #endif	/* __ASSEMBLY__ */
+ 

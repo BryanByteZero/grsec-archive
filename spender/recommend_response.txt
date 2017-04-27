@@ -1,0 +1,9 @@
+If we're being honest, no one should use something just because 
+Snowden recommends it or exhibits some familiarity with it.  I am 
+against these kinds of arguments from authority whether they're 
+used to promote SELinux by mentioning NSA involvement or even in 
+this case of Snowden promoting grsecurity.  If something is to be 
+used, it should be evaluated on its technical merits, not because 
+(with all due respect) someone whose notoriety came from his 
+position and not any technical security prowess recommends it.  For 
+this reason I won't be RTing these or similar mentions.

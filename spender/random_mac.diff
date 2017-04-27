@@ -1,0 +1,39 @@
+diff --git a/net/core/dev.c b/net/core/dev.c
+index 19d9b66..9a16733 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -4823,6 +4823,24 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
+ 		rtmsg_ifinfo(RTM_NEWLINK, dev, changes);
+ 
+ 	__dev_notify_flags(dev, old_flags);
++
++	if ((changes & IFF_UP) && !(old_flags & IFF_UP)) {
++		/* randomize MAC whenever interface is brought up */
++		struct sockaddr sa;
++		unsigned int mac4;
++		unsigned short mac2;
++
++		mac4 = prandom_u32();
++		mac2 = prandom_u32();
++		memcpy(sa.sa_data, &mac4, sizeof(mac4));
++		memcpy((char *)sa.sa_data + sizeof(mac4), &mac2, sizeof(mac2));
++		if (!is_valid_ether_addr(sa.sa_data))
++			sa.sa_data[5] = 1;
++		sa.sa_data[0] &= 0xFC;
++		sa.sa_family = dev->type;
++		dev_set_mac_address(dev, &sa);
++	}
++
+ 	return ret;
+ }
+ EXPORT_SYMBOL(dev_change_flags);
+@@ -4991,7 +5009,8 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
+ 		return dev_set_mtu(dev, ifr->ifr_mtu);
+ 
+ 	case SIOCSIFHWADDR:
+-		return dev_set_mac_address(dev, &ifr->ifr_hwaddr);
++		/* ignore userland MAC changes */
++		return 0;
+ 
+ 	case SIOCSIFHWBROADCAST:
+ 		if (ifr->ifr_hwaddr.sa_family != dev->type)

@@ -1,0 +1,911 @@
+commit bfa7f445c5d484de51a5828b92ad2ff65053cc87
+Author: Brad Spengler <spender@grsecurity.net>
+Date:   Sun Mar 3 15:12:12 2013 -0500
+
+    Initial support for user namespaces, as we previously didn't allow
+    the option to be enabled at all.
+    
+    RBAC will act on the global uids/gids only, so all uids/gids in user
+    namespaces will be converted
+    
+    Because Eric Biederman is insulted that I didn't support his
+    backdoor prior to it receiving proper review.  I still have the CAP_SYS_ADMIN
+    check in for user namespaces, so this is generally irrelevant.
+
+diff --git a/fs/exec.c b/fs/exec.c
+index 1dff97d..5af5d91 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -225,8 +225,8 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+ #ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+ 		// only allow 512KB for argv+env on suid/sgid binaries
+ 		// to prevent easy ASLR exhaustion
+-		if (((bprm->cred->euid != current_euid()) ||
+-		     (bprm->cred->egid != current_egid())) &&
++		if (((!uid_eq(bprm->cred->euid, current_euid())) ||
++		     (!gid_eq(bprm->cred->egid, current_egid()))) &&
+ 		    (size > (512 * 1024))) {
+ 			put_page(page);
+ 			return NULL;
+@@ -1640,7 +1640,7 @@ static int do_execve_common(const char *filename,
+ 	/* limit suid stack to 8MB
+ 	 * we saved the old limits above and will restore them if this exec fails
+ 	 */
+-	if (((bprm->cred->euid != current_euid()) || (bprm->cred->egid != current_egid())) &&
++	if (((!uid_eq(bprm->cred->euid, current_euid())) || (!gid_eq(bprm->cred->egid, current_egid()))) &&
+ 	    (old_rlim[RLIMIT_STACK].rlim_cur > (8 * 1024 * 1024)))
+ 		current->signal->rlim[RLIMIT_STACK].rlim_cur = 8 * 1024 * 1024;
+ #endif
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 3d6a99f..65e5187 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -594,7 +594,7 @@ static bool has_pid_permissions(struct pid_namespace *pid,
+ 		const struct cred *tmpcred = current_cred();
+ 		const struct cred *cred = __task_cred(task);
+ 
+-		if (!tmpcred->uid || (tmpcred->uid == cred->uid)
++		if (uid_eq(tmpcred->uid, make_kuid(current_user_ns(), 0)) || uid_eq(tmpcred->uid, cred->uid)
+ #ifdef CONFIG_GRKERNSEC_PROC_USERGROUP
+ 			|| in_group_p(grsec_proc_gid)
+ #endif
+diff --git a/fs/proc/proc_net.c b/fs/proc/proc_net.c
+index cb9b67d..21b52ff 100644
+--- a/fs/proc/proc_net.c
++++ b/fs/proc/proc_net.c
+@@ -111,10 +111,10 @@ static struct net *get_proc_task_net(struct inode *dir)
+ #endif
+ 
+ #ifdef CONFIG_GRKERNSEC_PROC_USER
+-	if (cred->fsuid)
++	if (!uid_eq(cred->fsuid, GLOBAL_ROOT_UID))
+ 		return net;
+ #elif defined(CONFIG_GRKERNSEC_PROC_USERGROUP)
+-	if (cred->fsuid && !in_group_p(grsec_proc_gid))
++	if (!uid_eq(cred->fsuid, GLOBAL_ROOT_UID) && !in_group_p(grsec_proc_gid))
+ 		return net;
+ #endif
+ 
+diff --git a/grsecurity/gracl.c b/grsecurity/gracl.c
+index 69e1320..6b7b8f7 100644
+--- a/grsecurity/gracl.c
++++ b/grsecurity/gracl.c
+@@ -2039,7 +2039,7 @@ gr_log_learn(const struct dentry *dentry, const struct vfsmount *mnt, const __u3
+ 	const struct cred *cred = current_cred();
+ 
+ 	security_learn(GR_LEARN_AUDIT_MSG, task->role->rolename, task->role->roletype,
+-		       cred->uid, cred->gid, task->exec_file ? gr_to_filename1(task->exec_file->f_path.dentry,
++		       GR_GLOBAL_UID(cred->uid), GR_GLOBAL_GID(cred->gid), task->exec_file ? gr_to_filename1(task->exec_file->f_path.dentry,
+ 		       task->exec_file->f_path.mnt) : task->acl->filename, task->acl->filename,
+ 		       1UL, 1UL, gr_to_filename(dentry, mnt), (unsigned long) mode, &task->signal->saved_ip);
+ 
+@@ -2047,16 +2047,29 @@ gr_log_learn(const struct dentry *dentry, const struct vfsmount *mnt, const __u3
+ }
+ 
+ static void
+-gr_log_learn_id_change(const char type, const unsigned int real, 
+-		       const unsigned int effective, const unsigned int fs)
++gr_log_learn_uid_change(const kuid_t real, const kuid_t effective, const kuid_t fs)
+ {
+ 	struct task_struct *task = current;
+ 	const struct cred *cred = current_cred();
+ 
+ 	security_learn(GR_ID_LEARN_MSG, task->role->rolename, task->role->roletype,
+-		       cred->uid, cred->gid, task->exec_file ? gr_to_filename1(task->exec_file->f_path.dentry,
++		       GR_GLOBAL_UID(cred->uid), GR_GLOBAL_GID(cred->gid), task->exec_file ? gr_to_filename1(task->exec_file->f_path.dentry,
+ 		       task->exec_file->f_path.mnt) : task->acl->filename, task->acl->filename,
+-		       type, real, effective, fs, &task->signal->saved_ip);
++		       'u', GR_GLOBAL_UID(real), GR_GLOBAL_UID(effective), GR_GLOBAL_UID(fs), &task->signal->saved_ip);
++
++	return;
++}
++
++static void
++gr_log_learn_gid_change(const kgid_t real, const kgid_t effective, const kgid_t fs)
++{
++	struct task_struct *task = current;
++	const struct cred *cred = current_cred();
++
++	security_learn(GR_ID_LEARN_MSG, task->role->rolename, task->role->roletype,
++		       GR_GLOBAL_UID(cred->uid), GR_GLOBAL_GID(cred->gid), task->exec_file ? gr_to_filename1(task->exec_file->f_path.dentry,
++		       task->exec_file->f_path.mnt) : task->acl->filename, task->acl->filename,
++		       'g', GR_GLOBAL_GID(real), GR_GLOBAL_GID(effective), GR_GLOBAL_GID(fs), &task->signal->saved_ip);
+ 
+ 	return;
+ }
+@@ -2329,23 +2342,28 @@ gr_set_proc_res(struct task_struct *task)
+ extern int __gr_process_user_ban(struct user_struct *user);
+ 
+ int
+-gr_check_user_change(int real, int effective, int fs)
++gr_check_user_change(kuid_t real, kuid_t effective, kuid_t fs)
+ {
+ 	unsigned int i;
+ 	__u16 num;
+ 	uid_t *uidlist;
+-	int curuid;
++	uid_t curuid;
+ 	int realok = 0;
+ 	int effectiveok = 0;
+ 	int fsok = 0;
++	uid_t globalreal, globaleffective, globalfs;
+ 
+ #if defined(CONFIG_GRKERNSEC_KERN_LOCKOUT) || defined(CONFIG_GRKERNSEC_BRUTE)
+ 	struct user_struct *user;
+ 
+-	if (real == -1)
++	if (!uid_valid(real))
+ 		goto skipit;
+ 
+-	user = find_user(real);
++	/* find user based on global namespace */
++
++	globalreal = GR_GLOBAL_UID(real);
++
++	user = find_user(make_kuid(&init_user_ns, globalreal));
+ 	if (user == NULL)
+ 		goto skipit;
+ 
+@@ -2365,7 +2383,7 @@ skipit:
+ 		return 0;
+ 
+ 	if (current->acl->mode & (GR_LEARN | GR_INHERITLEARN))
+-		gr_log_learn_id_change('u', real, effective, fs);
++		gr_log_learn_uid_change(real, effective, fs);
+ 
+ 	num = current->acl->user_trans_num;
+ 	uidlist = current->acl->user_transitions;
+@@ -2373,31 +2391,43 @@ skipit:
+ 	if (uidlist == NULL)
+ 		return 0;
+ 
+-	if (real == -1)
++	if (!uid_valid(real)) {
+ 		realok = 1;
+-	if (effective == -1)
++		globalreal = (uid_t)-1;		
++	} else {
++		globalreal = GR_GLOBAL_UID(real);		
++	}
++	if (!uid_valid(effective)) {
+ 		effectiveok = 1;
+-	if (fs == -1)
++		globaleffective = (uid_t)-1;
++	} else {
++		globaleffective = GR_GLOBAL_UID(effective);
++	}
++	if (!uid_valid(fs)) {
+ 		fsok = 1;
++		globalfs = (uid_t)-1;
++	} else {
++		globalfs = GR_GLOBAL_UID(fs);
++	}
+ 
+ 	if (current->acl->user_trans_type & GR_ID_ALLOW) {
+ 		for (i = 0; i < num; i++) {
+-			curuid = (int)uidlist[i];
+-			if (real == curuid)
++			curuid = uidlist[i];
++			if (globalreal == curuid)
+ 				realok = 1;
+-			if (effective == curuid)
++			if (globaleffective == curuid)
+ 				effectiveok = 1;
+-			if (fs == curuid)
++			if (globalfs == curuid)
+ 				fsok = 1;
+ 		}
+ 	} else if (current->acl->user_trans_type & GR_ID_DENY) {
+ 		for (i = 0; i < num; i++) {
+-			curuid = (int)uidlist[i];
+-			if (real == curuid)
++			curuid = uidlist[i];
++			if (globalreal == curuid)
+ 				break;
+-			if (effective == curuid)
++			if (globaleffective == curuid)
+ 				break;
+-			if (fs == curuid)
++			if (globalfs == curuid)
+ 				break;
+ 		}
+ 		/* not in deny list */
+@@ -2411,27 +2441,28 @@ skipit:
+ 	if (realok && effectiveok && fsok)
+ 		return 0;
+ 	else {
+-		gr_log_int(GR_DONT_AUDIT, GR_USRCHANGE_ACL_MSG, realok ? (effectiveok ? (fsok ? 0 : fs) : effective) : real);
++		gr_log_int(GR_DONT_AUDIT, GR_USRCHANGE_ACL_MSG, realok ? (effectiveok ? (fsok ? 0 : globalfs) : globaleffective) : globalreal);
+ 		return 1;
+ 	}
+ }
+ 
+ int
+-gr_check_group_change(int real, int effective, int fs)
++gr_check_group_change(kgid_t real, kgid_t effective, kgid_t fs)
+ {
+ 	unsigned int i;
+ 	__u16 num;
+ 	gid_t *gidlist;
+-	int curgid;
++	gid_t curgid;
+ 	int realok = 0;
+ 	int effectiveok = 0;
+ 	int fsok = 0;
++	gid_t globalreal, globaleffective, globalfs;
+ 
+ 	if (unlikely(!(gr_status & GR_READY)))
+ 		return 0;
+ 
+ 	if (current->acl->mode & (GR_LEARN | GR_INHERITLEARN))
+-		gr_log_learn_id_change('g', real, effective, fs);
++		gr_log_learn_gid_change(real, effective, fs);
+ 
+ 	num = current->acl->group_trans_num;
+ 	gidlist = current->acl->group_transitions;
+@@ -2439,31 +2470,43 @@ gr_check_group_change(int real, int effective, int fs)
+ 	if (gidlist == NULL)
+ 		return 0;
+ 
+-	if (real == -1)
++	if (!gid_valid(real)) {
+ 		realok = 1;
+-	if (effective == -1)
++		globalreal = (gid_t)-1;		
++	} else {
++		globalreal = GR_GLOBAL_GID(real);
++	}
++	if (!gid_valid(effective)) {
+ 		effectiveok = 1;
+-	if (fs == -1)
++		globaleffective = (gid_t)-1;		
++	} else {
++		globaleffective = GR_GLOBAL_GID(effective);
++	}
++	if (!gid_valid(fs)) {
+ 		fsok = 1;
++		globalfs = (gid_t)-1;		
++	} else {
++		globalfs = GR_GLOBAL_GID(fs);
++	}
+ 
+ 	if (current->acl->group_trans_type & GR_ID_ALLOW) {
+ 		for (i = 0; i < num; i++) {
+-			curgid = (int)gidlist[i];
+-			if (real == curgid)
++			curgid = gidlist[i];
++			if (globalreal == curgid)
+ 				realok = 1;
+-			if (effective == curgid)
++			if (globaleffective == curgid)
+ 				effectiveok = 1;
+-			if (fs == curgid)
++			if (globalfs == curgid)
+ 				fsok = 1;
+ 		}
+ 	} else if (current->acl->group_trans_type & GR_ID_DENY) {
+ 		for (i = 0; i < num; i++) {
+-			curgid = (int)gidlist[i];
+-			if (real == curgid)
++			curgid = gidlist[i];
++			if (globalreal == curgid)
+ 				break;
+-			if (effective == curgid)
++			if (globaleffective == curgid)
+ 				break;
+-			if (fs == curgid)
++			if (globalfs == curgid)
+ 				break;
+ 		}
+ 		/* not in deny list */
+@@ -2477,7 +2520,7 @@ gr_check_group_change(int real, int effective, int fs)
+ 	if (realok && effectiveok && fsok)
+ 		return 0;
+ 	else {
+-		gr_log_int(GR_DONT_AUDIT, GR_GRPCHANGE_ACL_MSG, realok ? (effectiveok ? (fsok ? 0 : fs) : effective) : real);
++		gr_log_int(GR_DONT_AUDIT, GR_GRPCHANGE_ACL_MSG, realok ? (effectiveok ? (fsok ? 0 : globalfs) : globaleffective) : globalreal);
+ 		return 1;
+ 	}
+ }
+@@ -2485,16 +2528,21 @@ gr_check_group_change(int real, int effective, int fs)
+ extern int gr_acl_is_capable(const int cap);
+ 
+ void
+-gr_set_role_label(struct task_struct *task, const uid_t uid, const uid_t gid)
++gr_set_role_label(struct task_struct *task, const kuid_t kuid, const kgid_t kgid)
+ {
+ 	struct acl_role_label *role = task->role;
+ 	struct acl_subject_label *subj = NULL;
+ 	struct acl_object_label *obj;
+ 	struct file *filp;
++	uid_t uid;
++	gid_t gid;
+ 
+ 	if (unlikely(!(gr_status & GR_READY)))
+ 		return;
+ 
++	uid = GR_GLOBAL_UID(kuid);
++	gid = GR_GLOBAL_GID(kgid);
++
+ 	filp = task->exec_file;
+ 
+ 	/* kernel process, we'll give them the kernel role */
+@@ -3448,7 +3496,7 @@ gr_set_acls(const int type)
+ 
+ 		if (task->exec_file) {
+ 			cred = __task_cred(task);
+-			task->role = lookup_acl_role_label(task, cred->uid, cred->gid);
++			task->role = lookup_acl_role_label(task, GR_GLOBAL_UID(cred->uid), GR_GLOBAL_GID(cred->gid));
+ 			ret = gr_apply_subject_to_task(task);
+ 			if (ret) {
+ 				read_unlock(&grsec_exec_file_lock);
+@@ -3531,7 +3579,7 @@ skip_reslog:
+ 		rcu_read_lock();
+ 		cred = __task_cred(task);
+ 		security_learn(GR_LEARN_AUDIT_MSG, task->role->rolename,
+-			       task->role->roletype, cred->uid, cred->gid, acl->filename,
++			       task->role->roletype, GR_GLOBAL_UID(cred->uid), GR_GLOBAL_GID(cred->gid), acl->filename,
+ 			       acl->filename, acl->res[res].rlim_cur, acl->res[res].rlim_max,
+ 			       "", (unsigned long) res, &task->signal->saved_ip);
+ 		rcu_read_unlock();
+diff --git a/grsecurity/gracl_cap.c b/grsecurity/gracl_cap.c
+index 6d21049..bdd51ea 100644
+--- a/grsecurity/gracl_cap.c
++++ b/grsecurity/gracl_cap.c
+@@ -49,8 +49,8 @@ int gr_task_acl_is_capable(const struct task_struct *task, const struct cred *cr
+ 	if ((curracl->mode & (GR_LEARN | GR_INHERITLEARN))
+ 	    && cap_raised(cred->cap_effective, cap)) {
+ 		security_learn(GR_LEARN_AUDIT_MSG, task->role->rolename,
+-			       task->role->roletype, cred->uid,
+-			       cred->gid, task->exec_file ?
++			       task->role->roletype, GR_GLOBAL_UID(cred->uid),
++			       GR_GLOBAL_GID(cred->gid), task->exec_file ?
+ 			       gr_to_filename(task->exec_file->f_path.dentry,
+ 			       task->exec_file->f_path.mnt) : curracl->filename,
+ 			       curracl->filename, 0UL,
+diff --git a/grsecurity/gracl_ip.c b/grsecurity/gracl_ip.c
+index 58800a7..4699807 100644
+--- a/grsecurity/gracl_ip.c
++++ b/grsecurity/gracl_ip.c
+@@ -114,8 +114,8 @@ gr_search_socket(const int domain, const int type, const int protocol)
+ 		if (curr->mode & (GR_LEARN | GR_INHERITLEARN)) {
+ 			__u32 fakeip = 0;
+ 			security_learn(GR_IP_LEARN_MSG, current->role->rolename,
+-				       current->role->roletype, cred->uid,
+-				       cred->gid, current->exec_file ?
++				       current->role->roletype, GR_GLOBAL_UID(cred->uid),
++				       GR_GLOBAL_GID(cred->gid), current->exec_file ?
+ 				       gr_to_filename(current->exec_file->f_path.dentry,
+ 				       current->exec_file->f_path.mnt) :
+ 				       curr->filename, curr->filename,
+@@ -142,8 +142,8 @@ inet_check:
+ 		if (type == SOCK_RAW || type == SOCK_PACKET) {
+ 			__u32 fakeip = 0;
+ 			security_learn(GR_IP_LEARN_MSG, current->role->rolename,
+-				       current->role->roletype, cred->uid,
+-				       cred->gid, current->exec_file ?
++				       current->role->roletype, GR_GLOBAL_UID(cred->uid),
++				       GR_GLOBAL_GID(cred->gid), current->exec_file ?
+ 				       gr_to_filename(current->exec_file->f_path.dentry,
+ 				       current->exec_file->f_path.mnt) :
+ 				       curr->filename, curr->filename,
+@@ -152,8 +152,8 @@ inet_check:
+ 		} else if ((type == SOCK_DGRAM) && (protocol == IPPROTO_IP)) {
+ 			__u32 fakeip = 0;
+ 			security_learn(GR_IP_LEARN_MSG, current->role->rolename,
+-				       current->role->roletype, cred->uid,
+-				       cred->gid, current->exec_file ?
++				       current->role->roletype, GR_GLOBAL_UID(cred->uid),
++				       GR_GLOBAL_GID(cred->gid), current->exec_file ?
+ 				       gr_to_filename(current->exec_file->f_path.dentry,
+ 				       current->exec_file->f_path.mnt) :
+ 				       curr->filename, curr->filename,
+@@ -249,8 +249,8 @@ gr_search_connectbind(const int full_mode, struct sock *sk,
+ 
+ 	if (curr->mode & (GR_LEARN | GR_INHERITLEARN)) {
+ 		security_learn(GR_IP_LEARN_MSG, current->role->rolename,
+-			       current->role->roletype, cred->uid,
+-			       cred->gid, current->exec_file ?
++			       current->role->roletype, GR_GLOBAL_UID(cred->uid),
++			       GR_GLOBAL_GID(cred->gid), current->exec_file ?
+ 			       gr_to_filename(current->exec_file->f_path.dentry,
+ 			       current->exec_file->f_path.mnt) :
+ 			       curr->filename, curr->filename,
+diff --git a/grsecurity/gracl_segv.c b/grsecurity/gracl_segv.c
+index 25197e9..10398db 100644
+--- a/grsecurity/gracl_segv.c
++++ b/grsecurity/gracl_segv.c
+@@ -99,9 +99,10 @@ gr_insertsort(void)
+ }
+ 
+ static __inline__ void
+-gr_insert_uid(const uid_t uid, const unsigned long expires)
++gr_insert_uid(const kuid_t kuid, const unsigned long expires)
+ {
+ 	int loc;
++	uid_t uid = GR_GLOBAL_UID(kuid);
+ 
+ 	if (uid_used == GR_UIDTABLE_MAX)
+ 		return;
+@@ -136,14 +137,17 @@ gr_remove_uid(const unsigned short loc)
+ }
+ 
+ int
+-gr_check_crash_uid(const uid_t uid)
++gr_check_crash_uid(const kuid_t kuid)
+ {
+ 	int loc;
+ 	int ret = 0;
++	uid_t uid;
+ 
+ 	if (unlikely(!gr_acl_is_enabled()))
+ 		return 0;
+ 
++	uid = GR_GLOBAL_UID(kuid);
++
+ 	spin_lock(&gr_uid_lock);
+ 	loc = gr_find_uid(uid);
+ 
+@@ -166,8 +170,8 @@ proc_is_setxid(const struct cred *cred)
+ 	if (!uid_eq(cred->uid, cred->euid) || !uid_eq(cred->uid, cred->suid) ||
+ 	    !uid_eq(cred->uid, cred->fsuid))
+ 		return 1;
+-	if (!uid_eq(cred->gid, cred->egid) || !uid_eq(cred->gid, cred->sgid) ||
+-	    !uid_eq(cred->gid, cred->fsgid))
++	if (!gid_eq(cred->gid, cred->egid) || !gid_eq(cred->gid, cred->sgid) ||
++	    !gid_eq(cred->gid, cred->fsgid))
+ 		return 1;
+ 
+ 	return 0;
+diff --git a/grsecurity/gracl_shm.c b/grsecurity/gracl_shm.c
+index 9d83a69..120978a 100644
+--- a/grsecurity/gracl_shm.c
++++ b/grsecurity/gracl_shm.c
+@@ -9,7 +9,7 @@
+ 
+ int
+ gr_handle_shmat(const pid_t shm_cprid, const pid_t shm_lapid,
+-		const time_t shm_createtime, const uid_t cuid, const int shmid)
++		const time_t shm_createtime, const kuid_t cuid, const int shmid)
+ {
+ 	struct task_struct *task;
+ 
+@@ -30,7 +30,7 @@ gr_handle_shmat(const pid_t shm_cprid, const pid_t shm_lapid,
+ 		     (task->acl != current->acl))) {
+ 		read_unlock(&tasklist_lock);
+ 		rcu_read_unlock();
+-		gr_log_int3(GR_DONT_AUDIT, GR_SHMAT_ACL_MSG, cuid, shm_cprid, shmid);
++		gr_log_int3(GR_DONT_AUDIT, GR_SHMAT_ACL_MSG, GR_GLOBAL_UID(cuid), shm_cprid, shmid);
+ 		return 0;
+ 	}
+ 	read_unlock(&tasklist_lock);
+diff --git a/grsecurity/grsec_disabled.c b/grsecurity/grsec_disabled.c
+index e6796b3..207d409 100644
+--- a/grsecurity/grsec_disabled.c
++++ b/grsecurity/grsec_disabled.c
+@@ -137,7 +137,7 @@ gr_check_crash_exec(const struct file *filp)
+ }
+ 
+ int
+-gr_check_crash_uid(const uid_t uid)
++gr_check_crash_uid(const kuid_t uid)
+ {
+ 	return 0;
+ }
+@@ -314,7 +314,7 @@ gr_acl_handle_filldir(const struct file *file, const char *name,
+ 
+ int
+ gr_handle_shmat(const pid_t shm_cprid, const pid_t shm_lapid,
+-		const time_t shm_createtime, const uid_t cuid, const int shmid)
++		const time_t shm_createtime, const kuid_t cuid, const int shmid)
+ {
+ 	return 1;
+ }
+@@ -371,7 +371,7 @@ gr_acl_handle_mprotect(const struct file *file, const unsigned long prot)
+ }
+ 
+ void
+-gr_set_role_label(const uid_t uid, const gid_t gid)
++gr_set_role_label(const kuid_t uid, const kgid_t gid)
+ {
+ 	return;
+ }
+@@ -401,13 +401,13 @@ gr_set_kernel_label(struct task_struct *task)
+ }
+ 
+ int
+-gr_check_user_change(int real, int effective, int fs)
++gr_check_user_change(kuid_t real, kuid_t effective, kuid_t fs)
+ {
+ 	return 0;
+ }
+ 
+ int
+-gr_check_group_change(int real, int effective, int fs)
++gr_check_group_change(kgid_t real, kgid_t effective, kgid_t fs)
+ {
+ 	return 0;
+ }
+diff --git a/grsecurity/grsec_fifo.c b/grsecurity/grsec_fifo.c
+index d3ee748..06cc6ea 100644
+--- a/grsecurity/grsec_fifo.c
++++ b/grsecurity/grsec_fifo.c
+@@ -13,10 +13,10 @@ gr_handle_fifo(const struct dentry *dentry, const struct vfsmount *mnt,
+ 
+ 	if (grsec_enable_fifo && S_ISFIFO(dentry->d_inode->i_mode) &&
+ 	    !(flag & O_EXCL) && (dir->d_inode->i_mode & S_ISVTX) &&
+-	    (dentry->d_inode->i_uid != dir->d_inode->i_uid) &&
+-	    (cred->fsuid != dentry->d_inode->i_uid)) {
++	    !uid_eq(dentry->d_inode->i_uid, dir->d_inode->i_uid) &&
++	    !uid_eq(cred->fsuid, dentry->d_inode->i_uid)) {
+ 		if (!inode_permission(dentry->d_inode, acc_mode))
+-			gr_log_fs_int2(GR_DONT_AUDIT, GR_FIFO_MSG, dentry, mnt, dentry->d_inode->i_uid, dentry->d_inode->i_gid);
++			gr_log_fs_int2(GR_DONT_AUDIT, GR_FIFO_MSG, dentry, mnt, GR_GLOBAL_UID(dentry->d_inode->i_uid), GR_GLOBAL_GID(dentry->d_inode->i_gid));
+ 		return -EACCES;
+ 	}
+ #endif
+diff --git a/grsecurity/grsec_init.c b/grsecurity/grsec_init.c
+index 05a6015..a862e9f 100644
+--- a/grsecurity/grsec_init.c
++++ b/grsecurity/grsec_init.c
+@@ -10,7 +10,7 @@
+ int grsec_enable_ptrace_readexec;
+ int grsec_enable_setxid;
+ int grsec_enable_symlinkown;
+-int grsec_symlinkown_gid;
++kgid_t grsec_symlinkown_gid;
+ int grsec_enable_brute;
+ int grsec_enable_link;
+ int grsec_enable_dmesg;
+@@ -23,7 +23,7 @@ int grsec_enable_audit_ptrace;
+ int grsec_enable_time;
+ int grsec_enable_audit_textrel;
+ int grsec_enable_group;
+-int grsec_audit_gid;
++kgid_t grsec_audit_gid;
+ int grsec_enable_chdir;
+ int grsec_enable_mount;
+ int grsec_enable_rofs;
+@@ -42,7 +42,7 @@ int grsec_enable_chroot_caps;
+ int grsec_enable_chroot_sysctl;
+ int grsec_enable_chroot_unix;
+ int grsec_enable_tpe;
+-int grsec_tpe_gid;
++kgid_t grsec_tpe_gid;
+ int grsec_enable_blackhole;
+ #ifdef CONFIG_IPV6_MODULE
+ EXPORT_SYMBOL(grsec_enable_blackhole);
+@@ -51,11 +51,11 @@ int grsec_lastack_retries;
+ int grsec_enable_tpe_all;
+ int grsec_enable_tpe_invert;
+ int grsec_enable_socket_all;
+-int grsec_socket_all_gid;
++kgid_t grsec_socket_all_gid;
+ int grsec_enable_socket_client;
+-int grsec_socket_client_gid;
++kgid_t grsec_socket_client_gid;
+ int grsec_enable_socket_server;
+-int grsec_socket_server_gid;
++kgid_t grsec_socket_server_gid;
+ int grsec_resource_logging;
+ int grsec_disable_privio;
+ int grsec_enable_log_rwxmaps;
+@@ -161,7 +161,7 @@ grsecurity_init(void)
+ #endif
+ #ifdef CONFIG_GRKERNSEC_AUDIT_GROUP
+ 	grsec_enable_group = 1;
+-	grsec_audit_gid = CONFIG_GRKERNSEC_AUDIT_GID;
++	grsec_audit_gid = KGIDT_INIT(CONFIG_GRKERNSEC_AUDIT_GID);
+ #endif
+ #ifdef CONFIG_GRKERNSEC_PTRACE_READEXEC
+ 	grsec_enable_ptrace_readexec = 1;
+@@ -256,26 +256,26 @@ grsecurity_init(void)
+ #endif
+ #ifdef CONFIG_GRKERNSEC_SYMLINKOWN
+ 	grsec_enable_symlinkown = 1;
+-	grsec_symlinkown_gid = CONFIG_GRKERNSEC_SYMLINKOWN_GID;
++	grsec_symlinkown_gid = KGIDT_INIT(CONFIG_GRKERNSEC_SYMLINKOWN_GID);
+ #endif
+ #ifdef CONFIG_GRKERNSEC_TPE
+ 	grsec_enable_tpe = 1;
+-	grsec_tpe_gid = CONFIG_GRKERNSEC_TPE_GID;
++	grsec_tpe_gid = KGIDT_INIT(CONFIG_GRKERNSEC_TPE_GID);
+ #ifdef CONFIG_GRKERNSEC_TPE_ALL
+ 	grsec_enable_tpe_all = 1;
+ #endif
+ #endif
+ #ifdef CONFIG_GRKERNSEC_SOCKET_ALL
+ 	grsec_enable_socket_all = 1;
+-	grsec_socket_all_gid = CONFIG_GRKERNSEC_SOCKET_ALL_GID;
++	grsec_socket_all_gid = KGIDT_INIT(CONFIG_GRKERNSEC_SOCKET_ALL_GID);
+ #endif
+ #ifdef CONFIG_GRKERNSEC_SOCKET_CLIENT
+ 	grsec_enable_socket_client = 1;
+-	grsec_socket_client_gid = CONFIG_GRKERNSEC_SOCKET_CLIENT_GID;
++	grsec_socket_client_gid = KGIDT_INIT(CONFIG_GRKERNSEC_SOCKET_CLIENT_GID);
+ #endif
+ #ifdef CONFIG_GRKERNSEC_SOCKET_SERVER
+ 	grsec_enable_socket_server = 1;
+-	grsec_socket_server_gid = CONFIG_GRKERNSEC_SOCKET_SERVER_GID;
++	grsec_socket_server_gid = KGIDT_INIT(CONFIG_GRKERNSEC_SOCKET_SERVER_GID);
+ #endif
+ #endif
+ 
+diff --git a/grsecurity/grsec_log.c b/grsecurity/grsec_log.c
+index 7bd6c2b..7c06085 100644
+--- a/grsecurity/grsec_log.c
++++ b/grsecurity/grsec_log.c
+@@ -13,9 +13,6 @@
+ #define ENABLE_PREEMPT()
+ #endif
+ 
+-#define GR_GLOBAL_UID(x) from_kuid_munged(&init_user_ns, (x))
+-#define GR_GLOBAL_GID(x) from_kgid_munged(&init_user_ns, (x))
+-
+ #define BEGIN_LOCKS(x) \
+ 	DISABLE_PREEMPT(); \
+ 	rcu_read_lock(); \
+diff --git a/grsecurity/grsec_tpe.c b/grsecurity/grsec_tpe.c
+index 07e0dc0..ac20d7f 100644
+--- a/grsecurity/grsec_tpe.c
++++ b/grsecurity/grsec_tpe.c
+@@ -16,7 +16,7 @@ gr_tpe_allow(const struct file *file)
+ 	char *msg2 = NULL;
+ 
+ 	// never restrict root
+-	if (!cred->uid)
++	if (uid_eq(cred->uid, GLOBAL_ROOT_UID))
+ 		return 1;
+ 
+ 	if (grsec_enable_tpe) {
+@@ -37,7 +37,7 @@ gr_tpe_allow(const struct file *file)
+ 	if (!msg)
+ 		goto next_check;
+ 
+-	if (inode->i_uid)
++	if (!uid_eq(inode->i_uid, GLOBAL_ROOT_UID))
+ 		msg2 = "file in non-root-owned directory";
+ 	else if (inode->i_mode & S_IWOTH)
+ 		msg2 = "file in world-writable directory";
+@@ -56,7 +56,7 @@ next_check:
+ 	if (!grsec_enable_tpe || !grsec_enable_tpe_all)
+ 		return 1;
+ 
+-	if (inode->i_uid && (inode->i_uid != cred->uid))
++	if (!uid_eq(inode->i_uid, GLOBAL_ROOT_UID) && !uid_eq(inode->i_uid, cred->uid))
+ 		msg = "directory not owned by user";
+ 	else if (inode->i_mode & S_IWOTH)
+ 		msg = "file in world-writable directory";
+diff --git a/include/linux/grinternal.h b/include/linux/grinternal.h
+index baa6e96..9bb6662 100644
+--- a/include/linux/grinternal.h
++++ b/include/linux/grinternal.h
+@@ -60,18 +60,18 @@ extern int grsec_enable_chroot_caps;
+ extern int grsec_enable_chroot_sysctl;
+ extern int grsec_enable_chroot_unix;
+ extern int grsec_enable_symlinkown;
+-extern int grsec_symlinkown_gid;
++extern kgid_t grsec_symlinkown_gid;
+ extern int grsec_enable_tpe;
+-extern int grsec_tpe_gid;
++extern kgid_t grsec_tpe_gid;
+ extern int grsec_enable_tpe_all;
+ extern int grsec_enable_tpe_invert;
+ extern int grsec_enable_socket_all;
+-extern int grsec_socket_all_gid;
++extern kgid_t grsec_socket_all_gid;
+ extern int grsec_enable_socket_client;
+-extern int grsec_socket_client_gid;
++extern kgid_t grsec_socket_client_gid;
+ extern int grsec_enable_socket_server;
+-extern int grsec_socket_server_gid;
+-extern int grsec_audit_gid;
++extern kgid_t grsec_socket_server_gid;
++extern kgid_t grsec_audit_gid;
+ extern int grsec_enable_group;
+ extern int grsec_enable_audit_textrel;
+ extern int grsec_enable_log_rwxmaps;
+diff --git a/include/linux/grsecurity.h b/include/linux/grsecurity.h
+index c5e5913..1ae241a 100644
+--- a/include/linux/grsecurity.h
++++ b/include/linux/grsecurity.h
+@@ -42,8 +42,8 @@ char gr_roletype_to_char(void);
+ 
+ int gr_acl_enable_at_secure(void);
+ 
+-int gr_check_user_change(int real, int effective, int fs);
+-int gr_check_group_change(int real, int effective, int fs);
++int gr_check_user_change(kuid_t real, kuid_t effective, kuid_t fs);
++int gr_check_group_change(kgid_t real, kgid_t effective, kgid_t fs);
+ 
+ void gr_del_task_from_ip_table(struct task_struct *p);
+ 
+@@ -115,7 +115,7 @@ int gr_task_is_capable_nolog(const struct task_struct *task, const int cap);
+ void gr_copy_label(struct task_struct *tsk);
+ void gr_handle_crash(struct task_struct *task, const int sig);
+ int gr_handle_signal(const struct task_struct *p, const int sig);
+-int gr_check_crash_uid(const uid_t uid);
++int gr_check_crash_uid(const kuid_t uid);
+ int gr_check_protected_task(const struct task_struct *task);
+ int gr_check_protected_task_fowner(struct pid *pid, enum pid_type type);
+ int gr_acl_handle_mmap(const struct file *file,
+@@ -142,8 +142,8 @@ __u32 gr_acl_handle_execve(const struct dentry *dentry,
+ int gr_check_crash_exec(const struct file *filp);
+ int gr_acl_is_enabled(void);
+ void gr_set_kernel_label(struct task_struct *task);
+-void gr_set_role_label(struct task_struct *task, const uid_t uid,
+-			      const gid_t gid);
++void gr_set_role_label(struct task_struct *task, const kuid_t uid,
++			      const kgid_t gid);
+ int gr_set_proc_label(const struct dentry *dentry,
+ 			const struct vfsmount *mnt,
+ 			const int unsafe_flags);
+@@ -243,7 +243,7 @@ extern int grsec_enable_dmesg;
+ extern int grsec_disable_privio;
+ 
+ #ifdef CONFIG_GRKERNSEC_PROC_USERGROUP
+-extern int grsec_proc_gid;
++extern kgid_t grsec_proc_gid;
+ #endif
+ 
+ #ifdef CONFIG_GRKERNSEC_CHROOT_FINDTASK
+diff --git a/include/linux/uidgid.h b/include/linux/uidgid.h
+index 8e522cbc..1b67af5 100644
+--- a/include/linux/uidgid.h
++++ b/include/linux/uidgid.h
+@@ -197,4 +197,7 @@ static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid)
+ 
+ #endif /* CONFIG_USER_NS */
+ 
++#define GR_GLOBAL_UID(x) from_kuid_munged(&init_user_ns, (x))
++#define GR_GLOBAL_GID(x) from_kgid_munged(&init_user_ns, (x))
++
+ #endif /* _LINUX_UIDGID_H */
+diff --git a/init/Kconfig b/init/Kconfig
+index b13cb62..1eeca9b 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1080,8 +1080,6 @@ config UIDGID_CONVERTED
+ 	depends on OCFS2_FS = n
+ 	depends on XFS_FS = n
+ 
+-	depends on GRKERNSEC = n
+-
+ config UIDGID_STRICT_TYPE_CHECKS
+ 	bool "Require conversions between uid/gids and their internal representation"
+ 	depends on UIDGID_CONVERTED
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 38dfd0c..55cff14 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -71,7 +71,7 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it);
+ 
+ #ifdef CONFIG_GRKERNSEC
+ extern int gr_handle_shmat(const pid_t shm_cprid, const pid_t shm_lapid,
+-			   const time_t shm_createtime, const uid_t cuid,
++			   const time_t shm_createtime, const kuid_t cuid,
+ 			   const int shmid);
+ extern int gr_chroot_shmat(const pid_t shm_cprid, const pid_t shm_lapid,
+ 			   const time_t shm_createtime);
+diff --git a/kernel/cred.c b/kernel/cred.c
+index eefe488..3874e41 100644
+--- a/kernel/cred.c
++++ b/kernel/cred.c
+@@ -501,7 +501,7 @@ void gr_delayed_cred_worker(void)
+ 
+ 	current->delayed_cred = NULL;
+ 
+-	if (current_uid() && new != NULL) {
++	if (!uid_eq(current_uid(), GLOBAL_ROOT_UID) && new != NULL) {
+ 		// from doing get_cred on it when queueing this
+ 		put_cred(new);
+ 		return;
+@@ -562,7 +562,8 @@ int commit_creds(struct cred *new)
+ 	   init_cred
+ 	*/
+ 	if (grsec_enable_setxid && !current_is_single_threaded() &&
+-	    !current_uid() && new->uid) {
++	    uid_eq(current_uid(), GLOBAL_ROOT_UID) &&
++	    !uid_eq(new->uid, GLOBAL_ROOT_UID)) {
+ 		schedule_it = 1;
+ 	}
+ 	ret = __commit_creds(new);
+diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
+index 45c017a..706ccca 100644
+--- a/kernel/kallsyms.c
++++ b/kernel/kallsyms.c
+@@ -557,7 +557,7 @@ static int s_show(struct seq_file *m, void *p)
+ 	struct kallsym_iter *iter = m->private;
+ 
+ #ifdef CONFIG_GRKERNSEC_HIDESYM
+-	if (current_uid())
++	if (!uid_eq(current_uid(), GLOBAL_ROOT_UID))
+ 		return 0;
+ #endif
+ 
+diff --git a/kernel/kmod.c b/kernel/kmod.c
+index 3fe3781..b893e79 100644
+--- a/kernel/kmod.c
++++ b/kernel/kmod.c
+@@ -139,7 +139,7 @@ static int ____request_module(bool wait, char *module_param, const char *fmt, va
+ 		return ret;
+ 
+ #ifdef CONFIG_GRKERNSEC_MODHARDEN
+-	if (!current_uid()) {
++	if (uid_eq(current_uid(), GLOBAL_ROOT_UID)) {
+ 		/* hack to workaround consolekit/udisks stupidity */
+ 		read_lock(&tasklist_lock);
+ 		if (!strcmp(current->comm, "mount") &&
+@@ -204,12 +204,12 @@ int __request_module(bool wait, const char *fmt, ...)
+ 	int ret;
+ 
+ #ifdef CONFIG_GRKERNSEC_MODHARDEN
+-	if (current_uid()) {
++	if (!uid_eq(current_uid(), GLOBAL_ROOT_UID)) {
+ 		char module_param[MODULE_NAME_LEN];
+ 
+ 		memset(module_param, 0, sizeof(module_param));
+ 
+-		snprintf(module_param, sizeof(module_param) - 1, "grsec_modharden_normal%u_", current_uid());
++		snprintf(module_param, sizeof(module_param) - 1, "grsec_modharden_normal%u_", GR_GLOBAL_UID(current_uid()));
+ 
+ 		va_start(args, fmt);
+ 		ret = ____request_module(wait, module_param, fmt, args);
+diff --git a/kernel/sys.c b/kernel/sys.c
+index b0cd50d..4e42ef5 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -601,7 +601,7 @@ SYSCALL_DEFINE2(setregid, gid_t, rgid, gid_t, egid)
+ 			goto error;
+ 	}
+ 
+-	if (gr_check_group_change(new->gid, new->egid, -1))
++	if (gr_check_group_change(new->gid, new->egid, INVALID_GID))
+ 		goto error;
+ 
+ 	if (rgid != (gid_t) -1 ||
+@@ -740,7 +740,7 @@ SYSCALL_DEFINE2(setreuid, uid_t, ruid, uid_t, euid)
+ 			goto error;
+ 	}
+ 
+-	if (gr_check_user_change(new->uid, new->euid, -1))
++	if (gr_check_user_change(new->uid, new->euid, INVALID_UID))
+ 		goto error;
+ 
+ 	if (!uid_eq(new->uid, old->uid)) {
+@@ -868,7 +868,7 @@ SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
+ 			goto error;
+ 	}
+ 
+-	if (gr_check_user_change(kruid, keuid, -1))
++	if (gr_check_user_change(kruid, keuid, INVALID_UID))
+ 		goto error;
+ 
+ 	if (ruid != (uid_t) -1) {
+@@ -953,7 +953,7 @@ SYSCALL_DEFINE3(setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
+ 			goto error;
+ 	}
+ 
+-	if (gr_check_group_change(krgid, kegid, -1))
++	if (gr_check_group_change(krgid, kegid, INVALID_GID))
+ 		goto error;
+ 
+ 	if (rgid != (gid_t) -1)
+@@ -1009,7 +1009,7 @@ SYSCALL_DEFINE1(setfsuid, uid_t, uid)
+ 	if (!uid_valid(kuid))
+ 		return old_fsuid;
+ 
+-	if (gr_check_user_change(-1, -1, kuid))
++	if (gr_check_user_change(INVALID_UID, INVALID_UID, kuid))
+ 		goto error;
+ 
+ 	new = prepare_creds();
+@@ -1059,7 +1059,7 @@ SYSCALL_DEFINE1(setfsgid, gid_t, gid)
+ 	if (gid_eq(kgid, old->gid)  || gid_eq(kgid, old->egid)  ||
+ 	    gid_eq(kgid, old->sgid) || gid_eq(kgid, old->fsgid) ||
+ 	    nsown_capable(CAP_SETGID)) {
+-		if (gr_check_group_change(-1, -1, kgid))
++		if (gr_check_group_change(INVALID_GID, INVALID_GID, kgid))
+ 			goto error;
+ 
+ 		if (!gid_eq(kgid, old->fsgid)) {

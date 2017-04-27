@@ -1,0 +1,60 @@
+diff --git a/fs/exec.c b/fs/exec.c
+index 5af5d91..b632473 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -777,7 +777,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 	current->mm->start_stack = bprm->p;
+ 	ret = expand_stack(vma, stack_base);
+ 
+-#if !defined(CONFIG_STACK_GROWSUP) && defined(CONFIG_PAX_ASLR)
++#if !defined(CONFIG_STACK_GROWSUP) && defined(CONFIG_PAX_RANDMMAP)
+ 	if (!ret && (mm->pax_flags & MF_PAX_RANDMMAP) && STACK_TOP <= 0xFFFFFFFFU && STACK_TOP > vma->vm_end) {
+ 		unsigned long size, flags, vm_flags;
+ 
+@@ -787,12 +787,16 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 
+ 		ret = vma->vm_end != mmap_region(NULL, vma->vm_end, size, flags, vm_flags, 0);
+ 
+-#ifdef CONFIG_X86
+ 		if (!ret) {
++			mm->exhaust_gap = size;
++#ifdef CONFIG_X86
+ 			size = mmap_min_addr + ((mm->delta_mmap ^ mm->delta_stack) & (0xFFUL << PAGE_SHIFT));
+ 			ret = 0 != mmap_region(NULL, 0, size, flags, vm_flags, 0);
+-		}
++			if (!ret)
++				mm->exhaust_gap += size;
+ #endif
++			mm->exhaust_gap >>= PAGE_SHIFT;
++		}
+ 
+ 	}
+ #endif
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 6276a36..7152f73 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -366,6 +366,7 @@ struct mm_struct {
+ 	unsigned long start_code, end_code, start_data, end_data;
+ 	unsigned long brk_gap, start_brk, brk, start_stack;
+ 	unsigned long arg_start, arg_end, env_start, env_end;
++	unsigned long exhaust_gap;
+ 
+ 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 7d36e4f..27ac9f6 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3311,8 +3311,10 @@ int may_expand_vm(struct mm_struct *mm, unsigned long npages)
+ 	lim = rlimit(RLIMIT_AS) >> PAGE_SHIFT;
+ 
+ #ifdef CONFIG_PAX_RANDMMAP
+-	if (mm->pax_flags & MF_PAX_RANDMMAP)
++	if (mm->pax_flags & MF_PAX_RANDMMAP) {
+ 		cur -= mm->brk_gap;
++		cur -= mm->exhaust_gap;
++	}
+ #endif
+ 
+ 	gr_learn_resource(current, RLIMIT_AS, (cur + npages) << PAGE_SHIFT, 1);

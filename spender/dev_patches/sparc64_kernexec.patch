@@ -1,0 +1,185 @@
+diff -urNp linux-2.6.32.18/arch/sparc/kernel/module.c linux-2.6.32.18-new/arch/sparc/kernel/module.c
+--- linux-2.6.32.18/arch/sparc/kernel/module.c	2010-08-10 13:45:57.000000000 -0400
++++ linux-2.6.32.18-new/arch/sparc/kernel/module.c	2010-08-12 00:02:38.000000000 -0400
+@@ -18,7 +18,7 @@
+ #include <asm/spitfire.h>
+ 
+ #ifdef CONFIG_SPARC64
+-static void *module_map(unsigned long size)
++static void *__module_alloc(unsigned long size, pgprot_t prot)
+ {
+ 	struct vm_struct *area;
+ 
+@@ -30,7 +30,7 @@ static void *module_map(unsigned long si
+ 	if (!area)
+ 		return NULL;
+ 
+-	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL);
++	return __vmalloc_area(area, GFP_KERNEL | __GFP_ZERO, prot);
+ }
+ 
+ static char *dot2underscore(char *name)
+@@ -55,21 +55,32 @@ static char *dot2underscore(char *name)
+ #endif /* CONFIG_SPARC64 */
+ 
+ void *module_alloc(unsigned long size)
+-{
+-	void *ret;
+ 
++
++void *module_alloc(unsigned long size)
++{
+ 	/* We handle the zero case fine, unlike vmalloc */
+ 	if (size == 0)
+ 		return NULL;
+ 
+-	ret = module_map(size);
+-	if (!ret)
+-		ret = ERR_PTR(-ENOMEM);
+-	else
+-		memset(ret, 0, size);
++#ifdef CONFIG_PAX_KERNEXEC
++	return __module_alloc(size, PAGE_KERNEL);
++#else
++	return __module_alloc(size, PAGE_KERNEL_EXEC);
++#endif
++}
++
++
++#ifdef CONFIG_PAX_KERNEXEC
++void *module_alloc(unsigned long size)
++{
++	/* We handle the zero case fine, unlike vmalloc */
++	if (size == 0)
++		return NULL;
+ 
+-	return ret;
++	return __module_alloc(size, PAGE_KERNEL_EXEC);
+ }
++#endif
+ 
+ /* Free memory returned from module_core_alloc/module_init_alloc */
+ void module_free(struct module *mod, void *module_region)
+diff -urNp linux-2.6.32.18/arch/sparc/mm/init_64.c linux-2.6.32.18-new/arch/sparc/mm/init_64.c
+--- linux-2.6.32.18/arch/sparc/mm/init_64.c	2010-08-10 13:45:57.000000000 -0400
++++ linux-2.6.32.18-new/arch/sparc/mm/init_64.c	2010-08-11 23:47:44.000000000 -0400
+@@ -2062,6 +2062,9 @@ void free_initrd_mem(unsigned long start
+ pgprot_t PAGE_KERNEL __read_mostly;
+ EXPORT_SYMBOL(PAGE_KERNEL);
+ 
++pgprot_t PAGE_KERNEL_EXEC __read_mostly;
++EXPORT_SYMBOL(PAGE_KERNEL_EXEC);
++
+ pgprot_t PAGE_KERNEL_LOCKED __read_mostly;
+ pgprot_t PAGE_COPY __read_mostly;
+ 
+@@ -2127,6 +2130,8 @@ static void prot_init_common(unsigned lo
+ 			     unsigned long page_shared,
+ 			     unsigned long page_copy,
+ 			     unsigned long page_readonly,
++			     unsigned long page_read_bit,
++			     unsigned long page_write_bit,
+ 			     unsigned long page_exec_bit)
+ {
+ 	PAGE_COPY = __pgprot(page_copy);
+@@ -2134,31 +2139,36 @@ static void prot_init_common(unsigned lo
+ 
+ 	protection_map[0x0] = __pgprot(page_none);
+ 	protection_map[0x1] = __pgprot(page_readonly & ~page_exec_bit);
+-	protection_map[0x2] = __pgprot(page_copy & ~page_exec_bit);
++	protection_map[0x2] = __pgprot(page_copy & ~page_exec_bit & ~page_read_bit);
+ 	protection_map[0x3] = __pgprot(page_copy & ~page_exec_bit);
+-	protection_map[0x4] = __pgprot(page_readonly);
++	protection_map[0x4] = __pgprot(page_readonly & ~page_read_bit);
+ 	protection_map[0x5] = __pgprot(page_readonly);
+-	protection_map[0x6] = __pgprot(page_copy);
++	protection_map[0x6] = __pgprot(page_copy & ~page_read_bit);
+ 	protection_map[0x7] = __pgprot(page_copy);
+ 	protection_map[0x8] = __pgprot(page_none);
+ 	protection_map[0x9] = __pgprot(page_readonly & ~page_exec_bit);
+-	protection_map[0xa] = __pgprot(page_shared & ~page_exec_bit);
++	protection_map[0xa] = __pgprot(page_shared & ~page_exec_bit & ~page_read_bit);
+ 	protection_map[0xb] = __pgprot(page_shared & ~page_exec_bit);
+-	protection_map[0xc] = __pgprot(page_readonly);
++	protection_map[0xc] = __pgprot(page_readonly & ~page_read_bit);
+ 	protection_map[0xd] = __pgprot(page_readonly);
+-	protection_map[0xe] = __pgprot(page_shared);
++	protection_map[0xe] = __pgprot(page_shared & ~page_read_bit);
+ 	protection_map[0xf] = __pgprot(page_shared);
+ }
+ 
+ static void __init sun4u_pgprot_init(void)
+ {
+ 	unsigned long page_none, page_shared, page_copy, page_readonly;
+-	unsigned long page_exec_bit;
++	unsigned long page_read_bit, page_write_bit, page_exec_bit;
+ 
+ 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
+ 				_PAGE_CACHE_4U | _PAGE_P_4U |
++				__ACCESS_BITS_4U | __DIRTY_BITS_4U);
++
++	PAGE_KERNEL_EXEC = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
++				_PAGE_CACHE_4U | _PAGE_P_4U |
+ 				__ACCESS_BITS_4U | __DIRTY_BITS_4U |
+ 				_PAGE_EXEC_4U);
++
+ 	PAGE_KERNEL_LOCKED = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
+ 				       _PAGE_CACHE_4U | _PAGE_P_4U |
+ 				       __ACCESS_BITS_4U | __DIRTY_BITS_4U |
+@@ -2198,21 +2208,28 @@ static void __init sun4u_pgprot_init(voi
+ 	page_readonly   = (_PAGE_VALID | _PAGE_PRESENT_4U | _PAGE_CACHE_4U |
+ 			   __ACCESS_BITS_4U | _PAGE_EXEC_4U);
+ 
++	page_read_bit = _PAGE_READ_4U;
++	page_write_bit = _PAGE_WRITE_4U;
+ 	page_exec_bit = _PAGE_EXEC_4U;
+ 
+ 	prot_init_common(page_none, page_shared, page_copy, page_readonly,
+-			 page_exec_bit);
++			 page_read_bit, page_write_bit, page_exec_bit);
+ }
+ 
+ static void __init sun4v_pgprot_init(void)
+ {
+ 	unsigned long page_none, page_shared, page_copy, page_readonly;
+-	unsigned long page_exec_bit;
++	unsigned long page_read_bit, page_write_bit, page_exec_bit;
+ 
+ 	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
+ 				_PAGE_CACHE_4V | _PAGE_P_4V |
++				__ACCESS_BITS_4V | __DIRTY_BITS_4V);
++
++	PAGE_KERNEL_EXEC = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
++				_PAGE_CACHE_4V | _PAGE_P_4V |
+ 				__ACCESS_BITS_4V | __DIRTY_BITS_4V |
+ 				_PAGE_EXEC_4V);
++
+ 	PAGE_KERNEL_LOCKED = PAGE_KERNEL;
+ 
+ 	_PAGE_IE = _PAGE_IE_4V;
+@@ -2256,10 +2273,12 @@ static void __init sun4v_pgprot_init(voi
+ 	page_readonly = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+ 			 __ACCESS_BITS_4V | _PAGE_EXEC_4V);
+ 
++	page_read_bit = _PAGE_READ_4V;
++	page_write_bit = _PAGE_WRITE_4V;
+ 	page_exec_bit = _PAGE_EXEC_4V;
+ 
+ 	prot_init_common(page_none, page_shared, page_copy, page_readonly,
+-			 page_exec_bit);
++			 page_read_bit, page_write_bit, page_exec_bit);
+ }
+ 
+ unsigned long pte_sz_bits(unsigned long sz)
+diff -urNp linux-2.6.32.18/security/Kconfig linux-2.6.32.18-new/security/Kconfig
+--- linux-2.6.32.18/security/Kconfig	2010-08-12 00:21:46.000000000 -0400
++++ linux-2.6.32.18-new/security/Kconfig	2010-08-11 23:02:51.000000000 -0400
+@@ -300,7 +300,7 @@ config PAX_DLRESOLVE
+ 
+ config PAX_KERNEXEC
+ 	bool "Enforce non-executable kernel pages"
+-	depends on PAX_NOEXEC && (PPC || X86) && (!X86_32 || X86_WP_WORKS_OK) && !XEN
++	depends on PAX_NOEXEC && (PPC || X86 || SPARC64) && (!X86_32 || X86_WP_WORKS_OK) && !XEN
+ 	select PAX_PER_CPU_PGD if X86_64 || (X86_32 && X86_PAE)
+ 	help
+ 	  This is the kernel land equivalent of PAGEEXEC and MPROTECT,

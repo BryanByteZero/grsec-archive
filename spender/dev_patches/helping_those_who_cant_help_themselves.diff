@@ -1,0 +1,97 @@
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/security/capability.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/security/capability.c	2010-09-14 23:49:20.000000000 -0400
+@@ -890,7 +890,7 @@ static void cap_audit_rule_free(void *ls
+ }
+ #endif /* CONFIG_AUDIT */
+ 
+-struct security_operations default_security_ops = {
++struct security_operations default_security_ops __read_only = {
+ 	.name	= "default",
+ };
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/security/root_plug.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/security/root_plug.c	2010-09-14 23:33:54.000000000 -0400
+@@ -70,7 +70,7 @@ static int rootplug_bprm_check_security 
+ 	return 0;
+ }
+ 
+-static struct security_operations rootplug_security_ops = {
++static struct security_operations rootplug_security_ops __read_only = {
+ 	.bprm_check_security =		rootplug_bprm_check_security,
+ };
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/security/security.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/security/security.c	2010-09-14 23:42:43.000000000 -0400
+@@ -24,7 +24,7 @@ static __initdata char chosen_lsm[SECURI
+ extern struct security_operations default_security_ops;
+ extern void security_fixup_ops(struct security_operations *ops);
+ 
+-struct security_operations *security_ops;	/* Initialized to NULL */
++struct security_operations *security_ops __read_only; /* Initialized to NULL */
+ 
+ static inline int verify(struct security_operations *ops)
+ {
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/security/selinux/hooks.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/security/selinux/hooks.c	2010-09-14 23:36:11.000000000 -0400
+@@ -131,7 +131,7 @@ int selinux_enabled = 1;
+  * Minimal support for a secondary security module,
+  * just to allow the use of the capability module.
+  */
+-static struct security_operations *secondary_ops;
++static struct security_operations *secondary_ops __read_only;
+ 
+ /* Lists of inode and superblock security structures initialized
+    before the policy was loaded. */
+@@ -5450,7 +5450,7 @@ static int selinux_key_getsecurity(struc
+ 
+ #endif
+ 
+-static struct security_operations selinux_ops = {
++static struct security_operations selinux_ops __read_only = {
+ 	.name =				"selinux",
+ 
+ 	.ptrace_access_check =		selinux_ptrace_access_check,
+@@ -5834,7 +5834,9 @@ int selinux_disable(void)
+ 	avc_disable();
+ 
+ 	/* Reset security_ops to the secondary module, dummy or capability. */
++	pax_open_kernel();
+ 	security_ops = secondary_ops;
++	pax_close_kernel();
+ 
+ 	/* Unregister netfilter hooks. */
+ 	selinux_nf_ip_exit();
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/security/smack/smack_lsm.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/security/smack/smack_lsm.c	2010-09-14 23:37:03.000000000 -0400
+@@ -3073,7 +3073,7 @@ static int smack_inode_getsecctx(struct 
+ 	return 0;
+ }
+ 
+-struct security_operations smack_ops = {
++struct security_operations smack_ops __read_only = {
+ 	.name =				"smack",
+ 
+ 	.ptrace_access_check =		smack_ptrace_access_check,
+only in patch2:
+unchanged:
+--- linux-2.6.32.21/security/tomoyo/tomoyo.c	2010-08-13 16:24:37.000000000 -0400
++++ linux-2.6.32.21-new/security/tomoyo/tomoyo.c	2010-09-14 23:32:36.000000000 -0400
+@@ -275,7 +275,7 @@ static int tomoyo_dentry_open(struct fil
+  * tomoyo_security_ops is a "struct security_operations" which is used for
+  * registering TOMOYO.
+  */
+-static struct security_operations tomoyo_security_ops = {
++static struct security_operations tomoyo_security_ops __read_only = {
+ 	.name                = "tomoyo",
+ 	.cred_alloc_blank    = tomoyo_cred_alloc_blank,
+ 	.cred_prepare        = tomoyo_cred_prepare,

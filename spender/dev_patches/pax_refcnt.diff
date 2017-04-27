@@ -1,0 +1,1172 @@
+diff -u linux-2.6.31/arch/alpha/include/asm/atomic.h linux-2.6.31/arch/alpha/include/asm/atomic.h
+--- linux-2.6.31/arch/alpha/include/asm/atomic.h	2009-09-06 15:29:11.104382093 -0400
++++ linux-2.6.31/arch/alpha/include/asm/atomic.h	2009-09-11 22:49:04.785615322 -0400
+@@ -18,9 +18,11 @@
+ #define ATOMIC64_INIT(i)	( (atomic64_t) { (i) } )
+ 
+ #define atomic_read(v)		((v)->counter + 0)
++#define atomic_read_unchecked(v)	((v)->counter + 0)
+ #define atomic64_read(v)	((v)->counter + 0)
+ 
+ #define atomic_set(v,i)		((v)->counter = (i))
++#define atomic_set_unchecked(v,i)	((v)->counter = (i))
+ #define atomic64_set(v,i)	((v)->counter = (i))
+ 
+ /*
+@@ -44,6 +46,11 @@
+ 	:"Ir" (i), "m" (v->counter));
+ }
+ 
++static __inline__ void atomic_add_unchecked(int i, atomic_unchecked_t * v)
++{
++	atomic_add(i, (atomic_t *)v);
++}
++
+ static __inline__ void atomic64_add(long i, atomic64_t * v)
+ {
+ 	unsigned long temp;
+@@ -74,6 +81,11 @@
+ 	:"Ir" (i), "m" (v->counter));
+ }
+ 
++static __inline__ void atomic_sub_unchecked(int i, atomic_unchecked_t * v)
++{
++	atomic_sub(i, (atomic_t *)v);
++}
++
+ static __inline__ void atomic64_sub(long i, atomic64_t * v)
+ {
+ 	unsigned long temp;
+@@ -246,9 +258,7 @@
+ #define atomic64_dec_and_test(v) (atomic64_sub_return(1, (v)) == 0)
+ 
+ #define atomic_inc(v) atomic_add(1,(v))
+-#define atomic_inc_unchecked(v) atomic_inc(v)
+-#define atomic_add_unchecked(i,v) atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v) atomic_sub((i),(v))
++#define atomic_inc_unchecked(v) atomic_add_unchecked(1,(v))
+ #define atomic64_inc(v) atomic64_add(1,(v))
+ 
+ #define atomic_dec(v) atomic_sub(1,(v))
+diff -u linux-2.6.31/arch/arm/include/asm/atomic.h linux-2.6.31/arch/arm/include/asm/atomic.h
+--- linux-2.6.31/arch/arm/include/asm/atomic.h	2009-09-06 15:29:11.107211663 -0400
++++ linux-2.6.31/arch/arm/include/asm/atomic.h	2009-09-11 22:51:00.173407719 -0400
+@@ -20,6 +20,7 @@
+ #ifdef __KERNEL__
+ 
+ #define atomic_read(v)	((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ 
+ #if __LINUX_ARM_ARCH__ >= 6
+ 
+@@ -44,6 +45,11 @@
+ 	: "cc");
+ }
+ 
++static inline void atomic_set_unchecked(atomic_unchecked_t *v, int i)
++{
++	atomic_set((atomic_t *)v, i);
++}
++
+ static inline void atomic_add(int i, atomic_t *v)
+ {
+ 	unsigned long tmp;
+@@ -60,6 +66,11 @@
+ 	: "cc");
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add(i, (atomic_t *)v);
++}
++
+ static inline int atomic_add_return(int i, atomic_t *v)
+ {
+ 	unsigned long tmp;
+@@ -98,6 +109,11 @@
+ 	: "cc");
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub(i, (atomic_t *)v);
++}
++
+ static inline int atomic_sub_return(int i, atomic_t *v)
+ {
+ 	unsigned long tmp;
+@@ -164,6 +180,7 @@
+ #endif
+ 
+ #define atomic_set(v,i)	(((v)->counter) = (i))
++#define atomic_set_unchecked(v,i)	(((v)->counter) = (i))
+ 
+ static inline int atomic_add_return(int i, atomic_t *v)
+ {
+@@ -232,10 +249,8 @@
+ #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+ 
+ #define atomic_inc(v)		atomic_add(1, v)
++#define atomic_inc_unchecked(v)		atomic_add_unchecked(1, v)
+ #define atomic_dec(v)		atomic_sub(1, v)
+-#define atomic_inc_unchecked(v)		atomic_inc(v)
+-#define atomic_add_unchecked(i, v)	atomic_add(i, v)
+-#define atomic_sub_unchecked(i, v)	atomic_sub(i, v)
+ 
+ #define atomic_inc_and_test(v)	(atomic_add_return(1, v) == 0)
+ #define atomic_dec_and_test(v)	(atomic_sub_return(1, v) == 0)
+diff -u linux-2.6.31/arch/avr32/include/asm/atomic.h linux-2.6.31/arch/avr32/include/asm/atomic.h
+--- linux-2.6.31/arch/avr32/include/asm/atomic.h	2009-09-06 15:29:11.109255148 -0400
++++ linux-2.6.31/arch/avr32/include/asm/atomic.h	2009-09-11 22:52:43.047793693 -0400
+@@ -20,7 +20,9 @@
+ #define ATOMIC_INIT(i)  { (i) }
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ #define atomic_set(v, i)	(((v)->counter) = i)
++#define atomic_set_unchecked(v, i)	(((v)->counter) = i)
+ 
+ /*
+  * atomic_sub_return - subtract the atomic variable
+@@ -48,6 +50,18 @@
+ }
+ 
+ /*
++ * atomic_sub_return_unchecked - subtract the atomic variable
++ * @i: integer value to subtract
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically subtracts @i from @v. Returns the resulting value.
++ */
++static inline int atomic_sub_return_unchecked(int i, atomic_unchecked_t *v)
++{
++	return atomic_sub_return(i, (atomic_t *)v);
++}
++
++/*
+  * atomic_add_return - add integer to atomic variable
+  * @i: integer value to add
+  * @v: pointer of type atomic_t
+@@ -76,6 +90,18 @@
+ }
+ 
+ /*
++ * atomic_add_return_unchecked - add integer to atomic variable
++ * @i: integer value to add
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically adds @i to @v. Returns the resulting value.
++ */
++static inline int atomic_add_return_unchecked(int i, atomic_unchecked_t *v)
++{
++	return atomic_add_return(i, (atomic_t *)v);
++}
++
++/*
+  * atomic_sub_unless - sub unless the number is a given value
+  * @v: pointer of type atomic_t
+  * @a: the amount to add to v...
+@@ -176,12 +202,12 @@
+ #define atomic_cmpxchg(v, o, n)	(cmpxchg(&((v)->counter), (o), (n)))
+ 
+ #define atomic_sub(i, v)	(void)atomic_sub_return(i, v)
+-#define atomic_sub_unchecked(i, v)	atomic_sub((i), (v))
++#define atomic_sub_unchecked(i, v)	(void)atomic_sub_return_unchecked(i, v)
+ #define atomic_add(i, v)	(void)atomic_add_return(i, v)
+-#define atomic_add_unchecked(i, v)	atomic_add((i), (v))
++#define atomic_add_unchecked(i, v)	(void)atomic_add_return_unchecked(i, v)
+ #define atomic_dec(v)		atomic_sub(1, (v))
+ #define atomic_inc(v)		atomic_add(1, (v))
+-#define atomic_inc_unchecked(v)	atomic_inc(v)
++#define atomic_inc_unchecked(v)	(void)atomic_add_return_unchecked(1, (v))
+ 
+ #define atomic_dec_return(v)	atomic_sub_return(1, v)
+ #define atomic_inc_return(v)	atomic_add_return(1, v)
+diff -u linux-2.6.31/arch/blackfin/include/asm/atomic.h linux-2.6.31/arch/blackfin/include/asm/atomic.h
+--- linux-2.6.31/arch/blackfin/include/asm/atomic.h	2009-09-06 15:29:11.110254440 -0400
++++ linux-2.6.31/arch/blackfin/include/asm/atomic.h	2009-09-11 22:53:53.058593048 -0400
+@@ -15,8 +15,10 @@
+ 
+ #define ATOMIC_INIT(i)	{ (i) }
+ #define atomic_set(v, i)	(((v)->counter) = i)
++#define atomic_set_unchecked(v, i)	(((v)->counter) = i)
+ 
+ #define atomic_read(v)	__raw_uncached_fetch_asm(&(v)->counter)
++#define atomic_read_unchecked(v)	__raw_uncached_fetch_asm(&(v)->counter)
+ 
+ asmlinkage int __raw_uncached_fetch_asm(const volatile int *ptr);
+ 
+@@ -35,11 +37,21 @@
+ 	__raw_atomic_update_asm(&v->counter, i);
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add(i, (atomic_t *)v);
++}
++
+ static inline void atomic_sub(int i, atomic_t *v)
+ {
+ 	__raw_atomic_update_asm(&v->counter, -i);
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub(i, (atomic_t *)v);
++}
++
+ static inline int atomic_add_return(int i, atomic_t *v)
+ {
+ 	return __raw_atomic_update_asm(&v->counter, i);
+@@ -55,6 +67,11 @@
+ 	__raw_atomic_update_asm(&v->counter, 1);
+ }
+ 
++static inline void atomic_inc_unchecked(volatile atomic_unchecked_t *v)
++{
++	atomic_inc((atomic_t *)v);
++}
++
+ static inline void atomic_dec(volatile atomic_t *v)
+ {
+ 	__raw_atomic_update_asm(&v->counter, -1);
+@@ -81,9 +98,6 @@
+ #define smp_mb__before_atomic_inc()    barrier()
+ #define smp_mb__after_atomic_inc() barrier()
+ 
+-#define atomic_add_unchecked(i, v) atomic_add((i), (v))
+-#define atomic_sub_unchecked(i, v) atomic_sub((i), (v))
+-#define atomic_inc_unchecked(v) atomic_inc((v))
+ #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
+ #define atomic_dec_return(v) atomic_sub_return(1,(v))
+ #define atomic_inc_return(v) atomic_add_return(1,(v))
+diff -u linux-2.6.31/arch/cris/include/asm/atomic.h linux-2.6.31/arch/cris/include/asm/atomic.h
+--- linux-2.6.31/arch/cris/include/asm/atomic.h	2009-09-06 15:29:11.112155258 -0400
++++ linux-2.6.31/arch/cris/include/asm/atomic.h	2009-09-11 22:55:08.915710428 -0400
+@@ -16,7 +16,9 @@
+ #define ATOMIC_INIT(i)  { (i) }
+ 
+ #define atomic_read(v) ((v)->counter)
++#define atomic_read_unchecked(v) ((v)->counter)
+ #define atomic_set(v,i) (((v)->counter) = (i))
++#define atomic_set_unchecked(v,i) (((v)->counter) = (i))
+ 
+ /* These should be written in asm but we do it in C for now. */
+ 
+@@ -28,6 +30,11 @@
+ 	cris_atomic_restore(v, flags);
+ }
+ 
++static inline void atomic_add_unchecked(int i, volatile atomic_unchecked_t *v)
++{
++	atomic_add(i, (volatile atomic_t *)v);
++}
++
+ static inline void atomic_sub(int i, volatile atomic_t *v)
+ {
+ 	unsigned long flags;
+@@ -36,6 +43,11 @@
+ 	cris_atomic_restore(v, flags);
+ }
+ 
++static inline void atomic_sub_unchecked(int i, volatile atomic_unchecked_t *v)
++{
++	atomic_sub(i, (volatile atomic_t *)v);
++}
++
+ static inline int atomic_add_return(int i, volatile atomic_t *v)
+ {
+ 	unsigned long flags;
+@@ -76,6 +88,11 @@
+ 	cris_atomic_restore(v, flags);
+ }
+ 
++static inline void atomic_inc_unchecked(volatile atomic_unchecked_t *v)
++{
++	atomic_inc((volatile atomic_t *)v);
++}
++
+ static inline void atomic_dec(volatile atomic_t *v)
+ {
+ 	unsigned long flags;
+@@ -152,10 +169,6 @@
+ }
+ #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+ 
+-#define atomic_inc_unchecked(v) atomic_inc((v))
+-#define atomic_add_unchecked(i,v) atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v) atomic_sub((i),(v))
+-
+ /* Atomic operations are already serializing */
+ #define smp_mb__before_atomic_dec()    barrier()
+ #define smp_mb__after_atomic_dec()     barrier()
+diff -u linux-2.6.31/arch/frv/include/asm/atomic.h linux-2.6.31/arch/frv/include/asm/atomic.h
+--- linux-2.6.31/arch/frv/include/asm/atomic.h	2009-09-06 15:29:11.112155258 -0400
++++ linux-2.6.31/arch/frv/include/asm/atomic.h	2009-09-11 21:49:34.085801883 -0400
+@@ -37,7 +37,9 @@
+ 
+ #define ATOMIC_INIT(i)		{ (i) }
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)		((v)->counter)
+ #define atomic_set(v, i)	(((v)->counter) = (i))
++#define atomic_set_unchecked(v, i)	(((v)->counter) = (i))
+ 
+ #ifndef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
+ static inline int atomic_add_return(int i, atomic_t *v)
+@@ -99,25 +101,36 @@
+ 	atomic_add_return(i, v);
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add_return(i, (atomic_t *)v);
++}
++
+ static inline void atomic_sub(int i, atomic_t *v)
+ {
+ 	atomic_sub_return(i, v);
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub_return(i, (atomic_t *)v);
++}
++
+ static inline void atomic_inc(atomic_t *v)
+ {
+ 	atomic_add_return(1, v);
+ }
+ 
++static inline void atomic_inc_unchecked(atomic_unchecked_t *v)
++{
++	atomic_add_return(1, (atomic_t *)v);
++}
++
+ static inline void atomic_dec(atomic_t *v)
+ {
+ 	atomic_sub_return(1, v);
+ }
+ 
+-#define atomic_inc_unchecked(v)		atomic_inc(v)
+-#define atomic_add_unchecked(i,v)	atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v)	atomic_sub((i),(v))
+-
+ #define atomic_dec_return(v)		atomic_sub_return(1, (v))
+ #define atomic_inc_return(v)		atomic_add_return(1, (v))
+ 
+diff -u linux-2.6.31/arch/h8300/include/asm/atomic.h linux-2.6.31/arch/h8300/include/asm/atomic.h
+--- linux-2.6.31/arch/h8300/include/asm/atomic.h	2009-09-06 15:29:11.113186643 -0400
++++ linux-2.6.31/arch/h8300/include/asm/atomic.h	2009-09-11 22:59:01.477552220 -0400
+@@ -11,7 +11,9 @@
+ #define ATOMIC_INIT(i)	{ (i) }
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)		((v)->counter)
+ #define atomic_set(v, i)	(((v)->counter) = i)
++#define atomic_set_unchecked(v, i)	(((v)->counter) = i)
+ 
+ #include <asm/system.h>
+ #include <linux/kernel.h>
+@@ -25,8 +27,13 @@
+ 	return ret;
+ }
+ 
++static __inline__ int atomic_add_return_unchecked(int i, atomic_unchecked_t *v)
++{
++	return atomic_add_return(i, (atomic_t *)v);
++}
++
+ #define atomic_add(i, v) atomic_add_return(i, v)
+-#define atomic_add_unchecked(i, v) atomic_add((i), (v))
++#define atomic_add_unchecked(i, v) atomic_add_return_unchecked(i, v)
+ #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
+ 
+ static __inline__ int atomic_sub_return(int i, atomic_t *v)
+@@ -38,8 +45,13 @@
+ 	return ret;
+ }
+ 
++static __inline__ int atomic_sub_return_unchecked(int i, atomic_unchecked_t *v)
++{
++	return atomic_sub_return(i, (atomic_t *)v);
++}
++
+ #define atomic_sub(i, v) atomic_sub_return(i, v)
+-#define atomic_subUnchecked(i, v) atomic_sub(i, v)
++#define atomic_sub_unchecked(i, v) atomic_sub_return_unchecked(i, v)
+ #define atomic_sub_and_test(i,v) (atomic_sub_return(i, v) == 0)
+ 
+ static __inline__ int atomic_inc_return(atomic_t *v)
+@@ -52,8 +64,13 @@
+ 	return ret;
+ }
+ 
++static __inline__ int atomic_inc_return_unchecked(atomic_unchecked_t *v)
++{
++	return atomic_inc_return((atomic_t *)v);
++}
++
+ #define atomic_inc(v) atomic_inc_return(v)
+-#define atomic_inc_unchecked(v) atomic_inc(v)
++#define atomic_inc_unchecked(v) atomic_inc_return_unchecked(v)
+ 
+ /*
+  * atomic_inc_and_test - increment and test
+diff -u linux-2.6.31/arch/ia64/include/asm/atomic.h linux-2.6.31/arch/ia64/include/asm/atomic.h
+--- linux-2.6.31/arch/ia64/include/asm/atomic.h	2009-09-06 15:29:11.114322463 -0400
++++ linux-2.6.31/arch/ia64/include/asm/atomic.h	2009-09-11 22:02:02.446796802 -0400
+@@ -22,9 +22,11 @@
+ #define ATOMIC64_INIT(i)	((atomic64_t) { (i) })
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ #define atomic64_read(v)	((v)->counter)
+ 
+ #define atomic_set(v,i)		(((v)->counter) = (i))
++#define atomic_set_unchecked(v,i)	(((v)->counter) = (i))
+ #define atomic64_set(v,i)	(((v)->counter) = (i))
+ 
+ static __inline__ int
+@@ -201,11 +203,11 @@
+ #define atomic64_inc_and_test(v)	(atomic64_add_return(1, (v)) == 0)
+ 
+ #define atomic_add(i,v)			atomic_add_return((i), (v))
+-#define atomic_add_unchecked(i,v)	atomic_add((i), (v))
++#define atomic_add_unchecked(i,v)	atomic_add((i), (atomic_t *)(v))
+ #define atomic_sub(i,v)			atomic_sub_return((i), (v))
+-#define atomic_sub_unchecked(i,v)	atomic_sub((i), (v))
++#define atomic_sub_unchecked(i,v)	atomic_sub((i), (atomic_t *)(v))
+ #define atomic_inc(v)			atomic_add(1, (v))
+-#define atomic_inc_unchecked(v)		atomic_inc(v)
++#define atomic_inc_unchecked(v)		atomic_inc((atomic_t *)(v))
+ #define atomic_dec(v)			atomic_sub(1, (v))
+ 
+ #define atomic64_add(i,v)		atomic64_add_return((i), (v))
+diff -u linux-2.6.31/arch/m32r/include/asm/atomic.h linux-2.6.31/arch/m32r/include/asm/atomic.h
+--- linux-2.6.31/arch/m32r/include/asm/atomic.h	2009-09-06 15:29:11.118236580 -0400
++++ linux-2.6.31/arch/m32r/include/asm/atomic.h	2009-09-11 22:04:17.637685200 -0400
+@@ -29,6 +29,14 @@
+ #define atomic_read(v)	((v)->counter)
+ 
+ /**
++ * atomic_read_unchecked - read atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically reads the value of @v.
++ */
++#define atomic_read_unchecked(v)	((v)->counter)
++
++/**
+  * atomic_set - set atomic variable
+  * @v: pointer of type atomic_t
+  * @i: required value
+@@ -38,6 +46,15 @@
+ #define atomic_set(v,i)	(((v)->counter) = (i))
+ 
+ /**
++ * atomic_set_unchecked - set atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ * @i: required value
++ *
++ * Atomically sets the value of @v to @i.
++ */
++#define atomic_set_unchecked(v,i)	(((v)->counter) = (i))
++
++/**
+  * atomic_add_return - add integer to atomic variable and return it
+  * @i: integer value to add
+  * @v: pointer of type atomic_t
+@@ -308,9 +325,9 @@
+ 	local_irq_restore(flags);
+ }
+ 
+-#define atomic_inc_unchecked(v)		atomic_inc(v)
+-#define atomic_add_unchecked(i,v)	atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v)	atomic_sub((i),(v))
++#define atomic_inc_unchecked(v)		atomic_inc((atomic_t *)(v))
++#define atomic_add_unchecked(i,v)	atomic_add((i),(atomic_t *)(v))
++#define atomic_sub_unchecked(i,v)	atomic_sub((i),(atomic_t *)(v))
+ 
+ /* Atomic operations are already serializing on m32r */
+ #define smp_mb__before_atomic_dec()	barrier()
+diff -u linux-2.6.31/arch/m68k/include/asm/atomic_mm.h linux-2.6.31/arch/m68k/include/asm/atomic_mm.h
+--- linux-2.6.31/arch/m68k/include/asm/atomic_mm.h	2009-09-06 15:29:11.118236580 -0400
++++ linux-2.6.31/arch/m68k/include/asm/atomic_mm.h	2009-09-12 09:48:47.937349132 -0400
+@@ -16,23 +16,40 @@
+ #define ATOMIC_INIT(i)	{ (i) }
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ #define atomic_set(v, i)	(((v)->counter) = i)
++#define atomic_set_unchecked(v, i)	(((v)->counter) = i)
+ 
+ static inline void atomic_add(int i, atomic_t *v)
+ {
+ 	__asm__ __volatile__("addl %1,%0" : "+m" (*v) : "id" (i));
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add(i, (atomic_t *)v);
++}
++
+ static inline void atomic_sub(int i, atomic_t *v)
+ {
+ 	__asm__ __volatile__("subl %1,%0" : "+m" (*v) : "id" (i));
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub(i, (atomic_t *)v);
++}
++
+ static inline void atomic_inc(atomic_t *v)
+ {
+ 	__asm__ __volatile__("addql #1,%0" : "+m" (*v));
+ }
+ 
++static inline void atomic_inc_unchecked(atomic_unchecked_t *v)
++{
++	atomic_inc((atomic_t *)v);
++}
++
+ static inline void atomic_dec(atomic_t *v)
+ {
+ 	__asm__ __volatile__("subql #1,%0" : "+m" (*v));
+@@ -186,10 +203,6 @@
+ 
+ #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+ 
+-#define atomic_inc_unchecked(v) atomic_inc((v))
+-#define atomic_add_unchecked(i,v) atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v) atomic_sub((i),(v))
+-
+ /* Atomic operations are already serializing */
+ #define smp_mb__before_atomic_dec()	barrier()
+ #define smp_mb__after_atomic_dec()	barrier()
+diff -u linux-2.6.31/arch/m68k/include/asm/atomic_no.h linux-2.6.31/arch/m68k/include/asm/atomic_no.h
+--- linux-2.6.31/arch/m68k/include/asm/atomic_no.h	2009-09-06 15:29:11.119214787 -0400
++++ linux-2.6.31/arch/m68k/include/asm/atomic_no.h	2009-09-12 09:50:27.179985977 -0400
+@@ -16,7 +16,9 @@
+ #define ATOMIC_INIT(i)	{ (i) }
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ #define atomic_set(v, i)	(((v)->counter) = i)
++#define atomic_set_unchecked(v, i)	(((v)->counter) = i)
+ 
+ static __inline__ void atomic_add(int i, atomic_t *v)
+ {
+@@ -27,6 +29,11 @@
+ #endif
+ }
+ 
++static __inline__ void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add(i, (atomic_t *)v);
++}
++
+ static __inline__ void atomic_sub(int i, atomic_t *v)
+ {
+ #ifdef CONFIG_COLDFIRE
+@@ -36,6 +43,11 @@
+ #endif
+ }
+ 
++static __inline__ void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub(i, (atomic_t *)v);
++}
++
+ static __inline__ int atomic_sub_and_test(int i, atomic_t * v)
+ {
+ 	char c;
+@@ -56,6 +68,11 @@
+ 	__asm__ __volatile__("addql #1,%0" : "+m" (*v));
+ }
+ 
++static __inline__ void atomic_inc_unchecked(volatile atomic_unchecked_t *v)
++{
++	atomic_inc((volatile atomic_t *)v);
++}
++
+ /*
+  * atomic_inc_and_test - increment and test
+  * @v: pointer of type atomic_t
+@@ -152,8 +169,4 @@
+ #define atomic_inc_return(v) atomic_add_return(1,(v))
+ 
+-#define atomic_inc_unchecked(v) atomic_inc((v))
+-#define atomic_add_unchecked(i,v) atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v) atomic_sub((i),(v))
+-
+ #include <asm-generic/atomic-long.h>
+ #endif /* __ARCH_M68KNOMMU_ATOMIC __ */
+diff -u linux-2.6.31/arch/mips/include/asm/atomic.h linux-2.6.31/arch/mips/include/asm/atomic.h
+--- linux-2.6.31/arch/mips/include/asm/atomic.h	2009-09-06 15:29:11.119214787 -0400
++++ linux-2.6.31/arch/mips/include/asm/atomic.h	2009-09-11 22:19:56.216381287 -0400
+@@ -32,6 +32,14 @@
+ #define atomic_read(v)		((v)->counter)
+ 
+ /*
++ * atomic_read_unchecked - read atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically reads the value of @v.
++ */
++#define atomic_read_unchecked(v)	((v)->counter)
++
++/*
+  * atomic_set - set atomic variable
+  * @v: pointer of type atomic_t
+  * @i: required value
+@@ -41,6 +49,15 @@
+ #define atomic_set(v, i)		((v)->counter = (i))
+ 
+ /*
++ * atomic_set_unchecked - set atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ * @i: required value
++ *
++ * Atomically sets the value of @v to @i.
++ */
++#define atomic_set_unchecked(v, i)	((v)->counter = (i))
++
++/*
+  * atomic_add - add integer to atomic variable
+  * @i: integer value to add
+  * @v: pointer of type atomic_t
+@@ -381,9 +398,9 @@
+  * Atomically increments @v by 1.
+  */
+ #define atomic_inc(v) atomic_add(1, (v))
+-#define atomic_inc_unchecked(v) atomic_inc(v)
+-#define atomic_add_unchecked(i, v) atomic_add((i), (v))
+-#define atomic_sub_unchecked(i, v) atomic_sub((i), (v))
++#define atomic_inc_unchecked(v) atomic_inc((atomic_t *)(v))
++#define atomic_add_unchecked(i, v) atomic_add((i), (atomic_t *)(v))
++#define atomic_sub_unchecked(i, v) atomic_sub((i), (atomic_t *)(v))
+ 
+ /*
+  * atomic_dec - decrement and test
+diff -u linux-2.6.31/arch/mn10300/include/asm/atomic.h linux-2.6.31/arch/mn10300/include/asm/atomic.h
+--- linux-2.6.31/arch/mn10300/include/asm/atomic.h	2009-09-06 15:29:11.122248738 -0400
++++ linux-2.6.31/arch/mn10300/include/asm/atomic.h	2009-09-11 22:24:04.850517005 -0400
+@@ -34,6 +34,15 @@
+ #define atomic_read(v)	((v)->counter)
+ 
+ /**
++ * atomic_read_unchecked - read atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically reads the value of @v.  Note that the guaranteed
++ * useful range of an atomic_unchecked_t is only 24 bits.
++ */
++#define atomic_read_unchecked(v)	((v)->counter)
++
++/**
+  * atomic_set - set atomic variable
+  * @v: pointer of type atomic_t
+  * @i: required value
+@@ -43,6 +52,16 @@
+  */
+ #define atomic_set(v, i) (((v)->counter) = (i))
+ 
++/**
++ * atomic_set_unchecked - set atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ * @i: required value
++ *
++ * Atomically sets the value of @v to @i.  Note that the guaranteed
++ * useful range of an atomic_unchecked_t is only 24 bits.
++ */
++#define atomic_set_unchecked(v, i) (((v)->counter) = (i))
++
+ #include <asm/system.h>
+ 
+ /**
+@@ -99,16 +118,31 @@
+ 	atomic_add_return(i, v);
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add_return(i, (atomic_t *)v);
++}
++
+ static inline void atomic_sub(int i, atomic_t *v)
+ {
+ 	atomic_sub_return(i, v);
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub_return(i, (atomic_t *)v);
++}
++
+ static inline void atomic_inc(atomic_t *v)
+ {
+ 	atomic_add_return(1, v);
+ }
+ 
++static inline void atomic_inc_unchecked(atomic_unchecked_t *v)
++{
++	atomic_add_return(1, (atomic_t *)v);
++}
++
+ static inline void atomic_dec(atomic_t *v)
+ {
+ 	atomic_sub_return(1, v);
+@@ -145,10 +179,6 @@
+ #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
+ #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
+ 
+-#define atomic_inc_unchecked(v)		atomic_inc(v)
+-#define atomic_add_unchecked(i,v)	atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v)	atomic_sub((i),(v))
+-
+ /* Atomic operations are already serializing on MN10300??? */
+ #define smp_mb__before_atomic_dec()	barrier()
+ #define smp_mb__after_atomic_dec()	barrier()
+diff -u linux-2.6.31/arch/parisc/include/asm/atomic.h linux-2.6.31/arch/parisc/include/asm/atomic.h
+--- linux-2.6.31/arch/parisc/include/asm/atomic.h	2009-09-06 15:29:11.123326294 -0400
++++ linux-2.6.31/arch/parisc/include/asm/atomic.h	2009-09-11 22:30:04.233759484 -0400
+@@ -177,6 +177,18 @@
+ 	return ret;
+ }
+ 
++static __inline__ int __atomic_add_return_unchecked(int i, atomic_unchecked_t *v)
++{
++	int ret;
++	unsigned long flags;
++	_atomic_spin_lock_irqsave(v, flags);
++
++	ret = (v->counter += i);
++
++	_atomic_spin_unlock_irqrestore(v, flags);
++	return ret;
++}
++
+ static __inline__ void atomic_set(atomic_t *v, int i) 
+ {
+ 	unsigned long flags;
+@@ -187,11 +199,26 @@
+ 	_atomic_spin_unlock_irqrestore(v, flags);
+ }
+ 
++static __inline__ void atomic_set_unchecked(atomic_unchecked_t *v, int i) 
++{
++	unsigned long flags;
++	_atomic_spin_lock_irqsave(v, flags);
++
++	v->counter = i;
++
++	_atomic_spin_unlock_irqrestore(v, flags);
++}
++
+ static __inline__ int atomic_read(const atomic_t *v)
+ {
+ 	return v->counter;
+ }
+ 
++static __inline__ int atomic_read_unchecked(const atomic_unchecked_t *v)
++{
++	return v->counter;
++}
++
+ /* exported interface */
+ #define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
+ #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+@@ -223,11 +250,11 @@
+ #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+ 
+ #define atomic_add(i,v)	((void)(__atomic_add_return( (i),(v))))
+-#define atomic_add_unchecked(i,v)	atomic_add((i), (v))
++#define atomic_add_unchecked(i,v) ((void)(__atomic_add_return_unchecked( ((i),(v))))
+ #define atomic_sub(i,v)	((void)(__atomic_add_return(-(i),(v))))
+-#define atomic_sub_unchecked(i,v)	atomic_sub((i), (v))
++#define atomic_sub_unchecked(i,v) ((void)(__atomic_add_return_unchecked(-(i),(v))))
+ #define atomic_inc(v)	((void)(__atomic_add_return(   1,(v))))
+-#define atomic_inc_unchecked(v)	atomic_inc(v)
++#define atomic_inc_unchecked(v) ((void)(__atomic_add_return_unchecked(   1,(v))))
+ #define atomic_dec(v)	((void)(__atomic_add_return(  -1,(v))))
+ 
+ #define atomic_add_return(i,v)	(__atomic_add_return( (i),(v)))
+diff -u linux-2.6.31/arch/powerpc/include/asm/atomic.h linux-2.6.31/arch/powerpc/include/asm/atomic.h
+--- linux-2.6.31/arch/powerpc/include/asm/atomic.h	2009-09-06 15:29:11.126169242 -0400
++++ linux-2.6.31/arch/powerpc/include/asm/atomic.h	2009-09-11 22:35:10.191559660 -0400
+@@ -24,11 +24,21 @@
+ 	return t;
+ }
+ 
++static __inline__ int atomic_read_unchecked(const atomic_unchecked_t *v)
++{
++	return atomic_read((const atomic_t *)v);
++}
++
+ static __inline__ void atomic_set(atomic_t *v, int i)
+ {
+ 	__asm__ __volatile__("stw%U0%X0 %1,%0" : "=m"(v->counter) : "r"(i));
+ }
+ 
++static __inline__ void atomic_set_unchecked(atomic_unchecked_t *v, int i)
++{
++	atomic_set((atomic_t *)v, i);
++}
++
+ static __inline__ void atomic_add(int a, atomic_t *v)
+ {
+ 	int t;
+@@ -44,6 +54,11 @@
+ 	: "cc");
+ }
+ 
++static __inline__ void atomic_add_unchecked(int a, atomic_unchecked_t *v)
++{
++	atomic_add(a, (atomic_t *)v);
++}
++	
+ static __inline__ int atomic_add_return(int a, atomic_t *v)
+ {
+ 	int t;
+@@ -80,6 +95,11 @@
+ 	: "cc");
+ }
+ 
++static __inline__ void atomic_sub_unchecked(int a, atomic_unchecked_t *v)
++{
++	atomic_sub(a, (atomic_t *)v);
++}
++
+ static __inline__ int atomic_sub_return(int a, atomic_t *v)
+ {
+ 	int t;
+@@ -114,6 +134,11 @@
+ 	: "cc", "xer");
+ }
+ 
++static __inline__ void atomic_inc_unchecked(atomic_unchecked_t *v)
++{
++	atomic_inc((atomic_t *)v);
++}
++
+ static __inline__ int atomic_inc_return(atomic_t *v)
+ {
+ 	int t;
+@@ -244,10 +269,6 @@
+ 	return t;
+ }
+ 
+-#define atomic_inc_unchecked(v) atomic_inc((v))
+-#define atomic_add_unchecked(i,v) atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v) atomic_sub((i),(v))
+-
+ #define smp_mb__before_atomic_dec()     smp_mb()
+ #define smp_mb__after_atomic_dec()      smp_mb()
+ #define smp_mb__before_atomic_inc()     smp_mb()
+diff -u linux-2.6.31/arch/s390/include/asm/atomic.h linux-2.6.31/arch/s390/include/asm/atomic.h
+--- linux-2.6.31/arch/s390/include/asm/atomic.h	2009-09-06 15:29:11.140164842 -0400
++++ linux-2.6.31/arch/s390/include/asm/atomic.h	2009-09-11 22:40:25.655434064 -0400
+@@ -71,21 +71,31 @@
+ 	return v->counter;
+ }
+ 
++static inline int atomic_read_unchecked(const atomic_unchecked_t *v)
++{
++	return atomic_read((const atomic_t *)v);
++}
++
+ static inline void atomic_set(atomic_t *v, int i)
+ {
+ 	v->counter = i;
+ 	barrier();
+ }
+ 
++static inline void atomic_set_unchecked(atomic_unchecked_t *v, int i)
++{
++	atomic_set((atomic_t *)v, i);
++}
++
+ static __inline__ int atomic_add_return(int i, atomic_t * v)
+ {
+ 	return __CS_LOOP(v, i, "ar");
+ }
+ #define atomic_add(_i, _v)		atomic_add_return(_i, _v)
+-#define atomic_add_unchecked(_i, _v)	atomic_add((_i), (_v))
++#define atomic_add_unchecked(_i, _v)	atomic_add((_i), (atomic_t *)(_v))
+ #define atomic_add_negative(_i, _v)	(atomic_add_return(_i, _v) < 0)
+ #define atomic_inc(_v)			atomic_add_return(1, _v)
+-#define atomic_inc_unchecked(_v)	atomic_inc(_v)
++#define atomic_inc_unchecked(_v)	atomic_inc((atomic_t *)(_v))
+ #define atomic_inc_return(_v)		atomic_add_return(1, _v)
+ #define atomic_inc_and_test(_v)		(atomic_add_return(1, _v) == 0)
+ 
+@@ -94,7 +104,7 @@
+ 	return __CS_LOOP(v, i, "sr");
+ }
+ #define atomic_sub(_i, _v)		atomic_sub_return(_i, _v)
+-#define atomic_sub_unchecked(_i, _v)	atomic_sub((_i), (_v))
++#define atomic_sub_unchecked(_i, _v)	atomic_sub((_i), (atomic_t *)(_v))
+ #define atomic_sub_and_test(_i, _v)	(atomic_sub_return(_i, _v) == 0)
+ #define atomic_dec(_v)			atomic_sub_return(1, _v)
+ #define atomic_dec_return(_v)		atomic_sub_return(1, _v)
+diff -u linux-2.6.31/arch/sh/include/asm/atomic.h linux-2.6.31/arch/sh/include/asm/atomic.h
+--- linux-2.6.31/arch/sh/include/asm/atomic.h	2009-09-06 15:29:11.146226104 -0400
++++ linux-2.6.31/arch/sh/include/asm/atomic.h	2009-09-11 22:42:57.895595838 -0400
+@@ -14,7 +14,9 @@
+ #define ATOMIC_INIT(i)	( (atomic_t) { (i) } )
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ #define atomic_set(v,i)		((v)->counter = (i))
++#define atomic_set_unchecked(v,i)	((v)->counter = (i))
+ 
+ #if defined(CONFIG_GUSA_RB)
+ #include <asm/atomic-grb.h>
+@@ -43,9 +45,9 @@
+ #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
+ 
+ #define atomic_inc(v) atomic_add(1,(v))
+-#define atomic_inc_unchecked(v) atomic_inc(v)
+-#define atomic_add_unchecked(i,v) atomic_add((i),(v))
+-#define atomic_sub_unchecked(i,v) atomic_sub((i),(v))
++#define atomic_inc_unchecked(v) atomic_inc((atomic_t *)(v))
++#define atomic_add_unchecked(i,v) atomic_add((i),(atomic_t *)(v))
++#define atomic_sub_unchecked(i,v) atomic_sub((i),(atomic_t *)(v))
+ #define atomic_dec(v) atomic_sub(1,(v))
+ 
+ #if !defined(CONFIG_GUSA_RB) && !defined(CONFIG_CPU_SH4A)
+diff -u linux-2.6.31/arch/sparc/include/asm/atomic_32.h linux-2.6.31/arch/sparc/include/asm/atomic_32.h
+--- linux-2.6.31/arch/sparc/include/asm/atomic_32.h	2009-09-06 15:29:11.147155464 -0400
++++ linux-2.6.31/arch/sparc/include/asm/atomic_32.h	2009-09-11 22:43:53.814367715 -0400
+@@ -24,15 +24,17 @@
+ #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+ extern int atomic_add_unless(atomic_t *, int, int);
+ extern void atomic_set(atomic_t *, int);
++extern void atomic_set_unchecked(atomic_unchecked_t *, int);
+ 
+ #define atomic_read(v)          ((v)->counter)
++#define atomic_read_unchecked(v)          ((v)->counter)
+ 
+ #define atomic_add(i, v)	((void)__atomic_add_return( (int)(i), (v)))
+-#define atomic_add_unchecked(i, v)	atomic_add((i), (v))
++#define atomic_add_unchecked(i, v)	atomic_add((i), (atomic_t *)(v))
+ #define atomic_sub(i, v)	((void)__atomic_add_return(-(int)(i), (v)))
+-#define atomic_sub_unchecked(i, v)	atomic_sub((i), (v))
++#define atomic_sub_unchecked(i, v)	atomic_sub((i), (atomic_t *)(v))
+ #define atomic_inc(v)		((void)__atomic_add_return(        1, (v)))
+-#define atomic_inc_unchecked(v)	atomic_inc(v)
++#define atomic_inc_unchecked(v)	atomic_inc((atomic_t *)(v))
+ #define atomic_dec(v)		((void)__atomic_add_return(       -1, (v)))
+ 
+ #define atomic_add_return(i, v)	(__atomic_add_return( (int)(i), (v)))
+diff -u linux-2.6.31/arch/sparc/include/asm/atomic_64.h linux-2.6.31/arch/sparc/include/asm/atomic_64.h
+--- linux-2.6.31/arch/sparc/include/asm/atomic_64.h	2009-09-06 15:29:11.147155464 -0400
++++ linux-2.6.31/arch/sparc/include/asm/atomic_64.h	2009-09-11 22:44:49.151421500 -0400
+@@ -14,16 +14,18 @@
+ #define ATOMIC64_INIT(i)	{ (i) }
+ 
+ #define atomic_read(v)		((v)->counter)
++#define atomic_read_unchecked(v)	((v)->counter)
+ #define atomic64_read(v)	((v)->counter)
+ 
+ #define atomic_set(v, i)	(((v)->counter) = i)
++#define atomic_set_unchecked(v, i)	(((v)->counter) = i)
+ #define atomic64_set(v, i)	(((v)->counter) = i)
+ 
+ extern void atomic_add(int, atomic_t *);
+-#define atomic_add_unchecked(i, v) atomic_add((i), (v))
++#define atomic_add_unchecked(i, v) atomic_add((i), (atomic_t *)(v))
+ extern void atomic64_add(int, atomic64_t *);
+ extern void atomic_sub(int, atomic_t *);
+-#define atomic_sub_unchecked(i, v) atomic_sub((i), (v))
++#define atomic_sub_unchecked(i, v) atomic_sub((i), (atomic_t *)(v))
+ extern void atomic64_sub(int, atomic64_t *);
+ 
+ extern int atomic_add_ret(int, atomic_t *);
+@@ -61,7 +63,7 @@
+ #define atomic64_dec_and_test(v) (atomic64_sub_ret(1, v) == 0)
+ 
+ #define atomic_inc(v) atomic_add(1, v)
+-#define atomic_inc_unchecked(v) atomic_inc(v)
++#define atomic_inc_unchecked(v) atomic_inc((atomic_t *)(v))
+ #define atomic64_inc(v) atomic64_add(1, v)
+ 
+ #define atomic_dec(v) atomic_sub(1, v)
+diff -u linux-2.6.31/arch/x86/kernel/paravirt.c linux-2.6.31/arch/x86/kernel/paravirt.c
+--- linux-2.6.31/arch/x86/kernel/paravirt.c	2009-09-06 15:29:11.213326019 -0400
++++ linux-2.6.31/arch/x86/kernel/paravirt.c	2009-09-12 09:57:24.321023944 -0400
+@@ -406,7 +406,6 @@
+ 	.end_context_switch = paravirt_nop,
+ };
+ 
+-struct pv_apic_ops pv_apic_ops = {
+ struct pv_apic_ops pv_apic_ops __read_only = {
+ #ifdef CONFIG_X86_LOCAL_APIC
+ 	.setup_boot_clock = setup_boot_APIC_clock,
+diff -u linux-2.6.31/arch/x86/mm/fault.c linux-2.6.31/arch/x86/mm/fault.c
+--- linux-2.6.31/arch/x86/mm/fault.c	2009-09-06 15:29:11.240303148 -0400
++++ linux-2.6.31/arch/x86/mm/fault.c	2009-09-11 21:07:39.447754963 -0400
+@@ -17,6 +17,7 @@
+ #include <asm/traps.h>			/* dotraplinkage, ...		*/
+ #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
+ #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
++#include <asm/tlbflush.h>
+ #include <asm/vsyscall.h>
+ 
+ /*
+diff -u linux-2.6.31/arch/xtensa/include/asm/atomic.h linux-2.6.31/arch/xtensa/include/asm/atomic.h
+--- linux-2.6.31/arch/xtensa/include/asm/atomic.h	2009-09-06 15:29:11.256322338 -0400
++++ linux-2.6.31/arch/xtensa/include/asm/atomic.h	2009-09-11 22:48:03.715902334 -0400
+@@ -49,6 +49,14 @@
+ #define atomic_read(v)		((v)->counter)
+ 
+ /**
++ * atomic_read_unchecked - read atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically reads the value of @v.
++ */
++#define atomic_read_unchecked(v)	((v)->counter)
++
++/**
+  * atomic_set - set atomic variable
+  * @v: pointer of type atomic_t
+  * @i: required value
+@@ -58,6 +66,15 @@
+ #define atomic_set(v,i)		((v)->counter = (i))
+ 
+ /**
++ * atomic_set_unchecked - set atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ * @i: required value
++ *
++ * Atomically sets the value of @v to @i.
++ */
++#define atomic_set_unchecked(v,i)	((v)->counter = (i))
++
++/**
+  * atomic_add - add integer to atomic variable
+  * @i: integer value to add
+  * @v: pointer of type atomic_t
+@@ -81,6 +98,11 @@
+ 	);
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t * v)
++{
++	atomic_add(i, (atomic_t *)v);
++}
++
+ /**
+  * atomic_sub - subtract the atomic variable
+  * @i: integer value to subtract
+@@ -105,6 +127,11 @@
+ 	);
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub(i, (atomic_t *)v);
++}
++
+ /*
+  * We use atomic_{add|sub}_return to define other functions.
+  */
+@@ -165,9 +192,7 @@
+  * Atomically increments @v by 1.
+  */
+ #define atomic_inc(v) atomic_add(1,(v))
+-#define atomic_inc_unchecked(v) atomic_inc(v)
+-#define atomic_add_unchecked(i, v) atomic_add((i), (v))
+-#define atomic_sub_unchecked(i, v) atomic_sub((i), (v))
++#define atomic_inc_unchecked(v) atomic_add_unchecked(1,(v))
+ 
+ /**
+  * atomic_inc - increment atomic variable
+only in patch2:
+unchanged:
+--- linux-2.6.31/arch/sparc/lib/atomic32.c	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31/arch/sparc/lib/atomic32.c	2009-09-12 09:46:47.281008949 -0400
+@@ -80,6 +80,12 @@ void atomic_set(atomic_t *v, int i)
+ }
+ EXPORT_SYMBOL(atomic_set);
+ 
++void atomic_set_unchecked(atomic_unchecked_t *v, int i)
++{
++	atomic_set((atomic_t *)v, i);
++}
++EXPORT_SYMBOL(atomic_set_unchecked);
++
+ unsigned long ___set_bit(unsigned long *addr, unsigned long mask)
+ {
+ 	unsigned long old, flags;
+only in patch2:
+unchanged:
+--- linux-2.6.31/include/asm-generic/atomic.h	2009-08-27 20:59:04.000000000 -0400
++++ linux-2.6.31/include/asm-generic/atomic.h	2009-09-11 22:17:37.469806298 -0400
+@@ -36,6 +36,15 @@
+ #define atomic_read(v)	((v)->counter)
+ 
+ /**
++ * atomic_read_unchecked - read atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ *
++ * Atomically reads the value of @v.  Note that the guaranteed
++ * useful range of an atomic_unchecked_t is only 24 bits.
++ */
++#define atomic_read_unchecked(v)	((v)->counter)
++
++/**
+  * atomic_set - set atomic variable
+  * @v: pointer of type atomic_t
+  * @i: required value
+@@ -45,6 +54,16 @@
+  */
+ #define atomic_set(v, i) (((v)->counter) = (i))
+ 
++/**
++ * atomic_set_unchecked - set atomic variable
++ * @v: pointer of type atomic_unchecked_t
++ * @i: required value
++ *
++ * Atomically sets the value of @v to @i.  Note that the guaranteed
++ * useful range of an atomic_unchecked_t is only 24 bits.
++ */
++#define atomic_set_unchecked(v, i) (((v)->counter) = (i))
++
+ #include <asm/system.h>
+ 
+ /**
+@@ -101,16 +120,31 @@ static inline void atomic_add(int i, ato
+ 	atomic_add_return(i, v);
+ }
+ 
++static inline void atomic_add_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_add_return(i, (atomic_t *)v);
++}
++
+ static inline void atomic_sub(int i, atomic_t *v)
+ {
+ 	atomic_sub_return(i, v);
+ }
+ 
++static inline void atomic_sub_unchecked(int i, atomic_unchecked_t *v)
++{
++	atomic_sub_return(i, (atomic_t *)v);
++}
++
+ static inline void atomic_inc(atomic_t *v)
+ {
+ 	atomic_add_return(1, v);
+ }
+ 
++static inline void atomic_inc_unchecked(atomic_unchecked_t *v)
++{
++	atomic_add_return(1, (atomic_t *)v);
++}
++
+ static inline void atomic_dec(atomic_t *v)
+ {
+ 	atomic_sub_return(1, v);

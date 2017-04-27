@@ -1,0 +1,295 @@
+diff -urNp linux-2.6.29.4/drivers/usb/core/message.c linux-2.6.29.4-new/drivers/usb/core/message.c
+--- linux-2.6.29.4/drivers/usb/core/message.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/drivers/usb/core/message.c	2009-06-08 18:43:34.000000000 -0400
+@@ -866,7 +866,8 @@ char *usb_cache_string(struct usb_device
+ 	if (buf) {
+ 		len = usb_string(udev, index, buf, 256);
+ 		if (len > 0) {
+-			smallbuf = kmalloc(++len, GFP_KERNEL);
++			++len;
++			smallbuf = kmalloc(len, GFP_KERNEL);
+ 			if (!smallbuf)
+ 				return buf;
+ 			memcpy(smallbuf, buf, len);
+diff -urNp linux-2.6.29.4/fs/autofs/root.c linux-2.6.29.4-new/fs/autofs/root.c
+--- linux-2.6.29.4/fs/autofs/root.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/fs/autofs/root.c	2009-06-08 17:42:48.000000000 -0400
+@@ -299,7 +299,8 @@ static int autofs_root_symlink(struct in
+ 	set_bit(n,sbi->symlink_bitmap);
+ 	sl = &sbi->symlink[n];
+ 	sl->len = strlen(symname);
+-	sl->data = kmalloc(slsize = sl->len+1, GFP_KERNEL);
++	slsize = sl->len + 1;
++	sl->data = kmalloc(slsize, GFP_KERNEL);
+ 	if (!sl->data) {
+ 		clear_bit(n,sbi->symlink_bitmap);
+ 		unlock_kernel();
+diff -urNp linux-2.6.29.4/fs/seq_file.c linux-2.6.29.4-new/fs/seq_file.c
+--- linux-2.6.29.4/fs/seq_file.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/fs/seq_file.c	2009-06-06 18:09:52.000000000 -0400
+@@ -76,7 +76,8 @@ static int traverse(struct seq_file *m, 
+ 		return 0;
+ 	}
+ 	if (!m->buf) {
+-		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
++		m->size = PAGE_SIZE;
++		m->buf = kmalloc(m->size, GFP_KERNEL);
+ 		if (!m->buf)
+ 			return -ENOMEM;
+ 	}
+@@ -116,7 +117,8 @@ static int traverse(struct seq_file *m, 
+ Eoverflow:
+ 	m->op->stop(m, p);
+ 	kfree(m->buf);
+-	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
++	m->size <<= 1;
++	m->buf = kmalloc(m->size, GFP_KERNEL);
+ 	return !m->buf ? -ENOMEM : -EAGAIN;
+ }
+ 
+@@ -169,7 +171,8 @@ ssize_t seq_read(struct file *file, char
+ 	m->version = file->f_version;
+ 	/* grab buffer if we didn't have one */
+ 	if (!m->buf) {
+-		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
++		m->size = PAGE_SIZE;
++		m->buf = kmalloc(m->size, GFP_KERNEL);
+ 		if (!m->buf)
+ 			goto Enomem;
+ 	}
+@@ -210,7 +213,8 @@ ssize_t seq_read(struct file *file, char
+ 			goto Fill;
+ 		m->op->stop(m, p);
+ 		kfree(m->buf);
+-		m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
++		m->size <<= 1;
++		m->buf = kmalloc(m->size, GFP_KERNEL);
+ 		if (!m->buf)
+ 			goto Enomem;
+ 		m->count = 0;
+diff -urNp linux-2.6.29.4/include/asm-generic/int-l64.h linux-2.6.29.4-new/include/asm-generic/int-l64.h
+--- linux-2.6.29.4/include/asm-generic/int-l64.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/include/asm-generic/int-l64.h	2009-06-08 19:57:39.000000000 -0400
+@@ -44,6 +44,8 @@ typedef unsigned int u32;
+ typedef signed long s64;
+ typedef unsigned long u64;
+ 
++typedef unsigned int intoverflow_t __attribute__ ((mode(TI)));
++
+ #define S8_C(x)  x
+ #define U8_C(x)  x ## U
+ #define S16_C(x) x
+diff -urNp linux-2.6.29.4/include/asm-generic/int-ll64.h linux-2.6.29.4-new/include/asm-generic/int-ll64.h
+--- linux-2.6.29.4/include/asm-generic/int-ll64.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/include/asm-generic/int-ll64.h	2009-06-08 19:58:04.000000000 -0400
+@@ -49,6 +49,8 @@ typedef unsigned int u32;
+ typedef signed long long s64;
+ typedef unsigned long long u64;
+ 
++typedef unsigned long long intoverflow_t;
++
+ #define S8_C(x)  x
+ #define U8_C(x)  x ## U
+ #define S16_C(x) x
+diff -urNp linux-2.6.29.4/include/linux/slab.h linux-2.6.29.4-new/include/linux/slab.h
+--- linux-2.6.29.4/include/linux/slab.h	2009-06-05 20:22:27.000000000 -0400
++++ linux-2.6.29.4-new/include/linux/slab.h	2009-06-08 20:03:42.000000000 -0400
+@@ -317,4 +317,35 @@ static inline void *kzalloc_node(size_t 
+ 	return kmalloc_node(size, flags | __GFP_ZERO, node);
+ }
+ 
++#define kmalloc(x,y) \
++	({ \
++		void *___retval; \
++		intoverflow_t ___x = (intoverflow_t)x; \
++		if (likely(___x <= ULONG_MAX)) \
++			___retval = kmalloc((size_t)___x, y); \
++		else \
++			___retval = NULL; \
++		___retval; \
++	})
++#define kmalloc_node(x,y,z) \
++	({ \
++		void *___retval; \
++		intoverflow_t ___x = (intoverflow_t)x; \
++		if (likely(___x <= ULONG_MAX)) \
++			___retval = kmalloc_node((size_t)___x, y, z); \
++		else \
++			___retval = NULL; \
++		___retval; \
++	})
++#define kzalloc(x,y) \
++	({ \
++		void *___retval; \
++		intoverflow_t ___x = (intoverflow_t)x; \
++		if (likely(___x <= ULONG_MAX)) \
++			___retval = kzalloc((size_t)___x, y); \
++		else \
++			___retval = NULL; \
++		___retval; \
++	})
++
+ #endif	/* _LINUX_SLAB_H */
+diff -urNp linux-2.6.29.4/include/linux/vmalloc.h linux-2.6.29.4-new/include/linux/vmalloc.h
+--- linux-2.6.29.4/include/linux/vmalloc.h	2009-06-05 20:22:28.000000000 -0400
++++ linux-2.6.29.4-new/include/linux/vmalloc.h	2009-06-08 20:06:47.000000000 -0400
+@@ -116,4 +116,75 @@ extern long vwrite(char *buf, char *addr
+ extern rwlock_t vmlist_lock;
+ extern struct vm_struct *vmlist;
+ 
++#define vmalloc(x) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = vmalloc((unsigned long)___x); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++#define __vmalloc(x,y,z) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = __vmalloc((unsigned long)___x, y, z); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++#define vmalloc_user(x) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = vmalloc_user((unsigned long)___x); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++#define vmalloc_exec(x) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = vmalloc_exec((unsigned long)___x); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++#define vmalloc_node(x,y) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = vmalloc_node((unsigned long)___x,y); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++#define vmalloc_32(x) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = vmalloc_32((unsigned long)___x); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++#define vmalloc_32_user(x) \
++        ({ \
++                void *___retval; \
++                intoverflow_t ___x = (intoverflow_t)x; \
++                if (likely(___x <= ULONG_MAX)) \
++                        ___retval = vmalloc_32_user((unsigned long)___x); \
++                else \
++                        ___retval = NULL; \
++                ___retval; \
++        })
++
+ #endif /* _LINUX_VMALLOC_H */
+diff -urNp linux-2.6.29.4/lib/parser.c linux-2.6.29.4-new/lib/parser.c
+--- linux-2.6.29.4/lib/parser.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/lib/parser.c	2009-06-06 18:24:42.000000000 -0400
+@@ -126,7 +126,7 @@ static int match_number(substring_t *s, 
+ 	char *buf;
+ 	int ret;
+ 
+-	buf = kmalloc(s->to - s->from + 1, GFP_KERNEL);
++	buf = kmalloc((s->to - s->from) + 1, GFP_KERNEL);
+ 	if (!buf)
+ 		return -ENOMEM;
+ 	memcpy(buf, s->from, s->to - s->from);
+diff -urNp linux-2.6.29.4/mm/vmalloc.c linux-2.6.29.4-new/mm/vmalloc.c
+--- linux-2.6.29.4/mm/vmalloc.c	2009-06-05 20:22:28.000000000 -0400
++++ linux-2.6.29.4-new/mm/vmalloc.c	2009-06-06 18:00:13.000000000 -0400
+@@ -1437,6 +1437,7 @@ static void *__vmalloc_node(unsigned lon
+ 	return __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+ }
+ 
++#undef __vmalloc
+ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
+ {
+ 	return __vmalloc_node(size, gfp_mask, prot, -1,
+@@ -1453,6 +1454,7 @@ EXPORT_SYMBOL(__vmalloc);
+  *	For tight control over page level allocator and protection flags
+  *	use __vmalloc() instead.
+  */
++#undef vmalloc
+ void *vmalloc(unsigned long size)
+ {
+ 	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL,
+@@ -1467,6 +1469,7 @@ EXPORT_SYMBOL(vmalloc);
+  * The resulting memory area is zeroed so it can be mapped to userspace
+  * without leaking data.
+  */
++#undef vmalloc_user
+ void *vmalloc_user(unsigned long size)
+ {
+ 	struct vm_struct *area;
+@@ -1493,6 +1496,7 @@ EXPORT_SYMBOL(vmalloc_user);
+  *	For tight control over page level allocator and protection flags
+  *	use __vmalloc() instead.
+  */
++#undef vmalloc_node
+ void *vmalloc_node(unsigned long size, int node)
+ {
+ 	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL,
+@@ -1515,7 +1519,7 @@ EXPORT_SYMBOL(vmalloc_node);
+  *	For tight control over page level allocator and protection flags
+  *	use __vmalloc() instead.
+  */
+-
++#undef vmalloc_exec
+ void *vmalloc_exec(unsigned long size)
+ {
+ 	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL_EXEC,
+@@ -1537,6 +1541,7 @@ void *vmalloc_exec(unsigned long size)
+  *	Allocate enough 32bit PA addressable pages to cover @size from the
+  *	page level allocator and map them into contiguous kernel virtual space.
+  */
++#undef vmalloc_32
+ void *vmalloc_32(unsigned long size)
+ {
+ 	return __vmalloc_node(size, GFP_VMALLOC32, PAGE_KERNEL,
+@@ -1551,6 +1556,7 @@ EXPORT_SYMBOL(vmalloc_32);
+  * The resulting memory area is 32bit addressable and zeroed so it can be
+  * mapped to userspace without leaking data.
+  */
++#undef vmalloc_32_user
+ void *vmalloc_32_user(unsigned long size)
+ {
+ 	struct vm_struct *area;
+diff -urNp linux-2.6.29.4/net/ipv4/netfilter/nf_nat_snmp_basic.c linux-2.6.29.4-new/net/ipv4/netfilter/nf_nat_snmp_basic.c
+--- linux-2.6.29.4/net/ipv4/netfilter/nf_nat_snmp_basic.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.4-new/net/ipv4/netfilter/nf_nat_snmp_basic.c	2009-06-08 19:09:41.000000000 -0400
+@@ -397,7 +397,7 @@ static unsigned char asn1_octets_decode(
+ 
+ 	*len = 0;
+ 
+-	*octets = kmalloc(eoc - ctx->pointer, GFP_ATOMIC);
++	*octets = kmalloc((eoc - ctx->pointer), GFP_ATOMIC);
+ 	if (*octets == NULL) {
+ 		if (net_ratelimit())
+ 			printk("OOM in bsalg (%d)\n", __LINE__);

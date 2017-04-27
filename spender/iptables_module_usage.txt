@@ -1,0 +1,2 @@
+iptables -A INPUT -i eth0 -p tcp -s $TRUSTEDIP --dport 22 -m gradm --disabled -j ACCEPT
+iptables -A INPUT -i eth0 -m gradm --disabled -j DROP

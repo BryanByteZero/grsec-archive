@@ -1,0 +1,21 @@
+diff --git a/lib/vsprintf.c b/lib/vsprintf.c
+index c82c105..976fe57 100644
+--- a/lib/vsprintf.c
++++ b/lib/vsprintf.c
+@@ -1379,7 +1379,15 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
+ 				ptr = NULL;
+ 			break;
+ 		}
+-		case 2:
++		case 2: {
++			const struct cred *cred = current_cred();
++
++			if (!has_capability_noaudit(current, CAP_SYS_ADMIN) ||
++			    !uid_eq(cred->euid, cred->uid) ||
++			    !gid_eq(cred->egid, cred->gid))
++				ptr = NULL;
++			break;
++		}
+ 		default:
+ 			/* Always print 0's for %pK */
+ 			ptr = NULL;

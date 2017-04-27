@@ -1,0 +1,101 @@
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 03fe930..8f372a3 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -598,6 +598,7 @@ static bool has_pid_permissions(struct pid_namespace *pid,
+ #ifdef CONFIG_GRKERNSEC_PROC_USERGROUP
+ 			|| in_group_p(grsec_proc_gid)
+ #endif
++			|| (task_pid_nr(task) == 1)
+ 		) {
+ 			rcu_read_unlock();
+ 			return true;
+diff --git a/fs/proc/cmdline.c b/fs/proc/cmdline.c
+index c0407d2..feb7fe9 100644
+--- a/fs/proc/cmdline.c
++++ b/fs/proc/cmdline.c
+@@ -5,7 +5,18 @@
+ 
+ static int cmdline_proc_show(struct seq_file *m, void *v)
+ {
++#ifdef CONFIG_GRKERNSEC_PROC_ADD
++	if (uid_eq(current_uid(), GLOBAL_ROOT_UID) ||
++#ifdef CONFIG_GRKERNSEC_PROC_USERGROUP
++		in_group_p(grsec_proc_gid)
++#endif
++	)
++		seq_printf(m, "%s\n", saved_command_line);
++	else
++		seq_printf(m, "%s\n", unpriv_saved_command_line);
++#else
+ 	seq_printf(m, "%s\n", saved_command_line);
++#endif
+ 	return 0;
+ }
+ 
+@@ -23,11 +34,7 @@ static const struct file_operations cmdline_proc_fops = {
+ 
+ static int __init proc_cmdline_init(void)
+ {
+-#ifdef CONFIG_GRKERNSEC_PROC_ADD
+-	proc_create_grsec("cmdline", 0, NULL, &cmdline_proc_fops);
+-#else
+ 	proc_create("cmdline", 0, NULL, &cmdline_proc_fops);
+-#endif
+ 	return 0;
+ }
+ fs_initcall(proc_cmdline_init);
+diff --git a/include/linux/init.h b/include/linux/init.h
+index 3e1280d..2560d14 100644
+--- a/include/linux/init.h
++++ b/include/linux/init.h
+@@ -153,6 +153,9 @@ typedef void (*ctor_fn_t)(void);
+ extern int do_one_initcall(initcall_t fn);
+ extern char __initdata boot_command_line[];
+ extern char *saved_command_line;
++#ifdef CONFIG_GRKERNSEC_PROC_ADD
++extern char *unpriv_saved_command_line;
++#endif
+ extern unsigned int reset_devices;
+ 
+ /* used by init/main.c */
+diff --git a/init/main.c b/init/main.c
+index 64f9745..3d95e43 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -126,6 +126,10 @@ void (*__initdata late_time_init)(void);
+ char __initdata boot_command_line[COMMAND_LINE_SIZE];
+ /* Untouched saved command line (eg. for /proc) */
+ char *saved_command_line;
++#ifdef CONFIG_GRKERNSEC_PROC_ADD
++/* Fake command line presented to unprivileged users to satisfy systemd bikeshedding */
++char *unpriv_saved_command_line;
++#endif
+ /* Command line for parameter parsing */
+ static char *static_command_line;
+ /* Command line for per-initcall parameter parsing */
+@@ -448,6 +452,24 @@ static void __init setup_command_line(char *command_line)
+ 	static_command_line = memblock_virt_alloc(strlen(command_line) + 1, 0);
+ 	strcpy(saved_command_line, boot_command_line);
+ 	strcpy(static_command_line, command_line);
++
++#ifdef CONFIG_GRKERNSEC_PROC_ADD
++	{
++		char *init = strstr(saved_command_line, "init=");
++		char *initend = NULL;
++		unsigned int len = 0;
++		if (init) {
++			initend = strchr(init + 1, ' ');
++			if (initend)
++				*initend = '\0';
++		} else
++			init = "";
++		unpriv_saved_command_line = memblock_virt_alloc(strlen(init) + 1, 0);
++		strcpy(unpriv_saved_command_line, init);
++		if (initend)
++			*initend = ' ';
++	}
++#endif
+ }
+ 
+ /*

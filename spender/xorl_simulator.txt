@@ -1,0 +1,198 @@
+      XORL.WORDPRESS.COM
+
+  ------------------------------------------------------------------------
+  |   
+  |  Advances in Hello_World.c Exploitation
+  |_______________
+
+	Nov 20 2010 by xorl
+ 	----------------------------------------------------------------
+  	|   Today I will be thoroughly dissecting a fascinating bug
+	|   discovered by someone else (one of those awful whitehats,
+	|   what with their disclosure and other such unethical acts).
+	|   Read on for my groundbreaking analysis, praised by
+	|   infosec pseudo-intellectuals that confuse code-dumps and
+	|   unnecessary verbosity with useful insight!
+	|___________
+
+	0:	/* This is a hello world application! */
+	1:	#include <stdio.h>
+	2:
+	3:	int main(void)
+	4:	{
+	5:		int i = 0;
+	6:
+	7:		/* here we will repeat a comment verbatim
+	8:		   with no understanding of the underlying code
+	9:		*/
+	10:		printf("HELLO WORLD! %d\n", ++i);
+	11:		/* we printed 0, now return! */
+	12:		return 0;
+	13:	}
+  
+ 	----------------------------------------------------------------
+	|   Obviously, as we can see on line 0, this is a hello world 
+	|   application.  Before I get too deep into this incredibly
+	|   thoughtful analysis, an off-topic comment: whitehat who
+	|   published this bug: you have just made some very serious
+	|   enemies, whether you know it or not.  Guys like ret that
+	|   post comments on each popular post of mine, regardless of
+	|   the fact that 70% of my content is inaccurate!  Anyway,
+	|   back to the analysis!
+	|
+	|   Obviously on line 3 we have the main function being declared,
+	|   which obviously is obviously the main function of the hello
+	|   world application, whose purpose is to print out a hello 
+	|   world message.  Now we really get to the meat of this 
+	|   function on line 5 where the signed integer variable i is 
+	|   initialized with the constant value 0.  Obviously on line 7 we
+	|   can easily see that there is a comment that I will repeat 
+	|   verbatim with no understanding of the underlying code, but 
+	|   as long as I substitute some of the words with words of my 
+	|   own, the people who praise my blog, who never actually read 
+	|   it but just see a wall of text and talk about it to their 
+	|   friends, calling it 'interesting' or other descriptive 
+	|   terms, because it demonstrates strong security knowledge 
+	|   and code understanding, will never know the difference.
+	|________________________
+
+	0:	/* This is a hello world application! */
+	1:	#include <stdio.h>
+	2:
+	3:	int main(void)
+	4:	{
+	5:		int i = 0;
+	6:
+	7:		/* this is the same exact code but no one will
+	7:		   notice, because you're not really reading this
+	8:		   anyway. you're just thinking: "this would make
+	8:		   me look cool if i retweeted it to my friends!"
+	9:		*/
+	10:		printf("HELLO WORLD! %d\n", ++i);
+	11:		/* we printed 0, now return! */
+	12:		return 0;
+	13:	}
+	
+ 	----------------------------------------------------------------
+	|
+	|   Now things start to get really interesting on line 10, where
+	|   obviously we can easily see, obviously, that "Hello worlld!!!"
+	|   is printed along with the value of the signed integer i, which
+	|   is zero.  This is confirmed on the following line, which means
+	|   that we have just printed the value zero and now we are 
+	|   returning from the main function.  The obvious part here is 
+	|   that upon returning from this function, the application 
+	|   instantly exits with the exit code of zero, which obviously
+	|   we can see on line 12.
+	|
+	|   Now to wrap things up, on line 13 we have the closing brace
+	|   for the main function which took no arguments and returned 
+	|   an integer with the value of zero.  It had one local 
+	|   variable named i, which was initialized to the value of zero
+	|   and then was printed out with the string "pwnie please!"
+	|   And there you have it!
+	|
+	|   PS: whitehat that reported this bug, I know I said this 
+	|   already before, but I want to say it again here because it 
+	|   makes me look like more of a gangster and increases my scene
+	|   cred without having to actually contribute anything useful,
+	|   but you're making a lot of serious enemies, super serious.
+	|   Seriously, they're really serious, and you should seriously
+	|   be afraid and probably stop releasing vulnerabilities so that
+	|   I can not publicize them with my in-depth writeups for fame.
+	|
+	|   Join me next time where I'll talk about some innovative 
+	|   research into remote stack overflows which amounts to what
+	|   was already well-discussed in 2001-2003, where I'll claim
+	|   that the bruteforcing method works against grsecurity 
+	|   systems, when in fact the feature that would prevent any
+	|   serious real-world use of such a technique, though discussed,
+	|   was conveniently left out of the final testing which was 
+	|   only done against the plain PaX patch.  But I skimmed through
+	|   it and pretended I understood it, and saw grsecurity 
+	|   mentioned and remembered how much I hate whitehats, so I 
+	|   decided to mention it for the people who are too intellectually
+	|   lazy to read through Phrack themselves and pretend they
+	|   understood it, so instead they can skim through my poor
+	|   understanding of what was written and then become even more
+	|   poorly informed, until the entire industry follows me on
+	|   twitter and praises my blog and substitutes their own thinking
+	|   for my code-dumping, comment-paraphrasing, brain-dead
+	|   understanding and ethics.  Then all us cool scenesters can 
+	|   joke on twitter about how we miss spender and that he was a 
+	|   good troll, while never contributing anything noteworthy 
+	|   ourselves.  Which isn't because we can't produce 
+	|   anything worthwhile, no no, it's just because our strong 
+	|   underground anti-sec principles keep us from doing it.
+	|   Obviously...
+	|________________________________
+
+	0:	/* F(x) = x^x F is a function of my follow count, where x
+	1:	   is the number of lines of code I can unnecessarily
+	2:	   fit into each post
+	3:	*/
+	4:	#include <stdio.h>
+	5:
+	6:	int main(void)
+	7:	{
+	8:		int i = 0;
+	9:
+	10:		/* here we will repeat a comment verbatim
+	11:		   with no understanding of the underlying code
+	12:		*/
+	13:		printf("HELLO WORLD! %d\n", ++i);
+	14:		/* we printed 0, now return! */
+	15:		return 0;
+	16:	}
+
+ 	----------------------------------------------------------------
+	|_______________________________________________
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+xorl's rise to 'fame' came about because people believed he was creating 
+in-depth analyses of vulnerabilities, something many would respect due 
+to the significant effort needed for attention to the quality and 
+accuracy of such analysis.  Except once people actually started reading 
+what he was writing, they found that it wasn't that at all -- and yet
+he was receiving credit as if it was.  So he's at best completely 
+uncommitted to any quality or accuracy in his posts, the errors so 
+egregious at times that it's far beyond what simple oversight can 
+explain.  At worst he's an intellectual fraud, who would have been 
+exposed far earlier by others were it not for the fact that our society 
+embraces this brand of faux-intellectualism.  Call this all a troll if 
+you want to live in denial, but don't forget that you're merely writing 
+(poorly) about the actual work and real contributions of others ;)
+
+Obviously.

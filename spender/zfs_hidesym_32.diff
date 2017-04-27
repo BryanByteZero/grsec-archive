@@ -1,0 +1,43 @@
+diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
+index d712c9c..1cf4a04 100644
+--- a/kernel/kallsyms.c
++++ b/kernel/kallsyms.c
+@@ -541,8 +541,12 @@ static int s_show(struct seq_file *m, void *p)
+ 	struct kallsym_iter *iter = m->private;
+ 
+ #ifdef CONFIG_GRKERNSEC_HIDESYM
++	int is_admin;
++
+ 	if (current_uid())
+ 		return 0;
++
++	is_admin = capable_nolog(CAP_SYS_ADMIN);
+ #endif
+ 
+ 	/* Some debugging symbols have no name.  Ignore them. */
+@@ -559,11 +563,24 @@ static int s_show(struct seq_file *m, void *p)
+ 		type = iter->exported ? toupper(iter->type) :
+ 					tolower(iter->type);
+ 
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++		if (is_admin)
++			seq_printf(m, "%pP %c %s\t[%s]\n", (void *)iter->value,
++				   type, iter->name, iter->module_name);
++		else
++#endif
+ 		seq_printf(m, "%pK %c %s\t[%s]\n", (void *)iter->value,
+ 			   type, iter->name, iter->module_name);
+-	} else
++	} else {
++#ifdef CONFIG_GRKERNSEC_HIDESYM
++		if (is_admin)
++			seq_printf(m, "%pP %c %s\n", (void *)iter->value,
++				   iter->type, iter->name);
++		else
++#endif
+ 		seq_printf(m, "%pK %c %s\n", (void *)iter->value,
+ 			   iter->type, iter->name);
++	}
+ 	return 0;
+ }
+ 

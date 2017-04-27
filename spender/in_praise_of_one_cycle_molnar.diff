@@ -1,0 +1,43 @@
+diff --git a/fs/exec.c b/fs/exec.c
+index 4983f7d..a7f46af 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1476,7 +1476,25 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
+ EXPORT_SYMBOL(search_binary_handler);
+ 
+ #ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-static atomic64_unchecked_t global_exec_counter = ATOMIC64_INIT(0);
++static DEFINE_PER_CPU(u64, exec_counter);
++static int __init init_exec_counters(void)
++{
++	unsigned int cpu;
++
++	for_each_possible_cpu(cpu) {
++		per_cpu(exec_counter, cpu) = (u64)cpu;
++	}
++
++	return 0;
++}
++early_initcall(init_exec_counters);
++static inline void increment_exec_counter(void)
++{
++	BUILD_BUG_ON(NR_CPUS >= (1 << 16));
++	current->exec_id = this_cpu_add_return(exec_counter, 1 << 16);
++}
++#else
++static inline void increment_exec_counter(void) {}
+ #endif
+ 
+ /*
+@@ -1635,10 +1653,8 @@ static int do_execve_common(const char *filename,
+ #endif
+ 
+ 	/* execve succeeded */
+-#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-	current->exec_id = atomic64_inc_return_unchecked(&global_exec_counter);
+-#endif
+ 
++	increment_exec_counter();
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;
+ 	acct_update_integrals(current);

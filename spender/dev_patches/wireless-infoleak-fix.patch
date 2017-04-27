@@ -1,0 +1,33 @@
+--- net/wireless/wext-core.c	2010-05-13 16:26:14.824094867 -0400
++++ net/wireless/wext-core.c	2010-05-15 13:06:13.942991962 -0400
+@@ -759,6 +759,10 @@
+ 		}
+ 	}
+ 
++	extra_size += essid_compat * descr->token_size;
++	printk(KERN_ALERT "cmd:%08x flags:%08x before_alloc: extra_size=%d, essid_compat=%d, descr->token_size=%d, iwp->length=%d, descr->max_tokens=%d, user_length=%d\n",
++		cmd, descr->flags, extra_size, essid_compat, descr->token_size, iwp->length, descr->max_tokens, user_length);
++
+ 	/* kzalloc() ensures NULL-termination for essid_compat. */
+ 	extra = kzalloc(extra_size, GFP_KERNEL);
+ 	if (!extra)
+@@ -783,6 +787,9 @@
+ 
+ 	err = handler(dev, info, (union iwreq_data *) iwp, extra);
+ 
++	printk(KERN_ALERT "after_handler: extra_size=%d, essid_compat=%d, descr->token_size=%d, iwp->length=%d, descr->max_tokens=%d, user_length=%d\n",
++		extra_size, essid_compat, descr->token_size, iwp->length, descr->max_tokens, user_length);
++
+ 	iwp->length += essid_compat;
+ 
+ 	/* If we have something to return to the user */
+@@ -801,6 +808,9 @@
+ 		}
+ 	}
+ 
++	printk(KERN_ALERT "after_copy_to_user: extra_size=%d, essid_compat=%d, descr->token_size=%d, iwp->length=%d, descr->max_tokens=%d, user_length=%d\n",
++		extra_size, essid_compat, descr->token_size, iwp->length, descr->max_tokens, user_length);
++
+ 	/* Generate an event to notify listeners of the change */
+ 	if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
+ 	    ((err == 0) || (err == -EIWCOMMIT))) {

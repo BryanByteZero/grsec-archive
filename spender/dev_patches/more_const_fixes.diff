@@ -1,0 +1,515 @@
+diff -u linux-2.6.30.3-new/drivers/char/mem.c linux-2.6.30.3-new/drivers/char/mem.c
+--- linux-2.6.30.3-new/drivers/char/mem.c	2009-07-30 11:10:48.991368750 -0400
++++ linux-2.6.30.3-new/drivers/char/mem.c	2009-07-30 12:07:09.578070399 -0400
+@@ -311,7 +311,7 @@
+ }
+ #endif
+ 
+-static struct vm_operations_struct mmap_mem_ops = {
++static const struct vm_operations_struct mmap_mem_ops = {
+ #ifdef CONFIG_HAVE_IOREMAP_PROT
+ 	.access = generic_access_phys
+ #endif
+diff -u linux-2.6.30.3-new/drivers/staging/android/binder.c linux-2.6.30.3-new/drivers/staging/android/binder.c
+--- linux-2.6.30.3-new/drivers/staging/android/binder.c	2009-07-30 09:48:10.050638667 -0400
++++ linux-2.6.30.3-new/drivers/staging/android/binder.c	2009-07-30 12:07:09.614975906 -0400
+@@ -2699,7 +2699,7 @@
+ 	binder_defer_work(proc, BINDER_DEFERRED_PUT_FILES);
+ }
+ 
+-static struct vm_operations_struct binder_vm_ops = {
++static const struct vm_operations_struct binder_vm_ops = {
+ 	.open = binder_vma_open,
+ 	.close = binder_vma_close,
+ };
+diff -u linux-2.6.30.3-new/fs/xfs/linux-2.6/xfs_super.c linux-2.6.30.3-new/fs/xfs/linux-2.6/xfs_super.c
+--- linux-2.6.30.3-new/fs/xfs/linux-2.6/xfs_super.c	2009-07-30 09:48:10.103749934 -0400
++++ linux-2.6.30.3-new/fs/xfs/linux-2.6/xfs_super.c	2009-07-30 13:03:07.229966859 -0400
+@@ -68,7 +68,7 @@
+ #include <linux/freezer.h>
+ #include <linux/parser.h>
+ 
+-static struct super_operations xfs_super_operations;
++static const struct super_operations xfs_super_operations;
+ static kmem_zone_t *xfs_ioend_zone;
+ mempool_t *xfs_ioend_pool;
+ 
+diff -u linux-2.6.30.3-new/include/linux/sched.h linux-2.6.30.3-new/include/linux/sched.h
+--- linux-2.6.30.3-new/include/linux/sched.h	2009-07-30 11:10:49.510717424 -0400
++++ linux-2.6.30.3-new/include/linux/sched.h	2009-07-30 11:40:32.914458812 -0400
+@@ -2181,7 +2181,7 @@
+ 
+ #endif
+ 
+-static inline int object_is_on_stack(void *obj)
++static inline int object_is_on_stack(const void *obj)
+ {
+ 	void *stack = task_stack_page(current);
+ 
+diff -u linux-2.6.30.3-new/virt/kvm/kvm_main.c linux-2.6.30.3-new/virt/kvm/kvm_main.c
+--- linux-2.6.30.3-new/virt/kvm/kvm_main.c	2009-07-30 09:48:10.168781015 -0400
++++ linux-2.6.30.3-new/virt/kvm/kvm_main.c	2009-07-30 12:42:02.581987537 -0400
+@@ -2223,7 +2223,7 @@
+ 
+ DEFINE_SIMPLE_ATTRIBUTE(vcpu_stat_fops, vcpu_stat_get, NULL, "%llu\n");
+ 
+-static struct file_operations *stat_fops[] = {
++static const struct file_operations *stat_fops[] = {
+ 	[KVM_STAT_VCPU] = &vcpu_stat_fops,
+ 	[KVM_STAT_VM]   = &vm_stat_fops,
+ };
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/arch/powerpc/platforms/pseries/dtl.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/arch/powerpc/platforms/pseries/dtl.c	2009-07-30 12:06:52.084821916 -0400
+@@ -209,7 +209,7 @@ static ssize_t dtl_file_read(struct file
+ 	return n_read * sizeof(struct dtl_entry);
+ }
+ 
+-static struct file_operations dtl_fops = {
++static const struct file_operations dtl_fops = {
+ 	.open		= dtl_file_open,
+ 	.release	= dtl_file_release,
+ 	.read		= dtl_file_read,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/arch/x86/pci/i386.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/arch/x86/pci/i386.c	2009-07-30 12:07:09.572223405 -0400
+@@ -262,7 +262,7 @@ void pcibios_set_master(struct pci_dev *
+ 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
+ }
+ 
+-static struct vm_operations_struct pci_mmap_ops = {
++static const struct vm_operations_struct pci_mmap_ops = {
+ 	.access = generic_access_phys,
+ };
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/acpi/video.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/acpi/video.c	2009-07-30 12:06:52.099841502 -0400
+@@ -282,7 +282,7 @@ static int acpi_video_device_brightness_
+ 						struct file *file);
+ static ssize_t acpi_video_device_write_brightness(struct file *file,
+ 	const char __user *buffer, size_t count, loff_t *data);
+-static struct file_operations acpi_video_device_brightness_fops = {
++static const struct file_operations acpi_video_device_brightness_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = acpi_video_device_brightness_open_fs,
+ 	.read = seq_read,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/gpu/drm/i915/i915_drv.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/gpu/drm/i915/i915_drv.c	2009-07-30 12:07:09.579971370 -0400
+@@ -149,7 +149,7 @@ i915_pci_resume(struct pci_dev *pdev)
+ 	return i915_resume(dev);
+ }
+ 
+-static struct vm_operations_struct i915_gem_vm_ops = {
++static const struct vm_operations_struct i915_gem_vm_ops = {
+ 	.fault = i915_gem_fault,
+ 	.open = drm_gem_vm_open,
+ 	.close = drm_gem_vm_close,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/media/dvb/dvb-core/dmxdev.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/media/dvb/dvb-core/dmxdev.c	2009-07-30 12:06:52.108842402 -0400
+@@ -1092,7 +1092,7 @@ static unsigned int dvb_dvr_poll(struct 
+ 	return mask;
+ }
+ 
+-static struct file_operations dvb_dvr_fops = {
++static const struct file_operations dvb_dvr_fops = {
+ 	.owner = THIS_MODULE,
+ 	.read = dvb_dvr_read,
+ 	.write = dvb_dvr_write,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/media/dvb/firewire/firedtv-ci.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/media/dvb/firewire/firedtv-ci.c	2009-07-30 12:06:52.110732547 -0400
+@@ -215,7 +215,7 @@ static unsigned int fdtv_ca_io_poll(stru
+ 	return POLLIN;
+ }
+ 
+-static struct file_operations fdtv_ca_fops = {
++static const struct file_operations fdtv_ca_fops = {
+ 	.owner		= THIS_MODULE,
+ 	.ioctl		= dvb_generic_ioctl,
+ 	.open		= dvb_generic_open,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/media/video/zoran/zoran_driver.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/media/video/zoran/zoran_driver.c	2009-07-30 12:07:09.597971485 -0400
+@@ -3177,7 +3177,7 @@ zoran_vm_close (struct vm_area_struct *v
+ 	mutex_unlock(&zr->resource_lock);
+ }
+ 
+-static struct vm_operations_struct zoran_vm_ops = {
++static const struct vm_operations_struct zoran_vm_ops = {
+ 	.open = zoran_vm_open,
+ 	.close = zoran_vm_close,
+ };
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/mmc/core/debugfs.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/mmc/core/debugfs.c	2009-07-30 12:06:52.113899680 -0400
+@@ -240,7 +240,7 @@ static int mmc_ext_csd_release(struct in
+ 	return 0;
+ }
+ 
+-static struct file_operations mmc_dbg_ext_csd_fops = {
++static const struct file_operations mmc_dbg_ext_csd_fops = {
+ 	.open		= mmc_ext_csd_open,
+ 	.read		= mmc_ext_csd_read,
+ 	.release	= mmc_ext_csd_release,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/drivers/staging/b3dfg/b3dfg.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/drivers/staging/b3dfg/b3dfg.c	2009-07-30 12:07:09.622002360 -0400
+@@ -455,7 +455,7 @@ static int b3dfg_vma_fault(struct vm_are
+ 	return VM_FAULT_NOPAGE;
+ }
+ 
+-static struct vm_operations_struct b3dfg_vm_ops = {
++static const struct vm_operations_struct b3dfg_vm_ops = {
+ 	.fault = b3dfg_vma_fault,
+ };
+ 
+@@ -855,7 +855,7 @@ static int b3dfg_mmap(struct file *filp,
+ 	return r;
+ }
+ 
+-static struct file_operations b3dfg_fops = {
++static const struct file_operations b3dfg_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = b3dfg_open,
+ 	.release = b3dfg_release,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/btrfs/disk-io.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/btrfs/disk-io.c	2009-07-30 12:07:28.366973168 -0400
+@@ -771,7 +771,7 @@ static void btree_invalidatepage(struct 
+ 	}
+ }
+ 
+-static struct address_space_operations btree_aops = {
++static const struct address_space_operations btree_aops = {
+ 	.readpage	= btree_readpage,
+ 	.writepage	= btree_writepage,
+ 	.writepages	= btree_writepages,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/ecryptfs/ecryptfs_kernel.h	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/ecryptfs/ecryptfs_kernel.h	2009-07-30 12:43:20.416601232 -0400
+@@ -582,7 +582,7 @@ extern const struct inode_operations ecr
+ extern const struct inode_operations ecryptfs_symlink_iops;
+ extern const struct super_operations ecryptfs_sops;
+ extern const struct dentry_operations ecryptfs_dops;
+-extern struct address_space_operations ecryptfs_aops;
++extern const struct address_space_operations ecryptfs_aops;
+ extern int ecryptfs_verbosity;
+ extern unsigned int ecryptfs_message_buf_len;
+ extern signed long ecryptfs_message_wait_timeout;
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nfsd/nfsctl.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nfsd/nfsctl.c	2009-07-30 12:06:52.128724203 -0400
+@@ -175,7 +175,7 @@ static const struct file_operations expo
+ 
+ extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
+ 
+-static struct file_operations pool_stats_operations = {
++static const struct file_operations pool_stats_operations = {
+ 	.open		= nfsd_pool_stats_open,
+ 	.read		= seq_read,
+ 	.llseek		= seq_lseek,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/dir.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/dir.c	2009-07-30 12:06:52.132720832 -0400
+@@ -698,7 +698,7 @@ not_empty:
+ 	return 0;
+ }
+ 
+-struct file_operations nilfs_dir_operations = {
++const struct file_operations nilfs_dir_operations = {
+ 	.llseek		= generic_file_llseek,
+ 	.read		= generic_read_dir,
+ 	.readdir	= nilfs_readdir,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/file.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/file.c	2009-07-30 12:07:09.623977752 -0400
+@@ -117,7 +117,7 @@ static int nilfs_page_mkwrite(struct vm_
+ 	return 0;
+ }
+ 
+-struct vm_operations_struct nilfs_file_vm_ops = {
++const struct vm_operations_struct nilfs_file_vm_ops = {
+ 	.fault		= filemap_fault,
+ 	.page_mkwrite	= nilfs_page_mkwrite,
+ };
+@@ -134,7 +134,7 @@ static int nilfs_file_mmap(struct file *
+  * We have mostly NULL's here: the current defaults are ok for
+  * the nilfs filesystem.
+  */
+-struct file_operations nilfs_file_operations = {
++const struct file_operations nilfs_file_operations = {
+ 	.llseek		= generic_file_llseek,
+ 	.read		= do_sync_read,
+ 	.write		= do_sync_write,
+@@ -151,7 +151,7 @@ struct file_operations nilfs_file_operat
+ 	.splice_read	= generic_file_splice_read,
+ };
+ 
+-struct inode_operations nilfs_file_inode_operations = {
++const struct inode_operations nilfs_file_inode_operations = {
+ 	.truncate	= nilfs_truncate,
+ 	.setattr	= nilfs_setattr,
+ 	.permission     = nilfs_permission,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/gcinode.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/gcinode.c	2009-07-30 12:07:28.369023156 -0400
+@@ -52,7 +52,7 @@
+ #include "dat.h"
+ #include "ifile.h"
+ 
+-static struct address_space_operations def_gcinode_aops = {};
++static const struct address_space_operations def_gcinode_aops = {};
+ /* XXX need def_gcinode_iops/fops? */
+ 
+ /*
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/inode.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/inode.c	2009-07-30 12:07:28.374397645 -0400
+@@ -237,7 +237,7 @@ nilfs_direct_IO(int rw, struct kiocb *io
+ 	return size;
+ }
+ 
+-struct address_space_operations nilfs_aops = {
++const struct address_space_operations nilfs_aops = {
+ 	.writepage		= nilfs_writepage,
+ 	.readpage		= nilfs_readpage,
+ 	/* .sync_page		= nilfs_sync_page, */
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/mdt.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/mdt.c	2009-07-30 12:07:28.379284534 -0400
+@@ -428,7 +428,7 @@ nilfs_mdt_write_page(struct page *page, 
+ }
+ 
+ 
+-static struct address_space_operations def_mdt_aops = {
++static const struct address_space_operations def_mdt_aops = {
+ 	.writepage		= nilfs_mdt_write_page,
+ };
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/namei.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/namei.c	2009-07-30 12:07:02.764163011 -0400
+@@ -448,7 +448,7 @@ out:
+ 	return err;
+ }
+ 
+-struct inode_operations nilfs_dir_inode_operations = {
++const struct inode_operations nilfs_dir_inode_operations = {
+ 	.create		= nilfs_create,
+ 	.lookup		= nilfs_lookup,
+ 	.link		= nilfs_link,
+@@ -462,12 +462,12 @@ struct inode_operations nilfs_dir_inode_
+ 	.permission	= nilfs_permission,
+ };
+ 
+-struct inode_operations nilfs_special_inode_operations = {
++const struct inode_operations nilfs_special_inode_operations = {
+ 	.setattr	= nilfs_setattr,
+ 	.permission	= nilfs_permission,
+ };
+ 
+-struct inode_operations nilfs_symlink_inode_operations = {
++const struct inode_operations nilfs_symlink_inode_operations = {
+ 	.readlink	= generic_readlink,
+ 	.follow_link	= page_follow_link_light,
+ 	.put_link	= page_put_link,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/nilfs.h	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/nilfs.h	2009-07-30 12:47:17.035918280 -0400
+@@ -297,13 +297,13 @@ void nilfs_clear_gcdat_inode(struct the_
+ /*
+  * Inodes and files operations
+  */
+-extern struct file_operations nilfs_dir_operations;
+-extern struct inode_operations nilfs_file_inode_operations;
+-extern struct file_operations nilfs_file_operations;
+-extern struct address_space_operations nilfs_aops;
+-extern struct inode_operations nilfs_dir_inode_operations;
+-extern struct inode_operations nilfs_special_inode_operations;
+-extern struct inode_operations nilfs_symlink_inode_operations;
++extern const struct file_operations nilfs_dir_operations;
++extern const struct inode_operations nilfs_file_inode_operations;
++extern const struct file_operations nilfs_file_operations;
++extern const struct address_space_operations nilfs_aops;
++extern const struct inode_operations nilfs_dir_inode_operations;
++extern const struct inode_operations nilfs_special_inode_operations;
++extern const struct inode_operations nilfs_symlink_inode_operations;
+ 
+ /*
+  * filesystem type
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/nilfs2/super.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/nilfs2/super.c	2009-07-30 12:07:21.041339808 -0400
+@@ -520,7 +520,7 @@ static int nilfs_statfs(struct dentry *d
+ 	return 0;
+ }
+ 
+-static struct super_operations nilfs_sops = {
++static const struct super_operations nilfs_sops = {
+ 	.alloc_inode    = nilfs_alloc_inode,
+ 	.destroy_inode  = nilfs_destroy_inode,
+ 	.dirty_inode    = nilfs_dirty_inode,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/ocfs2/cluster/heartbeat.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/ocfs2/cluster/heartbeat.c	2009-07-30 12:06:52.144842473 -0400
+@@ -966,7 +966,7 @@ static ssize_t o2hb_debug_read(struct fi
+ }
+ #endif  /* CONFIG_DEBUG_FS */
+ 
+-static struct file_operations o2hb_debug_fops = {
++static const struct file_operations o2hb_debug_fops = {
+ 	.open =		o2hb_debug_open,
+ 	.release =	o2hb_debug_release,
+ 	.read =		o2hb_debug_read,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/ocfs2/super.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/ocfs2/super.c	2009-07-30 12:06:52.187885986 -0400
+@@ -362,7 +362,7 @@ static ssize_t ocfs2_debug_read(struct f
+ }
+ #endif	/* CONFIG_DEBUG_FS */
+ 
+-static struct file_operations ocfs2_osb_debug_fops = {
++static const struct file_operations ocfs2_osb_debug_fops = {
+ 	.open =		ocfs2_osb_debug_open,
+ 	.release =	ocfs2_debug_release,
+ 	.read =		ocfs2_debug_read,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/romfs/super.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/romfs/super.c	2009-07-30 12:07:02.769214712 -0400
+@@ -284,7 +284,7 @@ static const struct file_operations romf
+ 	.readdir	= romfs_readdir,
+ };
+ 
+-static struct inode_operations romfs_dir_inode_operations = {
++static const struct inode_operations romfs_dir_inode_operations = {
+ 	.lookup		= romfs_lookup,
+ };
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/fs/sysfs/bin.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/fs/sysfs/bin.c	2009-07-30 12:02:44.278047822 -0400
+@@ -40,7 +40,7 @@ struct bin_buffer {
+ 	struct mutex			mutex;
+ 	void				*buffer;
+ 	int				mmapped;
+-	struct vm_operations_struct 	*vm_ops;
++	const struct vm_operations_struct 	*vm_ops;
+ 	struct file			*file;
+ 	struct hlist_node		list;
+ };
+@@ -330,7 +330,7 @@ static int bin_migrate(struct vm_area_st
+ }
+ #endif
+ 
+-static struct vm_operations_struct bin_vm_ops = {
++static const struct vm_operations_struct bin_vm_ops = {
+ 	.open		= bin_vma_open,
+ 	.close		= bin_vma_close,
+ 	.fault		= bin_fault,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/net/sunrpc/rpc_pipe.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/net/sunrpc/rpc_pipe.c	2009-07-30 12:07:21.048974939 -0400
+@@ -858,7 +858,7 @@ EXPORT_SYMBOL_GPL(rpc_unlink);
+ /*
+  * populate the filesystem
+  */
+-static struct super_operations s_ops = {
++static const struct super_operations s_ops = {
+ 	.alloc_inode	= rpc_alloc_inode,
+ 	.destroy_inode	= rpc_destroy_inode,
+ 	.statfs		= simple_statfs,
+only in patch2:
+unchanged:
+--- linux-2.6.30.3/security/integrity/ima/ima_fs.c	2009-07-24 17:47:51.000000000 -0400
++++ linux-2.6.30.3-new/security/integrity/ima/ima_fs.c	2009-07-30 12:06:52.190847656 -0400
+@@ -42,7 +42,7 @@ static ssize_t ima_show_htable_violation
+ 	return ima_show_htable_value(buf, count, ppos, &ima_htable.violations);
+ }
+ 
+-static struct file_operations ima_htable_violations_ops = {
++static const struct file_operations ima_htable_violations_ops = {
+ 	.read = ima_show_htable_violations
+ };
+ 
+@@ -54,7 +54,7 @@ static ssize_t ima_show_measurements_cou
+ 
+ }
+ 
+-static struct file_operations ima_measurements_count_ops = {
++static const struct file_operations ima_measurements_count_ops = {
+ 	.read = ima_show_measurements_count
+ };
+ 
+@@ -145,7 +145,7 @@ static int ima_measurements_show(struct 
+ 	return 0;
+ }
+ 
+-static struct seq_operations ima_measurments_seqops = {
++static const struct seq_operations ima_measurments_seqops = {
+ 	.start = ima_measurements_start,
+ 	.next = ima_measurements_next,
+ 	.stop = ima_measurements_stop,
+@@ -157,7 +157,7 @@ static int ima_measurements_open(struct 
+ 	return seq_open(file, &ima_measurments_seqops);
+ }
+ 
+-static struct file_operations ima_measurements_ops = {
++static const struct file_operations ima_measurements_ops = {
+ 	.open = ima_measurements_open,
+ 	.read = seq_read,
+ 	.llseek = seq_lseek,
+@@ -220,7 +220,7 @@ static int ima_ascii_measurements_show(s
+ 	return 0;
+ }
+ 
+-static struct seq_operations ima_ascii_measurements_seqops = {
++static const struct seq_operations ima_ascii_measurements_seqops = {
+ 	.start = ima_measurements_start,
+ 	.next = ima_measurements_next,
+ 	.stop = ima_measurements_stop,
+@@ -232,7 +232,7 @@ static int ima_ascii_measurements_open(s
+ 	return seq_open(file, &ima_ascii_measurements_seqops);
+ }
+ 
+-static struct file_operations ima_ascii_measurements_ops = {
++static const struct file_operations ima_ascii_measurements_ops = {
+ 	.open = ima_ascii_measurements_open,
+ 	.read = seq_read,
+ 	.llseek = seq_lseek,
+@@ -309,7 +309,7 @@ static int ima_release_policy(struct ino
+ 	return 0;
+ }
+ 
+-static struct file_operations ima_measure_policy_ops = {
++static const struct file_operations ima_measure_policy_ops = {
+ 	.open = ima_open_policy,
+ 	.write = ima_write_policy,
+ 	.release = ima_release_policy

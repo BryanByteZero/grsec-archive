@@ -1,0 +1,131 @@
+I see security as being more of a nuisance for the upstream kernel
+developers.  It's understandable, if someone makes a mistake, it can be
+embarrassing, particularly when it gets into the news or has some
+important impact.  It also lessens the image of Linux as being an
+enterprise-ready OS if someone can write up an exploit to take over the
+entire system in a matter of hours in some cases.
+
+I don't think they get the same kind of enjoyment as I do out of
+securing things, eliminating exploit vectors and entire bug classes.  So
+their approach seems to be in line with the feeling of it being a
+nuisance: when a vulnerability appears and they discover it or it's
+reported to them, they'll fix it and simply move on.
+
+The industry is entirely broken in terms of what it values.  Bug
+bounties, pwn2own etc.  Millions of dollars have been paid out just to
+fix individual bugs, but the cornerstones of modern exploit prevention
+created by the PaX Team have been rewarded with no money at all by the
+industry.  It rewards what perpetuates the problem, and people looking
+to make money stand in line waiting for whatever new handout the
+industry's created for itself.  If you want to see how perverse the
+incentives are, just look at us: we don't make enough to do our work
+full time, it's not enough even for a single person to survive on.
+People will only pay for what they can't get for free, so they'll pay
+for a bug or they'll pay for an exploit, but they won't pay to support
+the people creating the technology that make that bug and that exploit
+irrelevant.
+
+The upstream developers have strong opinions of their own, but I think
+they're a bit misguided. For a long time (probably even currently)
+they've essentially blamed the circus aspect of the industry as being
+the reason why they're not taking security more seriously -- as it would
+lend some credibility to a view different from their own that bugs are
+just bugs.  They play a strange game where on the one hand, they have a
+security@kernel.org email address to be privately notified of security
+vulnerabilities, but their public stance is that security
+vulnerabilities shouldn't be treated differently from any other bug:
+"bugs are bugs".  What leads from this claim is that everyone should be
+running the very latest version of Linux, as that's the only way to
+ensure you have all the fixes, security or not.  Unfortunately, the
+latest versions of Linux also come with the most vulnerabilities,
+usually introduced in newer code as their development model for the past
+several years has resulted in rapid inclusion of experimental code of a
+period of two months, after which it's declared "stable."
+Unfortunately, it's not stable enough so unlike the old development
+model where there was a stable tree that users and distros used, and a
+development tree the kernel developers hacked away on for much longer
+periods of time, now there's much more fragmentation of Linux.  If you
+go on kernel.org, you'll notice 8 "stable" kernel versions -- there are
+many more than that being widely used (for instance, Canonical maintains
+some), but those are the only ones they allow to be listed on
+kernel.org.  For some reason, the -stable maintainer Greg Kroah Hartman
+has some beef with Canonical, so he refuses to allow their kernels to be
+listed on the site -- he doesn't consider them to be part of the kernel
+community.
+
+So this leads into another problem, all these different stable kernels
+leads to lots of duplication of effort -- a security fix in the latest
+version of Linux will likely need to be backported through several years
+of stable kernels.  Even more problematic is that the majority of kernel
+developers have a stated policy of avoiding clear mention of security
+issues in their commit log messages, the exact information needed for
+everyone to backport important security fixes.  So in a way the kernel
+developers are avoiding responsibility for the security of their code.
+They present an impossible solution: (use the latest version of Linux,
+which has the most vulnerabilities and unstable, untested features) and
+anyone not doing that then has to rely on their particular Linux
+distribution to provide them with fixes.
+
+I've been pretty vocal about this, but I've been surprised that people
+simply don't care (other than a small minority of security-conscious
+people).  Maybe patching vulnerabilities after they're discovered is the
+only model of security they can grasp or the only one they've been
+exposed to.  No news article is ever going to talk about how we
+prevented many critical Linux vulnerabilities this year without having
+to know anything about the individual bugs themselves.  The article will
+always be about the imminent danger of the vulnerability and the need
+for swift patching.
+There's no real leadership in Linux as far as security goes from within
+the kernel community itself.  Microsoft can force their employees to
+take training on secure coding practices and common bug classes.
+Something like that has never happened for Linux -- modulo demands from
+their respective employers (or perhaps now organizations like the CII
+which in turn will have to give them money), no one is any position to
+get them to work on anything or improve their skill in anything other
+than the particular subareas they're interested in. When I presented at
+the Linux Security Summit in 2010, run concurrently in the same building
+with Linux meetings on other topics, the only people in the audience for
+all of the security talks were developers working on the access control
+frameworks in Linux.  I had met another kernel developer in the hallway
+and asked if he'd be attending the security topic, and he (the main
+filesystem developer) was obviously only attending the filesystem
+conference running at the same time.  Yet this same developer could
+probably learn a lesson or two about why it's a bad idea to introduce
+complex changes with single-line commit messages, several times
+introducing vulnerabilities in the process (which were later fixed with
+similarly undescriptive single-line commit messages).
+
+So this goes back to the issue of people not caring when I point out the
+problems with Linux security.  Maybe it's because I have no right to
+complain about anything someone is contributing for free?  It would
+likely upset me as well.  Perhaps the only important difference here is
+that many of these developers are being paid full-time salaries to
+create their code -- it's their day job.  It's for this reason that I
+think the only shift will end up happening via initiatives like CII
+where the respective employers for the kernel developers essentially
+tell them the time for ignoring security is over, they want them to
+actively work on some fundamental improvements instead of simply fixing
+bugs as they're discovered.  It's interesting that Linus recently gave
+an interview
+(http://www.eweek.com/enterprise-apps/linus-torvalds-talks-linux-security-at-linuxcon.html)
+where he started off with his old statement he's repeated many times
+about security simply being about bugs.  He then followed it up with
+something that sounded very similar to what our approach has been for
+years: "The only real solution to security is to admit that bugs
+happen," Torvalds said, "and then mitigate them by having multiple
+layers, so if you have a hole in one component, the next layer will
+catch the issue." The problem is that Linux has never really had another
+layer, it's been a single layer of the typical bug/patch cycle.  They've
+had every opportunity to change that situation, but the prevailing naive
+view has been: "why introduce some performance hit for a case we should
+never hit, as long as our code is correct?  Let's just make sure our
+code is correct, then we don't need all this extra cruft."  They've
+never really accepted that different users have different priorities,
+and some would be more than happy to give up some small amount of
+performance (we're talking single digits here) in exchange for a host of
+preventive security measures that will save them countless times against
+common bug classes and exploit vectors, where these security features
+are completely configurable for those who value performance above all
+else.  Linux has instead simply waited for Intel to implement security
+features of the PaX Team in silicon, in practice up to 9 years after
+it's been possible via software.

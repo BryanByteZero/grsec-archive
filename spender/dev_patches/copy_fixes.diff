@@ -1,0 +1,179 @@
+only in patch2:
+unchanged:
+--- linux-2.6.33/drivers/isdn/hardware/avm/b1.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/drivers/isdn/hardware/avm/b1.c	2010-03-06 20:26:57.917812684 -0500
+@@ -173,7 +173,7 @@ int b1_load_t4file(avmcard *card, capilo
+ 	}
+ 	if (left) {
+ 		if (t4file->user) {
+-			if (copy_from_user(buf, dp, left))
++			if (left > sizeof(buf) || copy_from_user(buf, dp, left))
+ 				return -EFAULT;
+ 		} else {
+ 			memcpy(buf, dp, left);
+@@ -221,7 +221,7 @@ int b1_load_config(avmcard *card, capilo
+ 	}
+ 	if (left) {
+ 		if (config->user) {
+-			if (copy_from_user(buf, dp, left))
++			if (left > sizeof(buf) || copy_from_user(buf, dp, left))
+ 				return -EFAULT;
+ 		} else {
+ 			memcpy(buf, dp, left);
+only in patch2:
+unchanged:
+--- linux-2.6.33/drivers/isdn/icn/icn.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/drivers/isdn/icn/icn.c	2010-03-06 20:30:14.273872582 -0500
+@@ -1044,7 +1044,7 @@ icn_writecmd(const u_char * buf, int len
+ 		if (count > len)
+ 			count = len;
+ 		if (user) {
+-			if (copy_from_user(msg, buf, count))
++			if (count > sizeof(msg) || copy_from_user(msg, buf, count))
+ 				return -EFAULT;
+ 		} else
+ 			memcpy(msg, buf, count);
+only in patch2:
+unchanged:
+--- linux-2.6.33/drivers/media/radio/radio-cadet.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/drivers/media/radio/radio-cadet.c	2010-03-06 20:33:26.286152877 -0500
+@@ -347,7 +347,7 @@ static ssize_t cadet_read(struct file *f
+ 	while (i < count && dev->rdsin != dev->rdsout)
+ 		readbuf[i++] = dev->rdsbuf[dev->rdsout++];
+ 
+-	if (copy_to_user(data, readbuf, i))
++	if (i > sizeof(readbuf) || copy_to_user(data, readbuf, i))
+ 		return -EFAULT;
+ 	return i;
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.33/drivers/net/tulip/de4x5.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/drivers/net/tulip/de4x5.c	2010-03-06 20:38:26.710049943 -0500
+@@ -5472,7 +5472,7 @@ de4x5_ioctl(struct net_device *dev, stru
+ 	for (i=0; i<ETH_ALEN; i++) {
+ 	    tmp.addr[i] = dev->dev_addr[i];
+ 	}
+-	if (copy_to_user(ioc->data, tmp.addr, ioc->len)) return -EFAULT;
++	if (ioc->len > sizeof(tmp.addr) || copy_to_user(ioc->data, tmp.addr, ioc->len)) return -EFAULT;
+ 	break;
+ 
+     case DE4X5_SET_HWADDR:           /* Set the hardware address */
+@@ -5512,7 +5512,7 @@ de4x5_ioctl(struct net_device *dev, stru
+ 	spin_lock_irqsave(&lp->lock, flags);
+ 	memcpy(&statbuf, &lp->pktStats, ioc->len);
+ 	spin_unlock_irqrestore(&lp->lock, flags);
+-	if (copy_to_user(ioc->data, &statbuf, ioc->len))
++	if (ioc->len > sizeof(statbuf) || copy_to_user(ioc->data, &statbuf, ioc->len))
+ 		return -EFAULT;
+ 	break;
+     }
+only in patch2:
+unchanged:
+--- linux-2.6.33/drivers/parport/procfs.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/drivers/parport/procfs.c	2010-03-06 20:35:57.653892397 -0500
+@@ -64,7 +64,7 @@ static int do_active_device(ctl_table *t
+ 
+ 	*ppos += len;
+ 
+-	return copy_to_user(result, buffer, len) ? -EFAULT : 0;
++	return (len > sizeof(buffer) || copy_to_user(result, buffer, len)) ? -EFAULT : 0;
+ }
+ 
+ #ifdef CONFIG_PARPORT_1284
+@@ -106,7 +106,7 @@ static int do_autoprobe(ctl_table *table
+ 
+ 	*ppos += len;
+ 
+-	return copy_to_user (result, buffer, len) ? -EFAULT : 0;
++	return (len > sizeof(buffer) || copy_to_user (result, buffer, len)) ? -EFAULT : 0;
+ }
+ #endif /* IEEE1284.3 support. */
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.33/fs/ocfs2/symlink.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/fs/ocfs2/symlink.c	2010-03-06 20:02:03.650383627 -0500
+@@ -148,7 +148,7 @@ bail:
+ 
+ static void ocfs2_fast_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+ {
+-	char *link = nd_get_link(nd);
++	const char *link = nd_get_link(nd);
+ 	if (!IS_ERR(link))
+ 		kfree(link);
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.33/fs/xfs/linux-2.6/xfs_ioctl.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/fs/xfs/linux-2.6/xfs_ioctl.c	2010-03-06 20:03:07.474146988 -0500
+@@ -135,7 +135,7 @@ xfs_find_handle(
+ 	}
+ 
+ 	error = -EFAULT;
+-	if (copy_to_user(hreq->ohandle, &handle, hsize) ||
++	if (hsize > sizeof(handle) || copy_to_user(hreq->ohandle, &handle, hsize) ||
+ 	    copy_to_user(hreq->ohandlen, &hsize, sizeof(__s32)))
+ 		goto out_put;
+ 
+only in patch2:
+unchanged:
+--- linux-2.6.33/net/decnet/sysctl_net_decnet.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/net/decnet/sysctl_net_decnet.c	2010-03-06 20:18:34.038527671 -0500
+@@ -173,7 +173,7 @@ static int dn_node_address_handler(ctl_t
+ 
+ 	if (len > *lenp) len = *lenp;
+ 
+-	if (copy_to_user(buffer, addr, len))
++	if (len > sizeof(addr) || copy_to_user(buffer, addr, len))
+ 		return -EFAULT;
+ 
+ 	*lenp = len;
+@@ -236,7 +236,7 @@ static int dn_def_dev_handler(ctl_table 
+ 
+ 	if (len > *lenp) len = *lenp;
+ 
+-	if (copy_to_user(buffer, devname, len))
++	if (len > sizeof(devname) || copy_to_user(buffer, devname, len))
+ 		return -EFAULT;
+ 
+ 	*lenp = len;
+only in patch2:
+unchanged:
+--- linux-2.6.33/net/ipv4/tcp_probe.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/net/ipv4/tcp_probe.c	2010-03-06 20:21:25.981504154 -0500
+@@ -201,7 +201,7 @@ static ssize_t tcpprobe_read(struct file
+ 		if (cnt + width >= len)
+ 			break;
+ 
+-		if (copy_to_user(buf + cnt, tbuf, width))
++		if (width > sizeof(tbuf) || copy_to_user(buf + cnt, tbuf, width))
+ 			return -EFAULT;
+ 		cnt += width;
+ 	}
+only in patch2:
+unchanged:
+--- linux-2.6.33/net/sunrpc/xprtrdma/svc_rdma.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/net/sunrpc/xprtrdma/svc_rdma.c	2010-03-06 20:32:06.761593123 -0500
+@@ -105,7 +105,7 @@ static int read_reset_stat(ctl_table *ta
+ 		len -= *ppos;
+ 		if (len > *lenp)
+ 			len = *lenp;
+-		if (len && copy_to_user(buffer, str_buf, len))
++		if (len > sizeof(str_buf) || (len && copy_to_user(buffer, str_buf, len)))
+ 			return -EFAULT;
+ 		*lenp = len;
+ 		*ppos += len;
+only in patch2:
+unchanged:
+--- linux-2.6.33/sound/oss/sb_audio.c	2010-02-24 13:52:17.000000000 -0500
++++ linux-2.6.33-new/sound/oss/sb_audio.c	2010-03-06 20:11:45.121614328 -0500
+@@ -901,7 +901,7 @@ sb16_copy_from_user(int dev,
+ 		buf16 = (signed short *)(localbuf + localoffs);
+ 		while (c)
+ 		{
+-			locallen = (c >= LBUFCOPYSIZE ? LBUFCOPYSIZE : c);
++			locallen = ((unsigned)c >= LBUFCOPYSIZE ? LBUFCOPYSIZE : c);
+ 			if (copy_from_user(lbuf8,
+ 					   userbuf+useroffs + p,
+ 					   locallen))

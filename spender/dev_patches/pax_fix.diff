@@ -1,0 +1,380 @@
+diff -urNp linux-2.6.31.1/arch/powerpc/include/asm/uaccess.h linux-2.6.31.1-new/arch/powerpc/include/asm/uaccess.h
+--- linux-2.6.31.1/arch/powerpc/include/asm/uaccess.h	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/arch/powerpc/include/asm/uaccess.h	2009-09-27 12:27:32.000000000 -0400
+@@ -327,6 +327,78 @@ do {								\
+ extern unsigned long __copy_tofrom_user(void __user *to,
+ 		const void __user *from, unsigned long size);
+ 
++static inline unsigned long __copy_from_user_inatomic(void *to,
++		const void __user *from, unsigned long n)
++{
++	if (__builtin_constant_p(n) && (n <= 8)) {
++		unsigned long ret = 1;
++
++		switch (n) {
++		case 1:
++			__get_user_size(*(u8 *)to, from, 1, ret);
++			break;
++		case 2:
++			__get_user_size(*(u16 *)to, from, 2, ret);
++			break;
++		case 4:
++			__get_user_size(*(u32 *)to, from, 4, ret);
++			break;
++		case 8:
++			__get_user_size(*(u64 *)to, from, 8, ret);
++			break;
++		}
++		if (ret == 0)
++			return 0;
++	}
++	if (!__builtin_constant_p(n))
++		check_object_size(to, n, false);
++
++	return __copy_tofrom_user((__force void __user *)to, from, n);
++}
++
++static inline unsigned long __copy_to_user_inatomic(void __user *to,
++		const void *from, unsigned long n)
++{
++	if (__builtin_constant_p(n) && (n <= 8)) {
++		unsigned long ret = 1;
++
++		switch (n) {
++		case 1:
++			__put_user_size(*(u8 *)from, (u8 __user *)to, 1, ret);
++			break;
++		case 2:
++			__put_user_size(*(u16 *)from, (u16 __user *)to, 2, ret);
++			break;
++		case 4:
++			__put_user_size(*(u32 *)from, (u32 __user *)to, 4, ret);
++			break;
++		case 8:
++			__put_user_size(*(u64 *)from, (u64 __user *)to, 8, ret);
++			break;
++		}
++		if (ret == 0)
++			return 0;
++	}
++	if (!__builtin_constant_p(n))
++		check_object_size(from, n, true);
++
++	return __copy_tofrom_user(to, (__force const void __user *)from, n);
++}
++
++static inline unsigned long __copy_from_user(void *to,
++		const void __user *from, unsigned long size)
++{
++	might_sleep();
++	return __copy_from_user_inatomic(to, from, size);
++}
++
++static inline unsigned long __copy_to_user(void __user *to,
++		const void *from, unsigned long size)
++{
++	might_sleep();
++	return __copy_to_user_inatomic(to, from, size);
++}
++
+ #ifndef __powerpc64__
+ 
+ static inline unsigned long __must_check copy_from_user(void *to,
+@@ -418,78 +490,6 @@ extern unsigned long copy_in_user(void _
+ 
+ #endif /* __powerpc64__ */
+ 
+-static inline unsigned long __copy_from_user_inatomic(void *to,
+-		const void __user *from, unsigned long n)
+-{
+-	if (__builtin_constant_p(n) && (n <= 8)) {
+-		unsigned long ret = 1;
+-
+-		switch (n) {
+-		case 1:
+-			__get_user_size(*(u8 *)to, from, 1, ret);
+-			break;
+-		case 2:
+-			__get_user_size(*(u16 *)to, from, 2, ret);
+-			break;
+-		case 4:
+-			__get_user_size(*(u32 *)to, from, 4, ret);
+-			break;
+-		case 8:
+-			__get_user_size(*(u64 *)to, from, 8, ret);
+-			break;
+-		}
+-		if (ret == 0)
+-			return 0;
+-	}
+-	if (!__builtin_constant_p(n))
+-		check_object_size(to, n, false);
+-
+-	return __copy_tofrom_user((__force void __user *)to, from, n);
+-}
+-
+-static inline unsigned long __copy_to_user_inatomic(void __user *to,
+-		const void *from, unsigned long n)
+-{
+-	if (__builtin_constant_p(n) && (n <= 8)) {
+-		unsigned long ret = 1;
+-
+-		switch (n) {
+-		case 1:
+-			__put_user_size(*(u8 *)from, (u8 __user *)to, 1, ret);
+-			break;
+-		case 2:
+-			__put_user_size(*(u16 *)from, (u16 __user *)to, 2, ret);
+-			break;
+-		case 4:
+-			__put_user_size(*(u32 *)from, (u32 __user *)to, 4, ret);
+-			break;
+-		case 8:
+-			__put_user_size(*(u64 *)from, (u64 __user *)to, 8, ret);
+-			break;
+-		}
+-		if (ret == 0)
+-			return 0;
+-	}
+-	if (!__builtin_constant_p(n))
+-		check_object_size(from, n, true);
+-
+-	return __copy_tofrom_user(to, (__force const void __user *)from, n);
+-}
+-
+-static inline unsigned long __copy_from_user(void *to,
+-		const void __user *from, unsigned long size)
+-{
+-	might_sleep();
+-	return __copy_from_user_inatomic(to, from, size);
+-}
+-
+-static inline unsigned long __copy_to_user(void __user *to,
+-		const void *from, unsigned long size)
+-{
+-	might_sleep();
+-	return __copy_to_user_inatomic(to, from, size);
+-}
+-
+ extern unsigned long __clear_user(void __user *addr, unsigned long size);
+ 
+ static inline unsigned long clear_user(void __user *addr, unsigned long size)
+diff -urNp linux-2.6.31.1/arch/powerpc/kernel/sys_ppc32.c linux-2.6.31.1-new/arch/powerpc/kernel/sys_ppc32.c
+--- linux-2.6.31.1/arch/powerpc/kernel/sys_ppc32.c	2009-09-24 11:45:25.000000000 -0400
++++ linux-2.6.31.1-new/arch/powerpc/kernel/sys_ppc32.c	2009-09-27 12:26:30.000000000 -0400
+@@ -552,10 +552,10 @@ asmlinkage long compat_sys_sysctl(struct
+ 	if (oldlenp) {
+ 		if (!error) {
+ 			if (get_user(oldlen, oldlenp) ||
+-			    put_user(oldlen, (compat_size_t __user *)compat_ptr(tmp.oldlenp)))
++			    put_user(oldlen, (compat_size_t __user *)compat_ptr(tmp.oldlenp)) ||
++			    copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused)))
+ 				error = -EFAULT;
+ 		}
+-		copy_to_user(args->__unused, tmp.__unused, sizeof(tmp.__unused));
+ 	}
+ 	return error;
+ }
+diff -urNp linux-2.6.31.1/arch/sparc/include/asm/atomic_64.h linux-2.6.31.1-new/arch/sparc/include/asm/atomic_64.h
+--- linux-2.6.31.1/arch/sparc/include/asm/atomic_64.h	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/arch/sparc/include/asm/atomic_64.h	2009-09-27 10:58:35.000000000 -0400
+@@ -83,14 +83,15 @@ static inline int atomic_add_unless(atom
+ 		if (unlikely(c == u))
+ 			break;
+ 
+-		asm volatile("add %2, %0\n"
++		asm volatile("addcc %2, %0, %0\n"
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 			     "tvs %%icc, 6\n"
+ #endif
+ 
+ 			     : "=r" (new)
+-			     : "0" (c), "ir" (a));
++			     : "0" (c), "ir" (a)
++			     : "cc");
+ 
+ 		old = atomic_cmpxchg(v, c, new);
+ 		if (likely(old == c))
+@@ -114,14 +115,15 @@ static inline int atomic64_add_unless(at
+ 		if (unlikely(c == u))
+ 			break;
+ 
+-		asm volatile("add %2, %0\n"
++		asm volatile("addcc %2, %0, %0\n"
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 			     "tvs %%xcc, 6\n"
+ #endif
+ 
+ 			     : "=r" (new)
+-			     : "0" (c), "ir" (a));
++			     : "0" (c), "ir" (a)
++			     : "cc");
+ 
+ 		old = atomic64_cmpxchg(v, c, new);
+ 		if (likely(old == c))
+diff -urNp linux-2.6.31.1/arch/sparc/lib/atomic_64.S linux-2.6.31.1-new/arch/sparc/lib/atomic_64.S
+--- linux-2.6.31.1/arch/sparc/lib/atomic_64.S	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/arch/sparc/lib/atomic_64.S	2009-09-27 10:55:49.000000000 -0400
+@@ -18,7 +18,7 @@
+ atomic_add: /* %o0 = increment, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	lduw	[%o1], %g1
+-	add	%g1, %o0, %g7
++	addcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%icc, 6
+@@ -53,7 +53,7 @@ atomic_add_unchecked: /* %o0 = increment
+ atomic_sub: /* %o0 = decrement, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	lduw	[%o1], %g1
+-	sub	%g1, %o0, %g7
++	subcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%icc, 6
+@@ -88,7 +88,7 @@ atomic_sub_unchecked: /* %o0 = decrement
+ atomic_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	lduw	[%o1], %g1
+-	add	%g1, %o0, %g7
++	addcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%icc, 6
+@@ -109,7 +109,7 @@ atomic_add_ret: /* %o0 = increment, %o1 
+ atomic_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	lduw	[%o1], %g1
+-	sub	%g1, %o0, %g7
++	subcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%icc, 6
+@@ -130,7 +130,7 @@ atomic_sub_ret: /* %o0 = decrement, %o1 
+ atomic64_add: /* %o0 = increment, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	ldx	[%o1], %g1
+-	add	%g1, %o0, %g7
++	addcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%xcc, 6
+@@ -150,7 +150,7 @@ atomic64_add: /* %o0 = increment, %o1 = 
+ atomic64_sub: /* %o0 = decrement, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	ldx	[%o1], %g1
+-	sub	%g1, %o0, %g7
++	subcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%xcc, 6
+@@ -170,7 +170,7 @@ atomic64_sub: /* %o0 = decrement, %o1 = 
+ atomic64_add_ret: /* %o0 = increment, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	ldx	[%o1], %g1
+-	add	%g1, %o0, %g7
++	addcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%xcc, 6
+@@ -191,7 +191,7 @@ atomic64_add_ret: /* %o0 = increment, %o
+ atomic64_sub_ret: /* %o0 = decrement, %o1 = atomic_ptr */
+ 	BACKOFF_SETUP(%o2)
+ 1:	ldx	[%o1], %g1
+-	sub	%g1, %o0, %g7
++	subcc	%g1, %o0, %g7
+ 
+ #ifdef CONFIG_PAX_REFCOUNT
+ 	tvs	%xcc, 6
+diff -urNp linux-2.6.31.1/arch/x86/Kconfig linux-2.6.31.1-new/arch/x86/Kconfig
+--- linux-2.6.31.1/arch/x86/Kconfig	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/arch/x86/Kconfig	2009-09-27 09:16:55.000000000 -0400
+@@ -348,7 +348,6 @@ config X86_VSMP
+ 	select PARAVIRT
+ 	depends on X86_64 && PCI
+ 	depends on X86_EXTENDED_PLATFORM
+-	depends on !PAX_KERNEXEC
+ 	---help---
+ 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
+ 	  supposed to run on these EM64T-based machines.  Only choose this option
+@@ -468,7 +467,6 @@ config VMI
+ 	bool "VMI Guest support"
+ 	select PARAVIRT
+ 	depends on X86_32
+-	depends on !PAX_KERNEXEC
+ 	---help---
+ 	  VMI provides a paravirtualized interface to the VMware ESX server
+ 	  (it could be used by other hypervisors in theory too, but is not
+@@ -479,7 +477,6 @@ config KVM_CLOCK
+ 	bool "KVM paravirtualized clock"
+ 	select PARAVIRT
+ 	select PARAVIRT_CLOCK
+-	depends on !PAX_KERNEXEC
+ 	---help---
+ 	  Turning on this option will allow you to run a paravirtualized clock
+ 	  when running over the KVM hypervisor. Instead of relying on a PIT
+@@ -490,7 +487,6 @@ config KVM_CLOCK
+ config KVM_GUEST
+ 	bool "KVM Guest support"
+ 	select PARAVIRT
+-	depends on !PAX_KERNEXEC
+ 	---help---
+ 	  This option enables various optimizations for running under the KVM
+ 	  hypervisor.
+@@ -499,7 +495,6 @@ source "arch/x86/lguest/Kconfig"
+ 
+ config PARAVIRT
+ 	bool "Enable paravirtualization code"
+-	depends on !PAX_KERNEXEC
+ 	---help---
+ 	  This changes the kernel so it can modify itself when it is run
+ 	  under a hypervisor, potentially improving performance significantly
+diff -urNp linux-2.6.31.1/arch/x86/lguest/Kconfig linux-2.6.31.1-new/arch/x86/lguest/Kconfig
+--- linux-2.6.31.1/arch/x86/lguest/Kconfig	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/arch/x86/lguest/Kconfig	2009-09-27 09:17:38.000000000 -0400
+@@ -2,7 +2,6 @@ config LGUEST_GUEST
+ 	bool "Lguest guest support"
+ 	select PARAVIRT
+ 	depends on X86_32
+-	depends on !PAX_KERNEXEC
+ 	select VIRTIO
+ 	select VIRTIO_RING
+ 	select VIRTIO_CONSOLE
+diff -urNp linux-2.6.31.1/arch/x86/xen/Kconfig linux-2.6.31.1-new/arch/x86/xen/Kconfig
+--- linux-2.6.31.1/arch/x86/xen/Kconfig	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/arch/x86/xen/Kconfig	2009-09-27 09:18:34.000000000 -0400
+@@ -8,7 +8,6 @@ config XEN
+ 	select PARAVIRT_CLOCK
+ 	depends on X86_64 || (X86_32 && X86_PAE && !X86_VISWS)
+ 	depends on X86_CMPXCHG && X86_TSC
+-	depends on !PAX_KERNEXEC
+ 	help
+ 	  This is the Linux Xen port.  Enabling this will allow the
+ 	  kernel to boot in a paravirtualized environment under the
+diff -urNp linux-2.6.31.1/fs/exec.c linux-2.6.31.1-new/fs/exec.c
+--- linux-2.6.31.1/fs/exec.c	2009-09-27 12:32:00.000000000 -0400
++++ linux-2.6.31.1-new/fs/exec.c	2009-09-27 09:53:18.000000000 -0400
+@@ -1749,7 +1749,7 @@ void pax_report_refcount_overflow(struct
+ 		printk(KERN_ERR "PAX: refcount overflow detected in: %s:%d, uid/euid: %u/%u\n",
+ 				 current->comm, task_pid_nr(current), current_uid(), current_euid());
+ 	print_symbol(KERN_ERR "PAX: refcount overflow occured at: %s\n", instruction_pointer(regs));
+-	show_registers(regs);
++	show_regs(regs);
+ 	force_sig_specific(SIGKILL, current);
+ }
+ #endif
+diff -urNp linux-2.6.31.1/security/Kconfig linux-2.6.31.1-new/security/Kconfig
+--- linux-2.6.31.1/security/Kconfig	2009-09-27 12:32:01.000000000 -0400
++++ linux-2.6.31.1-new/security/Kconfig	2009-09-27 09:19:29.000000000 -0400
+@@ -405,7 +405,7 @@ config PAX_MEMORY_SANITIZE
+ 
+ config PAX_MEMORY_UDEREF
+ 	bool "Prevent invalid userland pointer dereference"
+-	depends on X86_32 && !UML_X86 && !PARAVIRT
++	depends on X86_32 && !UML_X86
+ 	help
+ 	  By saying Y here the kernel will be prevented from dereferencing
+ 	  userland pointers in contexts where the kernel expects only kernel

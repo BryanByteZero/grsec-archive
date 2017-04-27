@@ -1,0 +1,242 @@
+diff -u linux-2.6.38.1-new/fs/btrfs/inode.c linux-2.6.38.1-new/fs/btrfs/inode.c
+--- linux-2.6.38.1-new/fs/btrfs/inode.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/fs/btrfs/inode.c	2011-03-24 23:08:20.000000000 -0400
+@@ -6796,7 +6796,7 @@
+ 	return -ENOMEM;
+ }
+ 
+-static int btrfs_getattr(struct vfsmount *mnt,
++int btrfs_getattr(struct vfsmount *mnt,
+ 			 struct dentry *dentry, struct kstat *stat)
+ {
+ 	struct inode *inode = dentry->d_inode;
+@@ -6808,6 +6808,14 @@
+ 	return 0;
+ }
+ 
++EXPORT_SYMBOL(btrfs_getattr);
++
++dev_t get_btrfs_dev_from_inode(struct inode *inode)
++{
++	return BTRFS_I(inode)->root->anon_super.s_dev;
++}
++EXPORT_SYMBOL(get_btrfs_dev_from_inode);
++
+ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 			   struct inode *new_dir, struct dentry *new_dentry)
+ {
+diff -u linux-2.6.38.1-new/grsecurity/gracl.c linux-2.6.38.1-new/grsecurity/gracl.c
+--- linux-2.6.38.1-new/grsecurity/gracl.c	2011-03-23 17:00:29.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/gracl.c	2011-03-24 23:08:27.000000000 -0400
+@@ -95,6 +95,21 @@
+ 	return (gr_status & GR_READY);
+ }
+ 
++#ifdef CONFIG_BTRFS_FS
++extern dev_t get_btrfs_dev_from_inode(struct inode *inode);
++extern int btrfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
++#endif
++
++static inline dev_t __get_dev(const struct dentry *dentry)
++{
++#ifdef CONFIG_BTRFS_FS
++	if (dentry->d_inode->i_op && dentry->d_inode->i_op->getattr == &btrfs_getattr)
++		return get_btrfs_dev_from_inode(dentry->d_inode);
++	else
++#endif
++		return dentry->d_inode->i_sb->s_dev;
++}
++
+ static char gr_task_roletype_to_char(struct task_struct *task)
+ {
+ 	switch (task->role->roletype &
+@@ -805,7 +820,7 @@
+ 	path_get(&real_root);
+ 	
+ #ifdef CONFIG_GRKERNSEC_RBAC_DEBUG
+-	printk(KERN_ALERT "Obtained real root device=%d, inode=%lu\n", real_root.dentry->d_inode->i_sb->s_dev, real_root.dentry->d_inode->i_ino);
++	printk(KERN_ALERT "Obtained real root device=%d, inode=%lu\n", __get_dev(real_root.dentry), real_root.dentry->d_inode->i_ino);
+ #endif
+ 
+ 	fakefs_obj = acl_alloc(sizeof(struct acl_object_label));
+@@ -1793,7 +1808,7 @@
+ 
+ 	spin_lock(&curr_dentry->d_lock);
+ 	inode = curr_dentry->d_inode->i_ino;
+-	device = curr_dentry->d_inode->i_sb->s_dev;
++	device = __get_dev(curr_dentry);
+ 	spin_unlock(&curr_dentry->d_lock);
+ 
+ 	return __full_lookup(orig_dentry, orig_mnt, inode, device, subj, path, newglob);
+@@ -1906,7 +1921,7 @@
+ 			read_lock(&gr_inode_lock);
+ 			retval =
+ 				lookup_acl_subj_label(dentry->d_inode->i_ino,
+-						dentry->d_inode->i_sb->s_dev, role);
++						__get_dev(dentry), role);
+ 			read_unlock(&gr_inode_lock);
+ 			spin_unlock(&dentry->d_lock);
+ 			if (retval != NULL)
+@@ -1920,7 +1935,7 @@
+ 		spin_lock(&dentry->d_lock);
+ 		read_lock(&gr_inode_lock);
+ 		retval = lookup_acl_subj_label(dentry->d_inode->i_ino,
+-					  dentry->d_inode->i_sb->s_dev, role);
++					  __get_dev(dentry), role);
+ 		read_unlock(&gr_inode_lock);
+ 		parent = dentry->d_parent;
+ 		spin_unlock(&dentry->d_lock);
+@@ -1934,7 +1949,7 @@
+ 	spin_lock(&dentry->d_lock);
+ 	read_lock(&gr_inode_lock);
+ 	retval = lookup_acl_subj_label(dentry->d_inode->i_ino,
+-				  dentry->d_inode->i_sb->s_dev, role);
++				  __get_dev(dentry), role);
+ 	read_unlock(&gr_inode_lock);
+ 	spin_unlock(&dentry->d_lock);
+ 
+@@ -1942,7 +1957,7 @@
+ 		/* real_root is pinned, we don't need to hold a reference */
+ 		read_lock(&gr_inode_lock);
+ 		retval = lookup_acl_subj_label(real_root.dentry->d_inode->i_ino,
+-					  real_root.dentry->d_inode->i_sb->s_dev, role);
++					  __get_dev(real_root.dentry), role);
+ 		read_unlock(&gr_inode_lock);
+ 	}
+ out:
+@@ -2662,28 +2677,25 @@
+ 	struct acl_subject_label *subj;
+ 	struct acl_role_label *role;
+ 	unsigned int x;
++	ino_t ino = dentry->d_inode->i_ino;
++	dev_t dev = __get_dev(dentry);
+ 	
+ 	FOR_EACH_ROLE_START(role)
+-		update_acl_subj_label(matchn->inode, matchn->device,
+-				      dentry->d_inode->i_ino,
+-				      dentry->d_inode->i_sb->s_dev, role);
++		update_acl_subj_label(matchn->inode, matchn->device, ino, dev, role);
+ 
+ 		FOR_EACH_NESTED_SUBJECT_START(role, subj)
+-			if ((subj->inode == dentry->d_inode->i_ino) &&
+-			    (subj->device == dentry->d_inode->i_sb->s_dev)) {
+-				subj->inode = dentry->d_inode->i_ino;
+-				subj->device = dentry->d_inode->i_sb->s_dev;
++			if ((subj->inode == ino) && (subj->device == dev)) {
++				subj->inode = ino;
++				subj->device = dev;
+ 			}
+ 		FOR_EACH_NESTED_SUBJECT_END(subj)
+ 		FOR_EACH_SUBJECT_START(role, subj, x)
+ 			update_acl_obj_label(matchn->inode, matchn->device,
+-					     dentry->d_inode->i_ino,
+-					     dentry->d_inode->i_sb->s_dev, subj);
++					     ino, dev, subj);
+ 		FOR_EACH_SUBJECT_END(subj,x)
+ 	FOR_EACH_ROLE_END(role)
+ 
+-	update_inodev_entry(matchn->inode, matchn->device,
+-			    dentry->d_inode->i_ino, dentry->d_inode->i_sb->s_dev);
++	update_inodev_entry(matchn->inode, matchn->device, ino, dev);
+ 
+ 	return;
+ }
+@@ -2717,6 +2729,8 @@
+ {
+ 	struct name_entry *matchn;
+ 	struct inodev_entry *inodev;
++	ino_t old_ino = old_dentry->d_inode->i_ino;
++	dev_t old_dev = __get_dev(old_dentry);
+ 
+ 	/* vfs_rename swaps the name and parent link for old_dentry and
+ 	   new_dentry
+@@ -2738,18 +2752,17 @@
+ 
+ 	write_lock(&gr_inode_lock);
+ 	if (unlikely(replace && new_dentry->d_inode)) {
+-		inodev = lookup_inodev_entry(new_dentry->d_inode->i_ino,
+-					     new_dentry->d_inode->i_sb->s_dev);
++		ino_t new_ino = new_dentry->d_inode->i_ino;
++		dev_t new_dev = __get_dev(new_dentry);
++
++		inodev = lookup_inodev_entry(new_ino, new_dev);
+ 		if (inodev != NULL && (new_dentry->d_inode->i_nlink <= 1))
+-			do_handle_delete(inodev, new_dentry->d_inode->i_ino,
+-					 new_dentry->d_inode->i_sb->s_dev);
++			do_handle_delete(inodev, new_ino, new_dev);
+ 	}
+ 
+-	inodev = lookup_inodev_entry(old_dentry->d_inode->i_ino,
+-				     old_dentry->d_inode->i_sb->s_dev);
++	inodev = lookup_inodev_entry(old_ino, old_dev);
+ 	if (inodev != NULL && (old_dentry->d_inode->i_nlink <= 1))
+-		do_handle_delete(inodev, old_dentry->d_inode->i_ino,
+-				 old_dentry->d_inode->i_sb->s_dev);
++		do_handle_delete(inodev, old_ino, old_dev);
+ 
+ 	if (unlikely((unsigned long)matchn))
+ 		do_handle_create(matchn, old_dentry, mnt);
+@@ -3947,6 +3960,7 @@
+ 	unsigned int bufsize;
+ 	int is_not_root;
+ 	char *path;
++	dev_t dev = __get_dev(dentry);
+ 
+ 	if (unlikely(!(gr_status & GR_READY)))
+ 		return 1;
+@@ -3960,7 +3974,7 @@
+ 
+ 	subj = task->acl;
+ 	do {
+-		obj = lookup_acl_obj_label(ino, dentry->d_inode->i_sb->s_dev, subj);
++		obj = lookup_acl_obj_label(ino, dev, subj);
+ 		if (obj != NULL)
+ 			return (obj->mode & GR_FIND) ? 1 : 0;
+ 	} while ((subj = subj->parent_subject));
+diff -u linux-2.6.38.1-new/grsecurity/gracl_segv.c linux-2.6.38.1-new/grsecurity/gracl_segv.c
+--- linux-2.6.38.1-new/grsecurity/gracl_segv.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/grsecurity/gracl_segv.c	2011-03-24 23:09:37.000000000 -0400
+@@ -26,6 +26,22 @@
+ 			      struct acl_role_label *role);
+ extern int specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t);
+ 
++
++#ifdef CONFIG_BTRFS_FS
++extern dev_t get_btrfs_dev_from_inode(struct inode *inode);
++extern int btrfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
++#endif
++
++static inline dev_t __get_dev(const struct dentry *dentry)
++{
++#ifdef CONFIG_BTRFS_FS
++	if (dentry->d_inode->i_op && dentry->d_inode->i_op->getattr == &btrfs_getattr)
++		return get_btrfs_dev_from_inode(dentry->d_inode);
++	else
++#endif
++		return dentry->d_inode->i_sb->s_dev;
++}
++
+ int
+ gr_init_uidset(void)
+ {
+@@ -264,7 +280,7 @@
+ 
+ 	read_lock(&gr_inode_lock);
+ 	curr = lookup_acl_subj_label(filp->f_path.dentry->d_inode->i_ino,
+-				     filp->f_path.dentry->d_inode->i_sb->s_dev,
++				     __get_dev(filp->f_path.dentry),
+ 				     current->role);
+ 	read_unlock(&gr_inode_lock);
+ 
+diff -u linux-2.6.38.1-new/kernel/printk.c linux-2.6.38.1-new/kernel/printk.c
+--- linux-2.6.38.1-new/kernel/printk.c	2011-03-22 17:42:11.000000000 -0400
++++ linux-2.6.38.1-new/kernel/printk.c	2011-03-23 22:30:08.000000000 -0400
+@@ -289,7 +289,7 @@
+ 			return 0;
+ 		/* For historical reasons, accept CAP_SYS_ADMIN too, with a warning */
+ 		if (capable(CAP_SYS_ADMIN)) {
+-			WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
++			printk_once(KERN_WARNING "Attempt to access syslog with CAP_SYS_ADMIN "
+ 				 "but no CAP_SYSLOG (deprecated).\n");
+ 			return 0;
+ 		}

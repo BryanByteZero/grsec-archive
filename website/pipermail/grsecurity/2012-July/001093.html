@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [grsec] new gcc plugin: latent entropy extraction
+   </TITLE>
+   <LINK REL="Index" HREF="index.html" >
+   <LINK REL="made" HREF="mailto:grsecurity%40grsecurity.net?Subject=Re%3A%20%5Bgrsec%5D%20new%20gcc%20plugin%3A%20latent%20entropy%20extraction&In-Reply-To=%3C500DAFF9.19357.3041ED19%40pageexec.freemail.hu%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[grsec] new gcc plugin: latent entropy extraction</H1>
+    <B>PaX Team</B> 
+    <A HREF="mailto:grsecurity%40grsecurity.net?Subject=Re%3A%20%5Bgrsec%5D%20new%20gcc%20plugin%3A%20latent%20entropy%20extraction&In-Reply-To=%3C500DAFF9.19357.3041ED19%40pageexec.freemail.hu%3E"
+       TITLE="[grsec] new gcc plugin: latent entropy extraction">pageexec at freemail.hu
+       </A><BR>
+    <I>Mon Jul 23 16:11:37 EDT 2012</I>
+    <P><UL>
+        
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1093">[ date ]</a>
+              <a href="thread.html#1093">[ thread ]</a>
+              <a href="subject.html#1093">[ subject ]</a>
+              <a href="author.html#1093">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>hello everyone,
+
+it's time to introduce the newest member of our plugin family to you. the
+inspiration came from the work described at <A HREF="https://factorable.net/">https://factorable.net/</A> that
+you should all check out eventually (and do get your keys tested).
+
+the short story is that generating crypto keys while the system's random
+pool is low on entropy is not a good idea. and it so happens that some
+systems do actually have little entropy after boot when some userland
+decides to generate said keys. the end result is not pretty, the details
+are in the paper at the above URL.
+
+now there are several ways to improve the situation, some will soon find
+their way into the kernel in fact (check out the random tree by Theodore
+Ts'o at <A HREF="http://git.kernel.org/?p=linux/kernel/git/tytso/random.git;a=summary">http://git.kernel.org/?p=linux/kernel/git/tytso/random.git;a=summary</A>).
+
+the basic idea is always to find some potential source of randomness, or
+even just deterministic diversity (e.g., a MAC address) and mix that into
+the random pools in the hope that enough bits accumulate by the time some
+early userland app decides to extract entropy from them.
+
+this is where the new gcc plugin comes in: we can instrument the kernel's
+boot code to do some hash-like computation and extract some entropy from
+whatever program state we decide to mix into that computation. a similar
+idea has in fact been implemented by Larry Highsmith of Subreption fame
+in <A HREF="http://www.phrack.org/issues.html?issue=66&amp;id=15">http://www.phrack.org/issues.html?issue=66&amp;id=15</A> where he (manually)
+instrumented the kernel's boot code to extract entropy from a few kernel
+variables such as time (jiffies) and context switch counts.
+
+the latent entropy plugin takes this extraction to a whole new level. first,
+we define a new global variable that we mix into the kernel's entropy pools
+on each initcall. second, each initcall function (and all other boot-only
+functions they call) gets instrumented to compute a 'random' number that
+gets mixed into this global variable at the end of the function (you can
+think of it as an artificially created return value that each instrumented
+function computes for our purposes). the computation is a mix of add/xor/rol
+(the happy recovery Halvar mix :) with compile-time chosen random constants
+and the sequence of these operations follows the instrumented functions's
+control flow graph. for the rest of the gory details see the source code ;).
+
+as for the results of this whole adventure: i tried an allnoconfig amd64
+kernel in qemu and i still saw a few bits of entropy in the last computed
+random function, so i'd like to believe that with real hardware around we
+can perhaps generate entropy in useful amounts, but time (and some real
+analysis by someone with more free time than me) will tell ;). there's also
+some impact on the boot time that i didn't bother to measure because it's
+probably in the noise, but feel free to post your numbers. there're also
+many ways this code can be tweaked to change the tradeoff between entropy
+extraction and boot time impact.
+
+one last note for those who care about binary checksums, reproducibility and
+the like: the injected code depends on the compiler version, optimization
+switches, kernel config, target architecture, etc (anything that can affect
+the control flow graph) and also on gcc's internal random seed generated for
+each compilation unit. if you want some determinism in the generated binaries,
+make use of -frandom-seed that the latent entropy plugin will honour as well
+(or at least that was the intention). the other side of the coin is that even
+if you keep all the above variables the same (minus the gcc seed), your kernel
+images will still be different and produce a different random pool on boot.
+
+tl;dr: go read the whole thing, there're no shortcuts ;P
+
+cheers,
+ PaX Team
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1093">[ date ]</a>
+              <a href="thread.html#1093">[ thread ]</a>
+              <a href="subject.html#1093">[ subject ]</a>
+              <a href="author.html#1093">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="http://grsecurity.net/cgi-bin/mailman/listinfo/grsecurity">More information about the grsecurity
+mailing list</a><br>
+</body></html>

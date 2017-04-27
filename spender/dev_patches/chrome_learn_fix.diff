@@ -1,0 +1,133 @@
+diff -u linux-2.6.38.1-new/fs/proc/base.c linux-2.6.38.1-new/fs/proc/base.c
+--- linux-2.6.38.1-new/fs/proc/base.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/fs/proc/base.c	2011-03-26 11:59:10.000000000 -0400
+@@ -566,7 +566,7 @@
+ /************************************************************************/
+ 
+ /* permission checks */
+-static int proc_fd_access_allowed(struct inode *inode)
++static int proc_fd_access_allowed(struct inode *inode, unsigned int log)
+ {
+ 	struct task_struct *task;
+ 	int allowed = 0;
+@@ -576,7 +576,10 @@
+ 	 */
+ 	task = get_proc_task(inode);
+ 	if (task) {
+-		allowed = ptrace_may_access(task, PTRACE_MODE_READ);
++		if (log)
++			allowed = ptrace_may_access_log(task, PTRACE_MODE_READ);
++		else
++			allowed = ptrace_may_access(task, PTRACE_MODE_READ);
+ 		put_task_struct(task);
+ 	}
+ 	return allowed;
+@@ -1647,7 +1650,7 @@
+ 	path_put(&nd->path);
+ 
+ 	/* Are we allowed to snoop on the tasks file descriptors? */
+-	if (!proc_fd_access_allowed(inode))
++	if (!proc_fd_access_allowed(inode,0))
+ 		goto out;
+ 
+ 	error = PROC_I(inode)->op.proc_get_link(inode, &nd->path);
+@@ -1686,8 +1689,18 @@
+ 	struct path path;
+ 
+ 	/* Are we allowed to snoop on the tasks file descriptors? */
+-	if (!proc_fd_access_allowed(inode))
+-		goto out;
++	/* logging this is needed for learning on chromium to work properly,
++	   but we don't want to flood the logs from 'ps' which does a readlink
++	   on /proc/fd/2 of tasks in the listing, nor do we want 'ps' to learn
++	   CAP_SYS_PTRACE as it's not necessary for its basic functionality
++	 */
++	if (dentry->d_name.name[0] == '2' && dentry->d_name.name[1] == '\0') {
++		if (!proc_fd_access_allowed(inode,0))
++			goto out;
++	} else {
++		if (!proc_fd_access_allowed(inode,1))
++			goto out;
++	}
+ 
+ 	error = PROC_I(inode)->op.proc_get_link(inode, &path);
+ 	if (error)
+diff -u linux-2.6.38.1-new/kernel/ptrace.c linux-2.6.38.1-new/kernel/ptrace.c
+--- linux-2.6.38.1-new/kernel/ptrace.c	2011-03-21 18:31:35.000000000 -0400
++++ linux-2.6.38.1-new/kernel/ptrace.c	2011-03-26 11:42:34.000000000 -0400
+@@ -116,7 +116,8 @@
+ 	return ret;
+ }
+ 
+-int __ptrace_may_access(struct task_struct *task, unsigned int mode)
++static int __ptrace_may_access(struct task_struct *task, unsigned int mode,
++			       unsigned int log)
+ {
+ 	const struct cred *cred = current_cred(), *tcred;
+ 
+@@ -140,7 +141,9 @@
+ 	     cred->gid != tcred->egid ||
+ 	     cred->gid != tcred->sgid ||
+ 	     cred->gid != tcred->gid) &&
+-	    !capable_nolog(CAP_SYS_PTRACE)) {
++	     ((!log && !capable_nolog(CAP_SYS_PTRACE)) ||
++	      (log && !capable(CAP_SYS_PTRACE)))
++	) {
+ 		rcu_read_unlock();
+ 		return -EPERM;
+ 	}
+@@ -148,7 +151,9 @@
+ 	smp_rmb();
+ 	if (task->mm)
+ 		dumpable = get_dumpable(task->mm);
+-	if (!dumpable && !capable_nolog(CAP_SYS_PTRACE))
++	if (!dumpable &&
++	     ((!log && !capable_nolog(CAP_SYS_PTRACE)) ||
++	      (log && !capable(CAP_SYS_PTRACE))))
+ 		return -EPERM;
+ 
+ 	return security_ptrace_access_check(task, mode);
+@@ -158,7 +163,16 @@
+ {
+ 	int err;
+ 	task_lock(task);
+-	err = __ptrace_may_access(task, mode);
++	err = __ptrace_may_access(task, mode, 0);
++	task_unlock(task);
++	return !err;
++}
++
++bool ptrace_may_access_log(struct task_struct *task, unsigned int mode)
++{
++	int err;
++	task_lock(task);
++	err = __ptrace_may_access(task, mode, 1);
+ 	task_unlock(task);
+ 	return !err;
+ }
+@@ -185,7 +199,7 @@
+ 		goto out;
+ 
+ 	task_lock(task);
+-	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
++	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH, 1);
+ 	task_unlock(task);
+ 	if (retval)
+ 		goto unlock_creds;
+only in patch2:
+unchanged:
+--- linux-2.6.38.1/include/linux/ptrace.h	2011-03-14 21:20:32.000000000 -0400
++++ linux-2.6.38.1-new/include/linux/ptrace.h	2011-03-26 11:36:13.000000000 -0400
+@@ -115,10 +115,10 @@ extern void __ptrace_unlink(struct task_
+ extern void exit_ptrace(struct task_struct *tracer);
+ #define PTRACE_MODE_READ   1
+ #define PTRACE_MODE_ATTACH 2
+-/* Returns 0 on success, -errno on denial. */
+-extern int __ptrace_may_access(struct task_struct *task, unsigned int mode);
+ /* Returns true on success, false on denial. */
+ extern bool ptrace_may_access(struct task_struct *task, unsigned int mode);
++/* Returns true on success, false on denial. */
++extern bool ptrace_may_access_log(struct task_struct *task, unsigned int mode);
+ 
+ static inline int ptrace_reparented(struct task_struct *child)
+ {

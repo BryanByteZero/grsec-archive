@@ -1,0 +1,163 @@
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/arm/include/asm/uaccess.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/arm/include/asm/uaccess.h	2009-06-13 00:30:48.000000000 -0400
+@@ -400,7 +400,7 @@ static inline unsigned long __must_check
+ {
+ 	if (access_ok(VERIFY_READ, from, n))
+ 		n = __copy_from_user(to, from, n);
+-	else /* security hole - plug it */
++	else if ((long)n > 0) /* security hole - plug it -- good idea! */
+ 		memset(to, 0, n);
+ 	return n;
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/ia64/include/asm/uaccess.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/ia64/include/asm/uaccess.h	2009-06-13 00:25:18.000000000 -0400
+@@ -257,7 +257,7 @@ __copy_from_user (void *to, const void _
+ 	const void *__cu_from = (from);							\
+ 	long __cu_len = (n);								\
+ 											\
+-	if (__access_ok(__cu_to, __cu_len, get_fs()))					\
++	if (__cu_len > 0 && __cu_len <= INT_MAX && __access_ok(__cu_to, __cu_len, get_fs()))	\
+ 		__cu_len = __copy_user(__cu_to, (__force void __user *) __cu_from, __cu_len);	\
+ 	__cu_len;									\
+ })
+@@ -269,7 +269,7 @@ __copy_from_user (void *to, const void _
+ 	long __cu_len = (n);								\
+ 											\
+ 	__chk_user_ptr(__cu_from);							\
+-	if (__access_ok(__cu_from, __cu_len, get_fs()))					\
++	if (__cu_len > 0 && __cu_len <= INT_MAX && __access_ok(__cu_from, __cu_len, get_fs()))	\
+ 		__cu_len = __copy_user((__force void __user *) __cu_to, __cu_from, __cu_len);	\
+ 	__cu_len;									\
+ })
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/m32r/lib/usercopy.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/m32r/lib/usercopy.c	2009-06-13 00:52:32.000000000 -0400
+@@ -26,7 +26,7 @@ __generic_copy_from_user(void *to, const
+ 	prefetchw(to);
+ 	if (access_ok(VERIFY_READ, from, n))
+ 		__copy_user_zeroing(to,from,n);
+-	else
++	else if ((long)n > 0)
+ 		memset(to, 0, n);
+ 	return n;
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/powerpc/include/asm/uaccess.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/powerpc/include/asm/uaccess.h	2009-06-13 00:48:06.000000000 -0400
+@@ -334,6 +334,9 @@ static inline unsigned long copy_from_us
+ {
+ 	unsigned long over;
+ 
++	if (((long)n < 0) || (n > INT_MAX))
++		return n;
++
+ 	if (access_ok(VERIFY_READ, from, n))
+ 		return __copy_tofrom_user((__force void __user *)to, from, n);
+ 	if ((unsigned long)from < TASK_SIZE) {
+@@ -349,6 +352,9 @@ static inline unsigned long copy_to_user
+ {
+ 	unsigned long over;
+ 
++	if (((long)n < 0) || (n > INT_MAX))
++		return n;
++
+ 	if (access_ok(VERIFY_WRITE, to, n))
+ 		return __copy_tofrom_user(to, (__force void __user *)from, n);
+ 	if ((unsigned long)to < TASK_SIZE) {
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/powerpc/lib/usercopy_64.c	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/powerpc/lib/usercopy_64.c	2009-06-13 00:43:03.000000000 -0400
+@@ -11,6 +11,9 @@
+ 
+ unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)
+ {
++	if (unlikely(((long)n < 0) || (n > INT_MAX)))
++		return n;
++
+ 	if (likely(access_ok(VERIFY_READ, from, n)))
+ 		n = __copy_from_user(to, from, n);
+ 	else
+@@ -20,6 +23,9 @@ unsigned long copy_from_user(void *to, c
+ 
+ unsigned long copy_to_user(void __user *to, const void *from, unsigned long n)
+ {
++	if (unlikely(((long)n < 0) || (n > INT_MAX)))
++		return n;
++
+ 	if (likely(access_ok(VERIFY_WRITE, to, n)))
+ 		n = __copy_to_user(to, from, n);
+ 	return n;
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/s390/include/asm/uaccess.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/s390/include/asm/uaccess.h	2009-06-13 00:54:08.000000000 -0400
+@@ -285,7 +285,7 @@ copy_from_user(void *to, const void __us
+ 	might_sleep();
+ 	if (access_ok(VERIFY_READ, from, n))
+ 		n = __copy_from_user(to, from, n);
+-	else
++	else if ((long)n > 0)
+ 		memset(to, 0, n);
+ 	return n;
+ }
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/sparc/include/asm/uaccess_32.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/sparc/include/asm/uaccess_32.h	2009-06-13 00:16:38.000000000 -0400
+@@ -246,7 +246,7 @@ extern unsigned long __copy_user(void __
+ 
+ static inline unsigned long copy_to_user(void __user *to, const void *from, unsigned long n)
+ {
+-	if (n && __access_ok((unsigned long) to, n))
++	if (((int)n > 0) && __access_ok((unsigned long) to, n))
+ 		return __copy_user(to, (__force void __user *) from, n);
+ 	else
+ 		return n;
+@@ -259,7 +259,7 @@ static inline unsigned long __copy_to_us
+ 
+ static inline unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)
+ {
+-	if (n && __access_ok((unsigned long) from, n))
++	if (((int)n > 0) && __access_ok((unsigned long) from, n))
+ 		return __copy_user((__force void __user *) to, from, n);
+ 	else
+ 		return n;
+only in patch2:
+unchanged:
+--- linux-2.6.29.5/arch/sparc/include/asm/uaccess_64.h	2009-05-18 19:52:34.000000000 -0400
++++ linux-2.6.29.5/arch/sparc/include/asm/uaccess_64.h	2009-06-13 00:22:27.000000000 -0400
+@@ -212,7 +212,12 @@ extern unsigned long copy_from_user_fixu
+ static inline unsigned long __must_check
+ copy_from_user(void *to, const void __user *from, unsigned long size)
+ {
+-	unsigned long ret = ___copy_from_user(to, from, size);
++	unsigned long ret;
++
++	if (unlikely(((long)size > INT_MAX) || ((long)size < 0)))
++		return size;
++
++	ret  = ___copy_from_user(to, from, size);
+ 
+ 	if (unlikely(ret))
+ 		ret = copy_from_user_fixup(to, from, size);
+@@ -228,7 +233,12 @@ extern unsigned long copy_to_user_fixup(
+ static inline unsigned long __must_check
+ copy_to_user(void __user *to, const void *from, unsigned long size)
+ {
+-	unsigned long ret = ___copy_to_user(to, from, size);
++	unsigned long ret;
++
++	if (unlikely(((long)size > INT_MAX) || ((long)size < 0)))
++		return size;
++
++	ret  = ___copy_to_user(to, from, size);
+ 
+ 	if (unlikely(ret))
+ 		ret = copy_to_user_fixup(to, from, size);

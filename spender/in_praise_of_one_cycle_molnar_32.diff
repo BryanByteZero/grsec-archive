@@ -1,0 +1,88 @@
+diff --git a/fs/compat.c b/fs/compat.c
+index c71a7d2..9a958d2 100644
+--- a/fs/compat.c
++++ b/fs/compat.c
+@@ -1472,10 +1472,6 @@ out:
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-extern atomic64_unchecked_t global_exec_counter;
+-#endif
+-
+ /*
+  * compat_do_execve() is mostly a copy of do_execve(), with the exception
+  * that it processes 32 bit argv and envp pointers.
+@@ -1631,9 +1627,7 @@ int compat_do_execve(char * filename,
+ #endif
+ 
+ 	/* execve succeeded */
+-#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-        current->exec_id = atomic64_inc_return_unchecked(&global_exec_counter);
+-#endif
++	increment_exec_counter();
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;
+ 	acct_update_integrals(current);
+diff --git a/fs/exec.c b/fs/exec.c
+index 71c97cd..23b09e5 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1385,7 +1385,18 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
+ EXPORT_SYMBOL(search_binary_handler);
+ 
+ #ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-atomic64_unchecked_t global_exec_counter = ATOMIC64_INIT(0);
++DEFINE_PER_CPU(u64, exec_counter);
++static int __init init_exec_counters(void)
++{
++	unsigned int cpu;
++
++	for_each_possible_cpu(cpu) {
++		per_cpu(exec_counter, cpu) = (u64)cpu;
++	}
++
++	return 0;
++}
++early_initcall(init_exec_counters);
+ #endif
+ 
+ /*
+@@ -1545,10 +1556,8 @@ int do_execve(char * filename,
+ #endif
+ 
+ 	/* execve succeeded */
+-#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
+-	current->exec_id = atomic64_inc_return_unchecked(&global_exec_counter);
+-#endif
+ 
++	increment_exec_counter();
+ 	current->fs->in_exec = 0;
+ 	current->in_execve = 0;
+ 	acct_update_integrals(current);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 2ef383dc3..11f07b4 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2720,6 +2720,21 @@ static inline unsigned long rlimit_max(unsigned int limit)
+ 	return task_rlimit_max(current, limit);
+ }
+ 
++#ifdef CONFIG_GRKERNSEC_PROC_MEMMAP
++DECLARE_PER_CPU(u64, exec_counter);
++static inline void increment_exec_counter(void)
++{
++	unsigned int cpu;
++        BUILD_BUG_ON(NR_CPUS >= (1 << 16));
++	cpu = get_cpu();
++	*(per_cpu_ptr(exec_counter, cpu)) += 1ULL << 16;
++        current->exec_id = per_cpu(exec_counter, cpu);
++	put_cpu();
++}
++#else
++static inline void increment_exec_counter(void) {}
++#endif
++
+ #endif /* __KERNEL__ */
+ 
+ #endif

@@ -1,0 +1,13 @@
+diff --git a/kernel/kmod.c b/kernel/kmod.c
+index eaff670..70ba2b2 100644
+--- a/kernel/kmod.c
++++ b/kernel/kmod.c
+@@ -614,6 +614,8 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+ 
+ 	INIT_WORK(&sub_info->work, __call_usermodehelper);
+ #ifdef CONFIG_GRKERNSEC
++	printk(KERN_ALERT "call_usermodehelper_setup path=%s\n", path);
++	dump_stack();
+ 	sub_info->origpath = path;
+ 	sub_info->path = kstrdup(path, gfp_mask);
+ #else

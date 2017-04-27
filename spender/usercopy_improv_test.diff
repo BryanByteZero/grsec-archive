@@ -1,0 +1,42 @@
+diff --git a/fs/exec.c b/fs/exec.c
+index 70b4ba4..ea108c3 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -2089,8 +2089,36 @@ void __check_object_size(const void *ptr, unsigned long n, bool to)
+ 
+ 	type = check_heap_object(ptr, n);
+ 	if (!type) {
+-		if (check_stack_object(ptr, n) != -1)
++		int ret;
++		ret = check_stack_object(ptr, n);
++		if (ret == 1 || ret == 2)
+ 			return;
++		if (ret == 0) {
++			char *zone = "unknown";
++			if ((unsigned long)ptr >= init_mm.start_code) {
++				if ((unsigned long)ptr < init_mm.end_code)
++					zone = "text";
++				else if ((unsigned long)ptr < init_mm.end_data) {
++					const char *cptr = (const char *)ptr;
++					if (cptr[0] == '.' &&
++					    (cptr[1] == '\0' ||
++					     (cptr[1] == '.' && cptr[2] == '\0')
++					    )
++					   )
++						return;
++					   
++					zone = "data";
++				} else if ((unsigned long)ptr < init_mm.brk)
++					zone = "brk";
++				else
++					return;
++			} else
++				return;
++		
++			printk(KERN_ALERT "task %s copied \"%.32s\" %s kernel addr %p:%pA (%s) size %lu\n", current->comm, (const char *)ptr, to ? "from" : "to", ptr, ptr, zone, n);
++			dump_stack();
++			return;
++		}
+ 		type = "<process stack>";
+ 	}
+ 

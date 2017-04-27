@@ -1,0 +1,30 @@
+00008000-0000f000 r-xp 00000000 b3:19 16265      /bin/cat
+00016000-00017000 r--p 00006000 b3:19 16265      /bin/cat
+00017000-00018000 rw-p 00007000 b3:19 16265      /bin/cat
+00018000-03737000 ---p 00000000 00:00 0 
+03737000-03759000 rw-p 00000000 00:00 0          [heap]
+a9dac000-a9dd2000 r--p 00000000 b3:19 14956      /usr/lib/locale/C.UTF-8/LC_CTYPE
+a9dd2000-a9dd3000 r--p 00000000 b3:19 14949      /usr/lib/locale/C.UTF-8/LC_NUMERIC
+a9dd3000-a9dd4000 r--p 00000000 b3:19 14947      /usr/lib/locale/C.UTF-8/LC_TIME
+a9dd4000-a9f43000 r--p 00000000 b3:19 14950      /usr/lib/locale/C.UTF-8/LC_COLLATE
+a9f43000-a9f44000 r--p 00000000 b3:19 14948      /usr/lib/locale/C.UTF-8/LC_MONETARY
+a9f44000-a9f45000 r--p 00000000 b3:19 14946      /usr/lib/locale/C.UTF-8/LC_MESSAGES/SYS_LC_MESSAGES
+a9f45000-a9f46000 r--p 00000000 b3:19 14951      /usr/lib/locale/C.UTF-8/LC_PAPER
+a9f46000-a9f4d000 r--s 00000000 b3:19 15082      /usr/lib/arm-linux-gnueabihf/gconv/gconv-modules.cache
+a9f4d000-a9f4e000 rw-p 00000000 00:00 0 
+a9f4e000-aa022000 r-xp 00000000 b3:19 16487      /lib/arm-linux-gnueabihf/libc-2.15.so
+aa022000-aa02a000 ---p 000d4000 b3:19 16487      /lib/arm-linux-gnueabihf/libc-2.15.so
+aa02a000-aa02c000 r--p 000d4000 b3:19 16487      /lib/arm-linux-gnueabihf/libc-2.15.so
+aa02c000-aa02d000 rw-p 000d6000 b3:19 16487      /lib/arm-linux-gnueabihf/libc-2.15.so
+aa02d000-aa030000 rw-p 00000000 00:00 0 
+aa030000-aa047000 r-xp 00000000 b3:19 16478      /lib/arm-linux-gnueabihf/ld-2.15.so
+aa047000-aa048000 r--p 00000000 b3:19 14957      /usr/lib/locale/C.UTF-8/LC_NAME
+aa048000-aa049000 r--p 00000000 b3:19 14955      /usr/lib/locale/C.UTF-8/LC_ADDRESS
+aa049000-aa04a000 r--p 00000000 b3:19 14952      /usr/lib/locale/C.UTF-8/LC_TELEPHONE
+aa04a000-aa04b000 r--p 00000000 b3:19 14953      /usr/lib/locale/C.UTF-8/LC_MEASUREMENT
+aa04b000-aa04c000 r--p 00000000 b3:19 14954      /usr/lib/locale/C.UTF-8/LC_IDENTIFICATION
+aa04c000-aa04e000 rw-p 00000000 00:00 0 
+aa04e000-aa04f000 r--p 00016000 b3:19 16478      /lib/arm-linux-gnueabihf/ld-2.15.so
+aa04f000-aa050000 rw-p 00017000 b3:19 16478      /lib/arm-linux-gnueabihf/ld-2.15.so
+b9252000-b9274000 rw-p 00000000 00:00 0          [stack]
+ffff0000-ffff1000 ---p 00000000 00:00 0          [vectors]
